@@ -2,7 +2,7 @@
 # logon of the current user, then starts it right away. Re-running replaces
 # the existing task. Undo with uninstall-startup.ps1.
 
-param([string]$TaskName = 'Bookmarks')
+param([string]$TaskName = 'Essentials')
 
 $ErrorActionPreference = 'Stop'
 
@@ -36,7 +36,7 @@ if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
 & (Join-Path $PSScriptRoot 'stop.ps1')
 
 Register-ScheduledTask -TaskName $TaskName `
-  -Description 'Local bookmark manager on http://localhost:8008' `
+  -Description 'Local Essentials app (bookmarks, notes) on http://localhost:8008' `
   -Action $action -Trigger $trigger -Settings $settings -Principal $principal |
   Out-Null
 

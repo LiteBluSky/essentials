@@ -15,6 +15,13 @@
       "when": 1790850814884,
       "tag": "0001_spooky_diamondback",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793692771350,
+      "tag": "0002_great_mojo",
+      "breakpoints": true
     }
   ]
 }

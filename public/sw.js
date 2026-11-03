@@ -1,16 +1,19 @@
 // Service worker: makes the app installable and readable offline.
 // - Hashed build assets (/assets/*): cache first (they never change).
 // - Everything else (the page, server-function reads, icons): network first,
-//   falling back to the last cached copy. The page is server-rendered with
-//   all notes in it, so offline you get the notes as they were last loaded
+//   falling back to the last cached copy. Each app's page is server-rendered
+//   with all its data in it, so offline you get it as it was last loaded
 //   (read-only: saving needs the server).
-const CACHE = 'app-v1'
+// `/` only redirects to the first app, so redirected responses aren't cached
+// (a browser refuses them for navigations) and pages are cached by app path.
+const CACHE = 'app-v2'
+const PAGES = ['/bookmarks', '/notes']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(CACHE)
-      .then((cache) => cache.add('/'))
+      .then((cache) => cache.addAll(PAGES))
       .catch(() => {})
       .then(() => self.skipWaiting()),
   )
@@ -54,7 +57,7 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(request)
       .then((res) => {
-        if (res.ok) {
+        if (res.ok && !res.redirected) {
           const copy = res.clone()
           caches.open(CACHE).then((cache) => cache.put(request, copy))
         }
@@ -64,7 +67,7 @@ self.addEventListener('fetch', (event) => {
         const hit = await caches.match(request)
         if (hit) return hit
         if (request.mode === 'navigate') {
-          const page = await caches.match('/')
+          const page = await caches.match(PAGES[0])
           if (page) return page
         }
         return Response.error()

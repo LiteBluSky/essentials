@@ -11,7 +11,7 @@ import {
 
 import { db } from '@/db'
 import { folders, links } from '@/db/schema'
-import { MAX_FAVORITES } from '@/lib/schemas'
+import { MAX_FAVORITES } from '@/lib/bookmarks/schemas'
 import type {
   BookmarksFile,
   ExportFolder,
@@ -20,8 +20,8 @@ import type {
   FolderInput,
   LinkInput,
   MoveInput,
-} from '@/lib/schemas'
-import { reorderIds } from '@/lib/tree'
+} from '@/lib/bookmarks/schemas'
+import { reorderIds } from '@/lib/bookmarks/tree'
 
 // Server-only DB helpers. Only import from *.functions.ts.
 

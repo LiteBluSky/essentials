@@ -12,7 +12,8 @@ export const Route = createFileRoute('/manifest.webmanifest')({
           {
             name: APP_NAME,
             short_name: APP_NAME,
-            description: 'Personal bookmarks, organised into folders.',
+            description:
+              'Bookmarks, notes and other simple essentials, in one place.',
             id: '/',
             start_url: '/',
             scope: '/',

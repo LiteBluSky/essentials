@@ -1,34 +1,34 @@
 import { useCallback, useEffect, useState } from 'react'
 
-const STORAGE_KEY = 'bookmarks:expanded-folders'
-
-// Remembers which folders are open across reloads. Starts empty on the server
+// Remembers which folders are open across reloads, per app (`app` keys the
+// storage: `<app>:expanded-folders`). Starts empty on the server
 // and on first client render, then restores from localStorage after hydration.
-export function useExpandedFolders() {
+export function useExpandedFolders(app: string) {
+  const storageKey = `${app}:expanded-folders`
   const [expanded, setExpanded] = useState<ReadonlySet<number>>(new Set())
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY)
+      const stored = localStorage.getItem(storageKey)
       if (stored) setExpanded(new Set(JSON.parse(stored) as Array<number>))
     } catch {
       // Unavailable or corrupt storage — start collapsed.
     }
-  }, [])
+  }, [storageKey])
 
   const update = useCallback(
     (change: (prev: ReadonlySet<number>) => ReadonlySet<number>) => {
       setExpanded((prev) => {
         const next = change(prev)
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]))
+          localStorage.setItem(storageKey, JSON.stringify([...next]))
         } catch {
           // Ignore — expansion just won't persist.
         }
         return next
       })
     },
-    [],
+    [storageKey],
   )
 
   const setOpen = useCallback(

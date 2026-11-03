@@ -3,7 +3,7 @@ import { GlobeIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import type { Link } from '@/db/schema'
-import { hostname } from '@/lib/tree'
+import { hostname } from '@/lib/bookmarks/tree'
 import type { OpenEditor } from './editor'
 import { LinkMenu } from './bookmark-tree'
 

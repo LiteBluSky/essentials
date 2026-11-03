@@ -13,12 +13,12 @@ import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
 import type { Folder } from '@/db/schema'
-import { folderInput } from '@/lib/schemas'
-import type { FolderInput } from '@/lib/schemas'
-import type { FolderOption } from '@/lib/tree'
+import { folderInput } from '@/lib/bookmarks/schemas'
+import type { FolderInput } from '@/lib/bookmarks/schemas'
+import type { FolderOption } from '@/lib/bookmarks/tree'
 import {
   createFolder,
-  treeQueryOptions,
+  bookmarksTreeQueryOptions,
   updateFolder,
 } from '@/server/bookmarks.functions'
 import { FolderSelect } from './folder-select'
@@ -42,7 +42,7 @@ export function FolderForm({
       else await createFolder({ data: value })
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries(treeQueryOptions)
+      await queryClient.invalidateQueries(bookmarksTreeQueryOptions)
       toast.add({
         title: folder ? 'Folder updated' : 'Folder created',
         type: 'success',

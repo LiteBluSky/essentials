@@ -1,7 +1,7 @@
 # Stops and removes the Scheduled Task created by install-startup.ps1, and
 # stops the server it started.
 
-param([string]$TaskName = 'Bookmarks')
+param([string]$TaskName = 'Essentials')
 
 $ErrorActionPreference = 'Stop'
 

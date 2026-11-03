@@ -6,7 +6,8 @@ import type { RefObject } from 'react'
 //   j / ↓  next row          k / ↑  previous row
 //   h / ←  collapse folder, or jump to parent folder
 //   l / →  expand folder, or step into its first child
-//   H      collapse all folders
+//   H      collapse all folders; if none are open, go to the previous app
+//   L      go to the next app
 //   gg     first row         G      last row
 //   n / N  next / previous visible link (wraps around)
 //   o      open link / toggle folder (Enter works natively too)
@@ -44,6 +45,7 @@ export function useTreeKeyboard({
   onHelp,
   onEdit,
   onDelete,
+  onSwitchApp,
   onCut,
   onPaste,
   onCancelCut,
@@ -61,6 +63,8 @@ export function useTreeKeyboard({
   onHelp: () => void
   onEdit: (kind: 'folder' | 'link', id: number) => void
   onDelete: (kind: 'folder' | 'link', id: number) => void
+  /** Previous (-1) / next (1) app in the navbar. */
+  onSwitchApp: (step: -1 | 1) => void
   onCut: (linkId: number) => void
   /** Paste onto the focused row, or at the top level when none is focused. */
   onPaste: (target: { kind: 'folder' | 'link'; id: number } | null) => void
@@ -80,6 +84,7 @@ export function useTreeKeyboard({
     onHelp,
     onEdit,
     onDelete,
+    onSwitchApp,
     onCut,
     onPaste,
     onCancelCut,
@@ -181,6 +186,15 @@ export function useTreeKeyboard({
         }
         case 'H': {
           handled()
+          const anyOpen = list.some(
+            (el) =>
+              el.dataset.kind === 'folder' &&
+              cb.expanded.has(Number(el.dataset.id)),
+          )
+          if (!anyOpen) {
+            cb.onSwitchApp(-1)
+            return
+          }
           // Keep focus visible: move it to the row's top-level folder.
           let top = current
           while (top?.dataset.parentId) {
@@ -194,6 +208,10 @@ export function useTreeKeyboard({
           if (top && top !== current) focus(top)
           return
         }
+        case 'L':
+          handled()
+          cb.onSwitchApp(1)
+          return
         case 'h':
         case 'ArrowLeft': {
           if (!current) return

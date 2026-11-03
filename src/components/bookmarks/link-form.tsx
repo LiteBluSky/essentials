@@ -15,12 +15,12 @@ import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/toast'
 import type { Link } from '@/db/schema'
-import { linkInput } from '@/lib/schemas'
-import type { LinkInput } from '@/lib/schemas'
-import type { FolderOption } from '@/lib/tree'
+import { linkInput } from '@/lib/bookmarks/schemas'
+import type { LinkInput } from '@/lib/bookmarks/schemas'
+import type { FolderOption } from '@/lib/bookmarks/tree'
 import {
   createLink,
-  treeQueryOptions,
+  bookmarksTreeQueryOptions,
   updateLink,
 } from '@/server/bookmarks.functions'
 import { FolderSelect } from './folder-select'
@@ -50,7 +50,7 @@ export function LinkForm({
       else await createLink({ data: value })
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries(treeQueryOptions)
+      await queryClient.invalidateQueries(bookmarksTreeQueryOptions)
       toast.add({
         title: link ? 'Link updated' : 'Link added',
         type: 'success',

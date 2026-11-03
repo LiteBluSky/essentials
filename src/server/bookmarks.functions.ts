@@ -10,7 +10,7 @@ import {
   moveInput,
   updateFolderInput,
   updateLinkInput,
-} from '@/lib/schemas'
+} from '@/lib/bookmarks/schemas'
 import {
   editFolder,
   editLink,
@@ -30,8 +30,8 @@ export const getTree = createServerFn({ method: 'GET' }).handler(() =>
   loadTree(),
 )
 
-export const treeQueryOptions = queryOptions({
-  queryKey: ['tree'],
+export const bookmarksTreeQueryOptions = queryOptions({
+  queryKey: ['bookmarks', 'tree'],
   queryFn: () => getTree(),
 })
 

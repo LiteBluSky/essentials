@@ -62,7 +62,9 @@ body {
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root {
+:root,
+/* PDF export is always light, whatever the theme. */
+[data-note-print] {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -140,5 +142,108 @@ body {
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* Rendered notes (components/notes/markdown.tsx): typography plugin, tuned
+   to the theme tokens. Unlayered on purpose: prose and the Checkbox's
+   utility classes live in Tailwind's layers, which would win otherwise. */
+@plugin '@tailwindcss/typography';
+
+.markdown {
+  --tw-prose-body: var(--foreground);
+  --tw-prose-headings: var(--foreground);
+  --tw-prose-bold: var(--foreground);
+  --tw-prose-links: var(--foreground);
+  --tw-prose-code: var(--foreground);
+  --tw-prose-quotes: var(--muted-foreground);
+  --tw-prose-quote-borders: var(--border);
+  --tw-prose-bullets: var(--muted-foreground);
+  --tw-prose-counters: var(--muted-foreground);
+  --tw-prose-hr: var(--border);
+  --tw-prose-th-borders: var(--border);
+  --tw-prose-td-borders: var(--border);
+  --tw-prose-pre-bg: var(--muted);
+  --tw-prose-pre-code: var(--foreground);
+  --tw-prose-invert-body: var(--foreground);
+  --tw-prose-invert-headings: var(--foreground);
+  --tw-prose-invert-bold: var(--foreground);
+  --tw-prose-invert-links: var(--foreground);
+  --tw-prose-invert-code: var(--foreground);
+  --tw-prose-invert-quotes: var(--muted-foreground);
+  --tw-prose-invert-quote-borders: var(--border);
+  --tw-prose-invert-bullets: var(--muted-foreground);
+  --tw-prose-invert-counters: var(--muted-foreground);
+  --tw-prose-invert-hr: var(--border);
+  --tw-prose-invert-th-borders: var(--border);
+  --tw-prose-invert-td-borders: var(--border);
+  --tw-prose-invert-pre-bg: var(--muted);
+  --tw-prose-invert-pre-code: var(--foreground);
+  overflow-wrap: anywhere;
+}
+.markdown > :first-child {
+  margin-top: 0;
+}
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+.markdown :not(pre) > code {
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+  padding: 0.125rem 0.375rem;
+  font-weight: 500;
+}
+.markdown :not(pre) > code::before,
+.markdown :not(pre) > code::after {
+  content: none;
+}
+/* Checklists: the box replaces the bullet. */
+.markdown ul.contains-task-list {
+  list-style: none;
+  padding-left: 0;
+}
+.markdown ul.contains-task-list ul.contains-task-list {
+  padding-left: 1.625em;
+}
+.markdown li.task-list-item {
+  padding-left: 0;
+}
+.markdown li.task-list-item > [data-task-checkbox] {
+  display: inline-flex;
+  margin-right: 0.5em;
+  vertical-align: -0.125em;
+}
+.markdown li.task-list-item:has(> [data-task-checkbox][data-checked]) {
+  color: var(--muted-foreground);
+  text-decoration: line-through;
+}
+
+/* PDF export (components/notes/note-print.tsx): while a note is being
+   printed, it's the only thing on the page. The dialog's scroll lock is
+   undone so the note can run over several pages. */
+@media screen {
+  [data-note-print] {
+    display: none;
+  }
+}
+@media print {
+  @page {
+    margin: 2cm;
+  }
+  html:has(body > [data-note-print]),
+  body:has(> [data-note-print]) {
+    position: static !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: white;
+  }
+  body:has(> [data-note-print]) > :not([data-note-print]) {
+    display: none !important;
+  }
+  [data-note-print] {
+    color: var(--foreground);
+  }
+  [data-note-print] [data-task-checkbox] {
+    opacity: 1;
   }
 }

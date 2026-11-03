@@ -1,6 +1,6 @@
 export type Theme = 'light' | 'dark' | 'system'
 
-export const THEME_STORAGE_KEY = 'bookmarks:theme'
+export const THEME_STORAGE_KEY = 'theme'
 
 // Runs inline in <head> before first paint so there's no light/dark flash.
 // Also follows OS changes while the stored choice is "system" (or unset).

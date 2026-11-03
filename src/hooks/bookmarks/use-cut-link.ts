@@ -4,9 +4,9 @@ import { resolveMove } from '@/components/bookmarks/tree-dnd'
 import type { DropTarget } from '@/components/bookmarks/tree-dnd'
 import { toast } from '@/components/ui/toast'
 import type { Link } from '@/db/schema'
-import { useMoveBookmark } from '@/hooks/use-move-bookmark'
-import { findFolder } from '@/lib/tree'
-import type { Tree } from '@/lib/tree'
+import { useMoveBookmark } from '@/hooks/bookmarks/use-move-bookmark'
+import { findFolder } from '@/lib/bookmarks/tree'
+import type { Tree } from '@/lib/bookmarks/tree'
 
 type PasteTarget = { kind: 'folder' | 'link'; id: number } | null
 

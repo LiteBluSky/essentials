@@ -20,11 +20,14 @@ import {
 import { toast } from '@/components/ui/toast'
 import { useInstallApp } from '@/hooks/use-install-app'
 import { APP_NAME } from '@/lib/config'
-import { MAX_FAVORITES, bookmarksFile } from '@/lib/schemas'
-import type { BookmarksFile } from '@/lib/schemas'
-import { toBookmarksFile } from '@/lib/tree'
-import type { Tree } from '@/lib/tree'
-import { importBookmarks, treeQueryOptions } from '@/server/bookmarks.functions'
+import { MAX_FAVORITES, bookmarksFile } from '@/lib/bookmarks/schemas'
+import type { BookmarksFile } from '@/lib/bookmarks/schemas'
+import { toBookmarksFile } from '@/lib/bookmarks/tree'
+import type { Tree } from '@/lib/bookmarks/tree'
+import {
+  importBookmarks,
+  bookmarksTreeQueryOptions,
+} from '@/server/bookmarks.functions'
 
 function plural(n: number, word: string) {
   return `${n} ${word}${n === 1 ? '' : 's'}`
@@ -35,7 +38,7 @@ function download(tree: Tree) {
   const url = URL.createObjectURL(
     new Blob([json], { type: 'application/json' }),
   )
-  const slug = APP_NAME.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'bookmarks'
+  const slug = `${APP_NAME.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'essentials'}-bookmarks`
   const date = new Date().toISOString().slice(0, 10)
   const a = document.createElement('a')
   a.href = url
@@ -90,7 +93,7 @@ export function ImportExportMenu({ tree }: { tree: Tree }) {
     mutationFn: async (file: File) =>
       importBookmarks({ data: await readFile(file) }),
     onSuccess: async ({ folders, links, favorites, skippedFavorites }) => {
-      await queryClient.invalidateQueries(treeQueryOptions)
+      await queryClient.invalidateQueries(bookmarksTreeQueryOptions)
       const notes = [
         favorites > 0 && `${plural(favorites, 'favourite')} added.`,
         skippedFavorites > 0 &&

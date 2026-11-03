@@ -1,9 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { toast } from '@/components/ui/toast'
-import type { MoveInput } from '@/lib/schemas'
-import { reorderIds } from '@/lib/tree'
-import { moveBookmark, treeQueryOptions } from '@/server/bookmarks.functions'
+import type { MoveInput } from '@/lib/bookmarks/schemas'
+import { reorderIds } from '@/lib/bookmarks/tree'
+import {
+  moveBookmark,
+  bookmarksTreeQueryOptions,
+} from '@/server/bookmarks.functions'
 import type { getTree } from '@/server/bookmarks.functions'
 
 type TreeData = Awaited<ReturnType<typeof getTree>>
@@ -40,7 +43,7 @@ function applyMove(data: TreeData, move: MoveInput): TreeData {
 
 export function useMoveBookmark() {
   const queryClient = useQueryClient()
-  const { queryKey } = treeQueryOptions
+  const { queryKey } = bookmarksTreeQueryOptions
 
   return useMutation({
     mutationFn: (move: MoveInput) => moveBookmark({ data: move }),

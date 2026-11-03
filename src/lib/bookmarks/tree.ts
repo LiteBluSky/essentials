@@ -1,6 +1,10 @@
 import type { Folder, Link } from '@/db/schema'
-import { EXPORT_FORMAT } from '@/lib/schemas'
-import type { BookmarksFile, ExportFolder, ExportLink } from '@/lib/schemas'
+import { EXPORT_FORMAT } from '@/lib/bookmarks/schemas'
+import type {
+  BookmarksFile,
+  ExportFolder,
+  ExportLink,
+} from '@/lib/bookmarks/schemas'
 
 export type FolderNode = {
   folder: Folder

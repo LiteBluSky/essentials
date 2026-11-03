@@ -18,12 +18,12 @@ import {
 } from '@/components/ui/dialog'
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
-import { flattenFolders } from '@/lib/tree'
-import type { FolderNode, Tree } from '@/lib/tree'
+import { flattenFolders } from '@/lib/bookmarks/tree'
+import type { FolderNode, Tree } from '@/lib/bookmarks/tree'
 import {
   deleteFolder,
   deleteLink,
-  treeQueryOptions,
+  bookmarksTreeQueryOptions,
 } from '@/server/bookmarks.functions'
 import type { EditorState } from './editor'
 import { FolderForm } from './folder-form'
@@ -115,7 +115,7 @@ function DeleteConfirm({
         ? deleteLink({ data: { id: state.link.id } })
         : deleteFolder({ data: { id: state.node.folder.id } }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries(treeQueryOptions)
+      await queryClient.invalidateQueries(bookmarksTreeQueryOptions)
       toast.add({ title: 'Deleted', type: 'success' })
       onDone()
     },

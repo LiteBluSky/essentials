@@ -1,18 +1,18 @@
 # docker compose up -d --build   →   http://localhost:8008
-# Data is kept in the named volume `bookmarks-data` (survives rebuilds).
+# Data is kept in the named volume `essentials-data` (survives rebuilds).
 services:
-  bookmarks:
+  essentials:
     build:
       context: .
       args:
-        VITE_APP_NAME: ${VITE_APP_NAME:-Bookmarks}
+        VITE_APP_NAME: ${VITE_APP_NAME:-Essentials}
     # To use the published image instead of building locally:
-    # image: ghcr.io/liteblusky/bookmarks:latest
+    # image: ghcr.io/liteblusky/essentials:latest
     ports:
       - '8008:8008'
     volumes:
-      - bookmarks-data:/data
+      - essentials-data:/data
     restart: unless-stopped
 
 volumes:
-  bookmarks-data:
+  essentials-data:

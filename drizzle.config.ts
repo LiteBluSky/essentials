@@ -7,7 +7,7 @@ import { defineConfig } from 'drizzle-kit'
 config({ path: ['.env.local', '.env'] })
 
 // Same default as src/db/index.ts.
-const path = resolve(process.env.DATABASE_PATH || 'data/bookmarks.db')
+const path = resolve(process.env.DATABASE_PATH || 'data/essentials.db')
 
 export default defineConfig({
   out: './drizzle',

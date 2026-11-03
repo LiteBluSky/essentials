@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 // to avoid ones browsers reserve or users rely on (Ctrl+L/N/T/W/F).
 export const SHORTCUTS = {
   search: { key: 'k', label: 'K' },
-  newLink: { key: 'b', label: 'B' },
+  newItem: { key: 'b', label: 'B' },
   newFolder: { key: 'g', label: 'G' },
 } as const
 
@@ -13,7 +13,7 @@ export type ShortcutName = keyof typeof SHORTCUTS
 export const MOD_LABEL = 'Ctrl'
 
 export function useShortcuts(
-  handlers: Record<ShortcutName, () => void>,
+  handlers: Partial<Record<ShortcutName, () => void>>,
   enabled = true,
 ) {
   // Keep the listener stable while always calling the latest handlers.
@@ -23,12 +23,15 @@ export function useShortcuts(
   useEffect(() => {
     if (!enabled) return
     const onKeyDown = (e: KeyboardEvent) => {
+      // The note editor uses Ctrl+B etc. for formatting and marks them handled.
+      if (e.defaultPrevented) return
       if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return
       const key = e.key.toLowerCase()
       for (const [name, shortcut] of Object.entries(SHORTCUTS)) {
-        if (shortcut.key === key) {
+        const handler = latest.current[name as ShortcutName]
+        if (shortcut.key === key && handler) {
           e.preventDefault()
-          latest.current[name as ShortcutName]()
+          handler()
           return
         }
       }

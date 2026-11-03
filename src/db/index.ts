@@ -10,7 +10,7 @@ import * as schema from './schema.ts'
 
 // A single SQLite file, created on first start. Relative paths resolve from
 // the working directory (the project root for `pnpm dev` and start.ps1).
-const path = resolve(process.env.DATABASE_PATH || 'data/bookmarks.db')
+const path = resolve(process.env.DATABASE_PATH || 'data/essentials.db')
 mkdirSync(dirname(path), { recursive: true })
 
 const client = createClient({ url: pathToFileURL(path).href })

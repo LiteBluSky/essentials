@@ -1,5 +1,5 @@
 import type { Folder, Link } from '@/db/schema'
-import type { FolderNode } from '@/lib/tree'
+import type { FolderNode } from '@/lib/bookmarks/tree'
 
 // What the page's dialogs are currently editing. One at a time.
 export type EditorState =

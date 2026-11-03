@@ -29,9 +29,14 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
     title: 'Anywhere',
     shortcuts: [
       { keys: [mod(SHORTCUTS.search.label), ['/']], action: 'Search' },
-      { keys: [mod(SHORTCUTS.newLink.label)], action: 'New link' },
+      { keys: [mod(SHORTCUTS.newItem.label)], action: 'New link' },
       { keys: [mod(SHORTCUTS.newFolder.label)], action: 'New folder' },
       { keys: [['1'], ['…'], ['9']], action: 'Open favourite 1–9' },
+      {
+        keys: [['Shift', 'H']],
+        action: 'Collapse all folders, then previous app',
+      },
+      { keys: [['Shift', 'L']], action: 'Next app' },
       { keys: [['?']], action: 'Show keyboard shortcuts' },
     ],
   },
@@ -42,7 +47,6 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       { keys: [['k'], ['↑']], action: 'Previous row' },
       { keys: [['h'], ['←']], action: 'Collapse folder / go to parent' },
       { keys: [['l'], ['→']], action: 'Expand folder / into first child' },
-      { keys: [['Shift', 'H']], action: 'Collapse all folders' },
       { keys: [['g', 'g']], action: 'First row' },
       { keys: [['G']], action: 'Last row' },
       { keys: [['n']], action: 'Next link' },

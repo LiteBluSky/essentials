@@ -1,15 +1,18 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { toast } from '@/components/ui/toast'
-import { MAX_FAVORITES } from '@/lib/schemas'
-import type { FavoriteInput } from '@/lib/schemas'
-import { favoriteLink, treeQueryOptions } from '@/server/bookmarks.functions'
+import { MAX_FAVORITES } from '@/lib/bookmarks/schemas'
+import type { FavoriteInput } from '@/lib/bookmarks/schemas'
+import {
+  favoriteLink,
+  bookmarksTreeQueryOptions,
+} from '@/server/bookmarks.functions'
 
 // Adds/removes a favourite (menu item, `f`, the star in the favourites list).
 // Applied optimistically; the server enforces the limit too.
 export function useFavorite() {
   const queryClient = useQueryClient()
-  const { queryKey } = treeQueryOptions
+  const { queryKey } = bookmarksTreeQueryOptions
 
   const mutation = useMutation({
     mutationFn: (input: FavoriteInput) => favoriteLink({ data: input }),

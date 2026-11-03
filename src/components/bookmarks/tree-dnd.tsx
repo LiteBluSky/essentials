@@ -2,10 +2,10 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import type { DragEvent, ReactNode } from 'react'
 
 import type { Link } from '@/db/schema'
-import { useMoveBookmark } from '@/hooks/use-move-bookmark'
-import type { MoveInput } from '@/lib/schemas'
-import { childIds, isSelfOrAncestor, reorderIds } from '@/lib/tree'
-import type { FolderNode, Tree } from '@/lib/tree'
+import { useMoveBookmark } from '@/hooks/bookmarks/use-move-bookmark'
+import type { MoveInput } from '@/lib/bookmarks/schemas'
+import { childIds, isSelfOrAncestor, reorderIds } from '@/lib/bookmarks/tree'
+import type { FolderNode, Tree } from '@/lib/bookmarks/tree'
 
 // Native HTML5 drag and drop for the tree. Folders and links are ordered
 // separately (folders always render first), so:

@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { FolderOption } from '@/lib/tree'
+import type { FolderOption } from '@/lib/bookmarks/tree'
 
 const INDENT_PX = 12
 

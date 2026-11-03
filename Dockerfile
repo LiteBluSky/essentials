@@ -9,7 +9,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
 # Build-time: the name shown in the header and browser tab.
-ARG VITE_APP_NAME=Bookmarks
+ARG VITE_APP_NAME=Essentials
 ENV VITE_APP_NAME=$VITE_APP_NAME
 RUN pnpm build
 
@@ -17,7 +17,7 @@ FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production \
     PORT=8008 \
-    DATABASE_PATH=/data/bookmarks.db
+    DATABASE_PATH=/data/essentials.db
 COPY --from=build /app/.output ./.output
 COPY --from=build /app/drizzle ./drizzle
 RUN mkdir /data && chown node:node /data

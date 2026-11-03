@@ -1,8 +1,10 @@
-# Bookmarks
+# Essentials
 
-A personal bookmark manager: links organised into folders and subfolders,
-shown as a file tree. No accounts, no sync. It runs on your own machine or
-home server and serves on **http://localhost:8008**.
+A handful of small personal apps in one: **Bookmarks** (links) and **Notes**
+(markdown), each organised into folders and subfolders and shown as a file
+tree. Switch between them with the navbar at the top, or `Shift+H` /
+`Shift+L`. No accounts, no sync. It runs on your own machine or home server
+and serves on **http://localhost:8008**.
 
 Stack: TanStack Start (React 19) on Nitro/Node, SQLite via Drizzle, shadcn/ui
 and Tailwind. See [`CLAUDE.md`](./CLAUDE.md) for architecture and
@@ -11,11 +13,11 @@ conventions and [`TASKS.md`](./TASKS.md) for the work log.
 There's nothing to configure and no database server: the data is one SQLite
 file, created with its tables the first time the server starts. Optional
 settings (see `.env.example`): `DATABASE_PATH` (where the file lives,
-default `data/bookmarks.db`) and `VITE_APP_NAME` (the name shown in the app;
+default `data/essentials.db`) and `VITE_APP_NAME` (the name shown in the app;
 build-time).
 
 > **No login.** The server listens on all interfaces, so anyone who can reach
-> port 8008 can read and edit your bookmarks. Keep it on your LAN (or behind
+> port 8008 can read and edit your bookmarks and notes. Keep it on your LAN (or behind
 > something like Tailscale); don't forward the port to the internet.
 
 ## Deploy
@@ -43,8 +45,8 @@ Works the same on Linux, macOS (Docker Desktop / OrbStack) and Windows
 **Build from source** (needs only Git and Docker):
 
 ```bash
-git clone <repo-url> bookmarks
-cd bookmarks
+git clone <repo-url> essentials
+cd essentials
 docker compose up -d --build        # http://localhost:8008
 ```
 
@@ -52,21 +54,21 @@ docker compose up -d --build        # http://localhost:8008
 tag, for `linux/amd64` and `linux/arm64`):
 
 ```bash
-docker run -d --name bookmarks --restart unless-stopped \
-  -p 8008:8008 -v bookmarks-data:/data \
-  ghcr.io/liteblusky/bookmarks:latest
+docker run -d --name essentials --restart unless-stopped \
+  -p 8008:8008 -v essentials-data:/data \
+  ghcr.io/liteblusky/essentials:latest
 ```
 
-The data lives in the `bookmarks-data` volume (`/data/bookmarks.db` inside
+The data lives in the `essentials-data` volume (`/data/essentials.db` inside
 the container), never in the image, so rebuilding or updating keeps it.
 
-| Task                     | Command                                                                        |
-| ------------------------ | ------------------------------------------------------------------------------ |
-| Update (from source)     | `git pull; docker compose up -d --build`                                       |
-| Update (published image) | `docker pull ghcr.io/liteblusky/bookmarks:latest`, then recreate the container |
-| Logs                     | `docker compose logs -f`                                                       |
-| Stop / start             | `docker compose stop` / `docker compose start`                                 |
-| Copy the database out    | `docker compose cp bookmarks:/data/bookmarks.db ./bookmarks.db`                |
+| Task                     | Command                                                                         |
+| ------------------------ | ------------------------------------------------------------------------------- |
+| Update (from source)     | `git pull; docker compose up -d --build`                                        |
+| Update (published image) | `docker pull ghcr.io/liteblusky/essentials:latest`, then recreate the container |
+| Logs                     | `docker compose logs -f`                                                        |
+| Stop / start             | `docker compose stop` / `docker compose start`                                  |
+| Copy the database out    | `docker compose cp essentials:/data/essentials.db ./essentials.db`              |
 
 To change the app name, build with
 `VITE_APP_NAME="My links" docker compose up -d --build`.
@@ -74,14 +76,14 @@ To change the app name, build with
 ### Windows (native, starts at logon)
 
 ```powershell
-git clone <repo-url> bookmarks
-cd bookmarks
+git clone <repo-url> essentials
+cd essentials
 pnpm install
 pnpm build
 .\scripts\install-startup.ps1
 ```
 
-`install-startup.ps1` registers a Scheduled Task called **Bookmarks** that
+`install-startup.ps1` registers a Scheduled Task called **Essentials** that
 runs `scripts\start.ps1` each time you log on, and starts it straight away.
 It runs under `conhost --headless`, so there is **no window** to close by
 accident. No admin rights needed; if PowerShell refuses to run the script,
@@ -99,7 +101,7 @@ How it runs:
   and closing that window kills the server.
 - For other devices on the network, allow Node.js at the firewall prompt, or
   (admin PowerShell)
-  `New-NetFirewallRule -DisplayName 'Bookmarks 8008' -Direction Inbound -Protocol TCP -LocalPort 8008 -Action Allow`.
+  `New-NetFirewallRule -DisplayName 'Essentials 8008' -Direction Inbound -Protocol TCP -LocalPort 8008 -Action Allow`.
   To keep it to this machine only, add `$env:HOST = '127.0.0.1'` next to
   `PORT` in `start.ps1`.
 
@@ -107,9 +109,9 @@ How it runs:
 | --------------------------------- | ----------------------------------------------------------------------------- |
 | Deploy changes (after `git pull`) | `pnpm install; .\scripts\stop.ps1; pnpm build; .\scripts\install-startup.ps1` |
 | Restart the server                | `.\scripts\install-startup.ps1`                                               |
-| Check it's running                | `Get-ScheduledTask Bookmarks` / open `logs\server.log`                        |
+| Check it's running                | `Get-ScheduledTask Essentials` / open `logs\server.log`                       |
 | Stop until next logon             | `.\scripts\stop.ps1`                                                          |
-| Start again after `stop.ps1`      | `Start-ScheduledTask Bookmarks`                                               |
+| Start again after `stop.ps1`      | `Start-ScheduledTask Essentials`                                              |
 | Stop and remove from startup      | `.\scripts\uninstall-startup.ps1`                                             |
 
 Stop the server before `pnpm build`: while it runs, Windows keeps the SQLite
@@ -128,22 +130,22 @@ New-Item -ItemType Junction -Path .claude\skills\shadcn -Target (Resolve-Path .a
 ### Linux (native, systemd)
 
 ```bash
-git clone <repo-url> ~/bookmarks
-cd ~/bookmarks
+git clone <repo-url> ~/essentials
+cd ~/essentials
 pnpm install
 pnpm build
 ```
 
-Create `~/.config/systemd/user/bookmarks.service` (adjust the paths;
+Create `~/.config/systemd/user/essentials.service` (adjust the paths;
 `which node` shows the node path):
 
 ```ini
 [Unit]
-Description=Bookmarks
+Description=Essentials
 After=network.target
 
 [Service]
-WorkingDirectory=%h/bookmarks
+WorkingDirectory=%h/essentials
 Environment=NODE_ENV=production PORT=8008
 ExecStart=/usr/bin/node --env-file-if-exists=.env.local .output/server/index.mjs
 Restart=always
@@ -155,23 +157,23 @@ WantedBy=default.target
 
 ```bash
 systemctl --user daemon-reload
-systemctl --user enable --now bookmarks
+systemctl --user enable --now essentials
 loginctl enable-linger "$USER"   # keep it running when you're logged out
 ```
 
-Update: `git pull && pnpm install && pnpm build && systemctl --user restart bookmarks`.
-Logs: `journalctl --user -u bookmarks -f`.
+Update: `git pull && pnpm install && pnpm build && systemctl --user restart essentials`.
+Logs: `journalctl --user -u essentials -f`.
 
 ### macOS (native, launchd)
 
 ```bash
-git clone <repo-url> ~/bookmarks
-cd ~/bookmarks
+git clone <repo-url> ~/essentials
+cd ~/essentials
 pnpm install
 pnpm build
 ```
 
-Create `~/Library/LaunchAgents/local.bookmarks.plist` (replace `YOU`, and
+Create `~/Library/LaunchAgents/local.essentials.plist` (replace `YOU`, and
 use the node path from `which node` — `/opt/homebrew/bin/node` on Apple
 Silicon with Homebrew):
 
@@ -180,8 +182,8 @@ Silicon with Homebrew):
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>Label</key><string>local.bookmarks</string>
-  <key>WorkingDirectory</key><string>/Users/YOU/bookmarks</string>
+  <key>Label</key><string>local.essentials</string>
+  <key>WorkingDirectory</key><string>/Users/YOU/essentials</string>
   <key>ProgramArguments</key>
   <array>
     <string>/opt/homebrew/bin/node</string>
@@ -195,20 +197,20 @@ Silicon with Homebrew):
   </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
-  <key>StandardOutPath</key><string>/Users/YOU/bookmarks/logs/server.log</string>
-  <key>StandardErrorPath</key><string>/Users/YOU/bookmarks/logs/server.log</string>
+  <key>StandardOutPath</key><string>/Users/YOU/essentials/logs/server.log</string>
+  <key>StandardErrorPath</key><string>/Users/YOU/essentials/logs/server.log</string>
 </dict>
 </plist>
 ```
 
 ```bash
-mkdir -p ~/bookmarks/logs
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/local.bookmarks.plist
+mkdir -p ~/essentials/logs
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/local.essentials.plist
 ```
 
 It starts at login and restarts if it exits. Update:
-`git pull && pnpm install && pnpm build && launchctl kickstart -k gui/$(id -u)/local.bookmarks`.
-Remove: `launchctl bootout gui/$(id -u)/local.bookmarks`.
+`git pull && pnpm install && pnpm build && launchctl kickstart -k gui/$(id -u)/local.essentials`.
+Remove: `launchctl bootout gui/$(id -u)/local.essentials`.
 
 ### NixOS
 
@@ -217,10 +219,10 @@ Run the published image declaratively with `virtualisation.oci-containers`
 
 ```nix
 {
-  virtualisation.oci-containers.containers.bookmarks = {
-    image = "ghcr.io/liteblusky/bookmarks:latest"; # or pin, e.g. ":1.1.0"
+  virtualisation.oci-containers.containers.essentials = {
+    image = "ghcr.io/liteblusky/essentials:latest"; # or pin, e.g. ":1.1.0"
     ports = [ "8008:8008" ];
-    volumes = [ "/var/lib/bookmarks:/data" ];
+    volumes = [ "/var/lib/essentials:/data" ];
     # Only if the image on GHCR is private:
     # login = {
     #   registry = "ghcr.io";
@@ -230,27 +232,27 @@ Run the published image declaratively with `virtualisation.oci-containers`
   };
 
   # The container runs as the image's `node` user (uid 1000).
-  systemd.tmpfiles.rules = [ "d /var/lib/bookmarks 0750 1000 1000 -" ];
+  systemd.tmpfiles.rules = [ "d /var/lib/essentials 0750 1000 1000 -" ];
 
   # Reach it from other devices on the LAN.
   networking.firewall.allowedTCPPorts = [ 8008 ];
 }
 ```
 
-Then `sudo nixos-rebuild switch`. The data is `/var/lib/bookmarks/bookmarks.db`.
+Then `sudo nixos-rebuild switch`. The data is `/var/lib/essentials/essentials.db`.
 
 - **Update**: with a pinned tag, bump it and rebuild. With `:latest`,
-  `sudo podman pull ghcr.io/liteblusky/bookmarks:latest && sudo systemctl restart podman-bookmarks`.
-- **Logs**: `journalctl -u podman-bookmarks -f`.
+  `sudo podman pull ghcr.io/liteblusky/essentials:latest && sudo systemctl restart podman-essentials`.
+- **Logs**: `journalctl -u podman-essentials -f`.
 - New GHCR packages start out **private**. Either make it public (GitHub →
-  your profile → Packages → bookmarks → Package settings → Change
+  your profile → Packages → essentials → Package settings → Change
   visibility) or use the `login` block above.
 
 ## Install as an app (phone / desktop)
 
 The app ships a web manifest and a service worker, so it can be installed
 and opened like a native app. Once it has loaded, it also opens **offline**,
-showing your bookmarks as they were last loaded (read-only: saving needs
+showing each app's data as it was last loaded (read-only: saving needs
 the server).
 
 - **Android (Chrome)**: ⋮ menu in the app → **Install app…**, or the
@@ -270,12 +272,22 @@ with a certificate (Caddy, nginx…).
 
 ## Data: backup and moving machines
 
-- **Backup**: ⋮ menu → **Export JSON** (works everywhere, while running), or
-  copy `bookmarks.db` while the server is stopped.
+- **Backup**: ⋮ menu → **Export JSON** in each app (works everywhere, while
+  running), or copy `essentials.db` (everything) while the server is stopped.
 - **Restore / move**: ⋮ menu → **Import JSON** on the new instance (adds to
-  what's there), or put `bookmarks.db` in place before its first start
-  (Docker: the `/data` volume; NixOS: `/var/lib/bookmarks/`, owned by uid
+  what's there), or put `essentials.db` in place before its first start
+  (Docker: the `/data` volume; NixOS: `/var/lib/essentials/`, owned by uid
   1000).
+
+**Coming from the separate Bookmarks and Notes apps?** Build one combined
+database from the two old files (they're only read, never changed):
+
+```bash
+node scripts/merge-dbs.mjs data/bookmarks.db ../notes/data/notes.db data/essentials.db
+```
+
+Or keep it manual: Export JSON from the old Notes app and Import JSON in
+the Notes tab here (view counts aren't exported).
 
 Schema changes are applied automatically when the server starts, so an
 update never needs a separate database step.
@@ -306,5 +318,5 @@ git push --follow-tags
 
 Each bumps `version` in `package.json`, commits it as `Release vX.Y.Z` and
 tags it `vX.Y.Z`. Pushing the tag runs `.github/workflows/docker.yml`, which
-publishes `ghcr.io/liteblusky/bookmarks:X.Y.Z` (plus `X.Y`, `X` and
+publishes `ghcr.io/liteblusky/essentials:X.Y.Z` (plus `X.Y`, `X` and
 `latest`).
