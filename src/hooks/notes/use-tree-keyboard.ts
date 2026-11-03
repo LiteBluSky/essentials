@@ -12,6 +12,7 @@ import type { RefObject } from 'react'
 //   n / N  next / previous visible note (wraps around)
 //   o      open note / toggle folder (Enter works natively too)
 //   r / e  edit the focused note, or rename / move the focused folder
+//   a      new note in the hovered (or focused) folder
 //   d      delete the hovered row (or the focused one), after confirming
 //   x      cut the focused note   p  paste it here   Esc  cancel the cut
 //   1-8    open a quick note (1-4 recent, 5-8 most viewed)
@@ -45,6 +46,7 @@ export function useTreeKeyboard({
   onEdit,
   onDelete,
   onSwitchApp,
+  onNew,
   onCut,
   onPaste,
   onCancelCut,
@@ -63,6 +65,8 @@ export function useTreeKeyboard({
   onDelete: (kind: 'folder' | 'note', id: number) => void
   /** Previous (-1) / next (1) app in the navbar. */
   onSwitchApp: (step: -1 | 1) => void
+  /** New note, pre-filled with this folder (null = top level). */
+  onNew: (folderId: number | null) => void
   onCut: (noteId: number) => void
   /** Paste onto the focused row, or at the top level when none is focused. */
   onPaste: (target: { kind: 'folder' | 'note'; id: number } | null) => void
@@ -82,6 +86,7 @@ export function useTreeKeyboard({
     onEdit,
     onDelete,
     onSwitchApp,
+    onNew,
     onCut,
     onPaste,
     onCancelCut,
@@ -265,6 +270,22 @@ export function useTreeKeyboard({
           handled()
           cb.onCut(id)
           return
+        case 'a': {
+          // New note in the hovered (or focused) folder, or the folder of
+          // the hovered note; top level when nothing is pointed at.
+          const target = pointed()
+          handled()
+          cb.onNew(
+            !target
+              ? null
+              : target.dataset.kind === 'folder'
+                ? Number(target.dataset.id)
+                : target.dataset.parentId
+                  ? Number(target.dataset.parentId)
+                  : null,
+          )
+          return
+        }
         case 'p':
           handled()
           cb.onPaste(

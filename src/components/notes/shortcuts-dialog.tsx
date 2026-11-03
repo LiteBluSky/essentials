@@ -54,6 +54,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       { keys: [['Shift', 'N']], action: 'Previous note' },
       { keys: [['o'], ['Enter']], action: 'Open note / toggle folder' },
       { keys: [['e'], ['r']], action: 'Edit note / rename folder' },
+      { keys: [['a']], action: 'New note in hovered or focused folder' },
       { keys: [['d']], action: 'Delete hovered or focused row' },
       { keys: [['x']], action: 'Cut note' },
       { keys: [['p']], action: 'Paste cut note here' },

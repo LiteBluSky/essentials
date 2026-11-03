@@ -140,8 +140,25 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] `scripts/merge-dbs.mjs`: build `essentials.db` from the two old DBs
 - [x] Folder picker is a type-to-filter shadcn `Command` in a `Popover` (both apps; shows the
       parent path while filtering)
+- [x] `a` in the Bookmarks / Notes trees: new item, pre-filled with the
+      hovered (or focused) folder
 - [ ] Optional: share the tree code between apps (`use-tree-keyboard`,
       `tree-dnd`, folder form/select are near-duplicates)
+
+## 13. Tasks app
+
+- [x] Tables `task_folders` / `tasks` (`completedAt`), migration 0003
+- [x] Server layer: CRUD, complete/reopen, move, import; "Today" folder
+      (named after the client's date) created on first use
+- [x] Tree + flat list (`v`), open / completed (`d`), buttons for both
+- [x] Age colours: yellow after 1 day, red after 3, green when done
+- [x] Checkbox + `c` to complete; details dialog (`o`/Enter/click) with a
+      plain-text description
+- [x] `a` new task (hovered folder, else Today), task field focused
+- [x] "Up next": 9 oldest open tasks, keys `1`–`9`
+- [x] Unnamed folders are named after today's date
+- [x] Import/export JSON, shortcuts help, navbar entry, service worker page
+- [ ] Verify in a real browser (layout on mobile, DnD, toasts)
 
 ## History of the notes app (before the merge)
 

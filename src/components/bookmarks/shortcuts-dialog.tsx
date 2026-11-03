@@ -53,6 +53,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       { keys: [['Shift', 'N']], action: 'Previous link' },
       { keys: [['o'], ['Enter']], action: 'Open link / toggle folder' },
       { keys: [['r']], action: 'Edit (rename / move)' },
+      { keys: [['a']], action: 'New link in hovered or focused folder' },
       { keys: [['d']], action: 'Delete hovered or focused row' },
       { keys: [['x']], action: 'Cut link' },
       { keys: [['p']], action: 'Paste cut link here' },

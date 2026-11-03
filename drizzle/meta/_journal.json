@@ -22,6 +22,13 @@
       "when": 1793692771350,
       "tag": "0002_great_mojo",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793706706441,
+      "tag": "0003_condemned_meltdown",
+      "breakpoints": true
     }
   ]
 }

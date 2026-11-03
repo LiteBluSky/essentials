@@ -134,10 +134,68 @@ export const notesRelations = relations(notes, ({ one }) => ({
   }),
 }))
 
-// Bookmark and note folders share a shape, so one type serves both.
+// ---- Tasks ----------------------------------------------------------------
+
+// Same shape as the bookmark folders. Unnamed folders are named after the
+// date they were created (see `todayName`).
+export const taskFolders = sqliteTable(
+  'task_folders',
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    name: text().notNull(),
+    parentId: integer('parent_id'),
+    position: integer().notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [
+    foreignKey({ columns: [t.parentId], foreignColumns: [t.id] }).onDelete(
+      'cascade',
+    ),
+    index('task_folders_parent_idx').on(t.parentId),
+  ],
+)
+
+// A task lives in a folder, or at root level when folderId = null. Its age
+// (from createdAt) colours it; completedAt set = done.
+export const tasks = sqliteTable(
+  'tasks',
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    title: text().notNull(),
+    description: text().notNull().default(''),
+    folderId: integer('folder_id').references(() => taskFolders.id, {
+      onDelete: 'cascade',
+    }),
+    position: integer().notNull().default(0),
+    completedAt: integer('completed_at', { mode: 'timestamp' }),
+    ...timestamps,
+  },
+  (t) => [index('tasks_folder_idx').on(t.folderId)],
+)
+
+export const taskFoldersRelations = relations(taskFolders, ({ one, many }) => ({
+  parent: one(taskFolders, {
+    fields: [taskFolders.parentId],
+    references: [taskFolders.id],
+    relationName: 'task_folder_parent',
+  }),
+  children: many(taskFolders, { relationName: 'task_folder_parent' }),
+  tasks: many(tasks),
+}))
+
+export const tasksRelations = relations(tasks, ({ one }) => ({
+  folder: one(taskFolders, {
+    fields: [tasks.folderId],
+    references: [taskFolders.id],
+  }),
+}))
+
+// Every app's folders share a shape, so one type serves them all.
 export type Folder = typeof folders.$inferSelect
 export type NewFolder = typeof folders.$inferInsert
 export type Link = typeof links.$inferSelect
 export type NewLink = typeof links.$inferInsert
 export type Note = typeof notes.$inferSelect
 export type NewNote = typeof notes.$inferInsert
+export type Task = typeof tasks.$inferSelect
+export type NewTask = typeof tasks.$inferInsert

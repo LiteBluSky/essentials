@@ -142,6 +142,10 @@ function Home() {
         if (note) openEditor({ kind: 'delete-note', note })
       }
     },
+    onNew: (folderId) => {
+      if (folderId !== null) setOpen(folderId, true)
+      newNote(folderId)
+    },
     onCut: clipboard.cut,
     onPaste: clipboard.paste,
     onCancelCut: clipboard.cancel,

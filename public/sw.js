@@ -6,8 +6,8 @@
 //   (read-only: saving needs the server).
 // `/` only redirects to the first app, so redirected responses aren't cached
 // (a browser refuses them for navigations) and pages are cached by app path.
-const CACHE = 'app-v2'
-const PAGES = ['/bookmarks', '/notes']
+const CACHE = 'app-v3'
+const PAGES = ['/bookmarks', '/notes', '/tasks']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

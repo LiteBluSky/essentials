@@ -135,6 +135,10 @@ function Home() {
         if (link) openEditor({ kind: 'delete-link', link })
       }
     },
+    onNew: (folderId) => {
+      if (folderId !== null) setOpen(folderId, true)
+      openEditor({ kind: 'link', folderId })
+    },
     onCut: clipboard.cut,
     onPaste: clipboard.paste,
     onCancelCut: clipboard.cancel,

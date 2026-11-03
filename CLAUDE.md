@@ -1,7 +1,7 @@
 # Essentials
 
-A personal, local-only set of small apps in one: **Bookmarks** (links) and
-**Notes** (markdown), each organised into folders and subfolders and shown as
+A personal, local-only set of small apps in one: **Bookmarks** (links),
+**Notes** (markdown) and **Tasks** (to-dos), each organised into folders and subfolders and shown as
 a file tree, with a navbar to switch between them. The display name is
 configurable (`VITE_APP_NAME`, default "Essentials", read via `APP_NAME` in
 `src/lib/config.ts`) — never hardcode the product name in UI, titles or
@@ -62,7 +62,7 @@ Each app is self-contained and namespaced; only the shell is shared.
 - **Registry**: `src/lib/apps.ts` (`APPS`: path, name, lucide icon) drives
   the navbar (`src/components/app-nav.tsx`) and app switching
   (`src/hooks/use-app-switch.ts`). `/` redirects to the first app.
-- **Per app** (`<app>` = `bookmarks`, `notes`): route `src/routes/<app>.tsx`,
+- **Per app** (`<app>` = `bookmarks`, `notes`, `tasks`): route `src/routes/<app>.tsx`,
   UI in `src/components/<app>/`, hooks in `src/hooks/<app>/`, pure helpers
   and Zod schemas in `src/lib/<app>/`, server code in
   `src/server/<app>.functions.ts` + `<app>.server.ts`, its own tables, its
@@ -94,6 +94,10 @@ One SQLite file holds every app. Bookmark tables keep their original names.
   `viewCount` + `openedAt` (bumped by `viewNote` when a note's preview
   opens; drive "Recent" / "Most viewed"), timestamps. Recording a view or
   reordering keeps `updatedAt` (it means "edited").
+- `task_folders` (same shape; an unnamed folder is named after the local
+  date, `YYYY-MM-DD`) / `tasks` — `id`, `title`, `description` (plain
+  text, `''` = none), `folderId`, `position`, `completedAt?` (set = done),
+  timestamps. `createdAt` drives the colour.
 - `position` orders siblings within the same parent (folders and items are
   ordered separately; folders render before items, like a file explorer).
 - `notes.server.ts` imports `noteFolders as folders`, so its queries read
@@ -242,6 +246,39 @@ starts with one view.
 (client and server) and **appended** after the existing top-level items in
 one transaction — it never replaces or dedupes.
 
+### Tasks (`/tasks`)
+
+A to-do list. The row menu has open, complete/reopen, edit/move, move up/down
+(folders view only), delete; folder rows as in Notes.
+
+- **Today**: the task form's folder picker offers "Today" (the default when
+  no folder is pointed at): the top-level folder named after the client's
+  local date (`todayName`), created by the server on first use
+  (`resolveFolder`; the client sends `today` since the server may be in
+  another timezone). Unnamed folders also get the date.
+- **Colours** (`taskTone` in `src/lib/tasks/tree.ts`, tokens `--warning` /
+  `--success` in `styles.css` next to `--destructive`): red after 3 days
+  open, yellow after 1 (elapsed 24h periods, so SSR and client agree), green
+  when done. Shown on the checkbox and the age label.
+- **Views** (`useTaskView`, stored in `tasks:view`): open / completed
+  (`d`) × folders / one flat list (`v`), with matching button groups next
+  to the search for touch screens. The open view hides folders whose tasks
+  are all done (but keeps never-used empty ones); the done view shows only
+  folders with completed tasks (`filterStatus`). The flat list is oldest
+  first (completed: latest first). Drag and drop only in open + folders.
+  Move up/down steps past hidden (completed) siblings (`shown` in
+  `tree-dnd.tsx`).
+- **Up next** (`up-next.tsx`, `upNext`): the 9 oldest open tasks, oldest
+  first, keys `1`–`9`; newer ones aren't listed until those are done.
+- Clicking a task / `o` / Enter opens its details (`TaskView` in
+  `editor-dialogs.tsx`): path, title, description, created/completed dates;
+  `c` completes, `e` edits, `Shift+D` deletes. The form is Task (focused),
+  Folder, Description (plain `Textarea`); Enter saves; a new task closes
+  the dialog and reveals the task in the tree.
+- **Import/export**: `{ format: 1, folders: [{ name, folders, tasks }],
+tasks: [{ title, description?, createdAt?, completedAt? }] }` (ISO dates,
+  kept so ages survive), appended like the other apps.
+
 ### Keyboard
 
 - Switch apps: `Shift+L` next, `Shift+H` previous — but `Shift+H` first
@@ -249,13 +286,14 @@ one transaction — it never replaces or dedupes.
   around; order follows `APPS`. Handled in each app's tree keyboard hook
   (`onSwitchApp`, from `useAppSwitch`).
 - Global (`src/lib/shortcuts.ts`): `Ctrl+K` search, `Ctrl+B` new item
-  (link / note), `Ctrl+G` new folder (⌘ on macOS). Avoid browser-reserved
+  (link / note / task), `Ctrl+G` new folder (⌘ on macOS). Avoid browser-reserved
   combos (Ctrl+L/N/T/W/F) when adding more. Ignored when the event was
   already handled (`defaultPrevented`), so the note editor can use Ctrl+B
   for bold.
 - Bookmarks tree, vim-style (`src/hooks/bookmarks/use-tree-keyboard.ts`): `j/k` down/up, `h`
   collapse / go to parent, `l` expand / into first child, `gg`/`G` first/last, `n`/`N` next/previous visible link (wraps),
-  `o`/`Enter` open or toggle, `f` add/remove favourite (hovered row, else
+  `o`/`Enter` open or toggle, `a` new link in the hovered/focused folder
+  (or the hovered link's folder), `f` add/remove favourite (hovered row, else
   focused), `1`–`9` open that favourite in a new tab, `r` edit, `d` delete (hovered row, else
   focused; confirms first), `/` search, `q` clear the search. Arrow keys
   mirror hjkl. `x` cuts a link, `p` pastes it into the focused folder /
@@ -266,7 +304,8 @@ one transaction — it never replaces or dedupes.
 - Notes tree, vim-style (`src/hooks/notes/use-tree-keyboard.ts`): `j/k` down/up, `h`
   collapse / go to parent, `l` expand / into first child,
   `gg`/`G` first/last, `n`/`N` next/previous visible note (wraps),
-  `o`/`Enter` open or toggle, `e`/`r` edit, `1`–`8` open a recent / most
+  `o`/`Enter` open or toggle, `a` new note in the hovered/focused folder
+  (or the hovered note's folder), `e`/`r` edit, `1`–`8` open a recent / most
   viewed note, `d` delete (hovered row, else focused; confirms first), `/`
   search, `q` clear the search. Arrow keys mirror hjkl. `x` cuts a note,
   `p` pastes it into the focused folder / after the focused note (top level
@@ -274,6 +313,10 @@ one transaction — it never replaces or dedupes.
   toast while cut). Rows opt in with `data-tree-item`, `data-kind`,
   `data-id`, `data-parent-id` on their focusable element, and
   `data-tree-row` on the hover area (row + its menu).
+- Tasks tree (`src/hooks/tasks/use-tree-keyboard.ts`): the notes motions,
+  but `a` new task (hovered folder, else Today), `c` complete/reopen
+  (hovered, else focused), `d` open/completed view, `v` folders/list,
+  `Shift+D` or `Delete` delete, `1`–`9` Up next.
 - `?` (or the header keyboard button) opens the app's shortcuts help
   (`src/components/<app>/shortcuts-dialog.tsx`) — keep its list in sync
   when adding or changing a shortcut.

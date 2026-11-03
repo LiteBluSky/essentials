@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as BookmarksRouteImport } from './routes/bookmarks'
 import { Route as ManifestDotwebmanifestRouteImport } from './routes/manifest[.]webmanifest'
 import { Route as NotesRouteImport } from './routes/notes'
+import { Route as TasksRouteImport } from './routes/tasks'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,18 +35,25 @@ const NotesRoute = NotesRouteImport.update({
   path: '/notes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TasksRoute = TasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bookmarks': typeof BookmarksRoute
   '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
   '/notes': typeof NotesRoute
+  '/tasks': typeof TasksRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bookmarks': typeof BookmarksRoute
   '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
   '/notes': typeof NotesRoute
+  '/tasks': typeof TasksRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,20 @@ export interface FileRoutesById {
   '/bookmarks': typeof BookmarksRoute
   '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
   '/notes': typeof NotesRoute
+  '/tasks': typeof TasksRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/bookmarks' | '/manifest.webmanifest' | '/notes'
+  fullPaths: '/' | '/bookmarks' | '/manifest.webmanifest' | '/notes' | '/tasks'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/bookmarks' | '/manifest.webmanifest' | '/notes'
-  id: '__root__' | '/' | '/bookmarks' | '/manifest.webmanifest' | '/notes'
+  to: '/' | '/bookmarks' | '/manifest.webmanifest' | '/notes' | '/tasks'
+  id:
+    | '__root__'
+    | '/'
+    | '/bookmarks'
+    | '/manifest.webmanifest'
+    | '/notes'
+    | '/tasks'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +82,7 @@ export interface RootRouteChildren {
   BookmarksRoute: typeof BookmarksRoute
   ManifestDotwebmanifestRoute: typeof ManifestDotwebmanifestRoute
   NotesRoute: typeof NotesRoute
+  TasksRoute: typeof TasksRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +115,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tasks': {
+      id: '/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +130,7 @@ const rootRouteChildren: RootRouteChildren = {
   BookmarksRoute: BookmarksRoute,
   ManifestDotwebmanifestRoute: ManifestDotwebmanifestRoute,
   NotesRoute: NotesRoute,
+  TasksRoute: TasksRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

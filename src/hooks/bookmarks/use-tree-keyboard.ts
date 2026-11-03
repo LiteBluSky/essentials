@@ -12,6 +12,7 @@ import type { RefObject } from 'react'
 //   n / N  next / previous visible link (wraps around)
 //   o      open link / toggle folder (Enter works natively too)
 //   r      edit (rename / move) the focused folder or link
+//   a      new link in the hovered (or focused) folder
 //   d      delete the hovered row (or the focused one), after confirming
 //   x      cut the focused link   p  paste it here   Esc  cancel the cut
 //   f      add/remove the hovered (or focused) link as a favourite
@@ -46,6 +47,7 @@ export function useTreeKeyboard({
   onEdit,
   onDelete,
   onSwitchApp,
+  onNew,
   onCut,
   onPaste,
   onCancelCut,
@@ -65,6 +67,8 @@ export function useTreeKeyboard({
   onDelete: (kind: 'folder' | 'link', id: number) => void
   /** Previous (-1) / next (1) app in the navbar. */
   onSwitchApp: (step: -1 | 1) => void
+  /** New link, pre-filled with this folder (null = top level). */
+  onNew: (folderId: number | null) => void
   onCut: (linkId: number) => void
   /** Paste onto the focused row, or at the top level when none is focused. */
   onPaste: (target: { kind: 'folder' | 'link'; id: number } | null) => void
@@ -85,6 +89,7 @@ export function useTreeKeyboard({
     onEdit,
     onDelete,
     onSwitchApp,
+    onNew,
     onCut,
     onPaste,
     onCancelCut,
@@ -268,6 +273,22 @@ export function useTreeKeyboard({
           handled()
           cb.onCut(id)
           return
+        case 'a': {
+          // New link in the hovered (or focused) folder, or the folder of
+          // the hovered link; top level when nothing is pointed at.
+          const target = pointed()
+          handled()
+          cb.onNew(
+            !target
+              ? null
+              : target.dataset.kind === 'folder'
+                ? Number(target.dataset.id)
+                : target.dataset.parentId
+                  ? Number(target.dataset.parentId)
+                  : null,
+          )
+          return
+        }
         case 'f': {
           const target = pointed()
           if (target?.dataset.kind !== 'link') return

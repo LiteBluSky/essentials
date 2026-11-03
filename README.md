@@ -1,7 +1,7 @@
 # Essentials
 
-A handful of small personal apps in one: **Bookmarks** (links) and **Notes**
-(markdown), each organised into folders and subfolders and shown as a file
+A handful of small personal apps in one: **Bookmarks** (links), **Notes**
+(markdown) and **Tasks** (a to-do list that colours tasks by age), each organised into folders and subfolders and shown as a file
 tree. Switch between them with the navbar at the top, or `Shift+H` /
 `Shift+L`. No accounts, no sync. It runs on your own machine or home server
 and serves on **http://localhost:8008**.
@@ -17,7 +17,7 @@ default `data/essentials.db`) and `VITE_APP_NAME` (the name shown in the app;
 build-time).
 
 > **No login.** The server listens on all interfaces, so anyone who can reach
-> port 8008 can read and edit your bookmarks and notes. Keep it on your LAN (or behind
+> port 8008 can read and edit your bookmarks, notes and tasks. Keep it on your LAN (or behind
 > something like Tailscale); don't forward the port to the internet.
 
 ## Deploy
