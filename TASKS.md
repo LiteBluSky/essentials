@@ -138,6 +138,8 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] `Shift+L` next app; `Shift+H` collapses all folders, or goes to the
       previous app when none are open
 - [x] `scripts/merge-dbs.mjs`: build `essentials.db` from the two old DBs
+- [x] Folder picker is a type-to-filter shadcn `Command` in a `Popover` (both apps; shows the
+      parent path while filtering)
 - [ ] Optional: share the tree code between apps (`use-tree-keyboard`,
       `tree-dnd`, folder form/select are near-duplicates)
 
