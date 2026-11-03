@@ -17,8 +17,8 @@ import type { TaskInput } from '@/lib/tasks/schemas'
 //   r / e  edit the focused task, or rename / move the focused folder
 //   a      new task in the hovered (or focused) folder, else in Today
 //   c      complete (or reopen) the hovered task, or the focused one
-//   D      delete the hovered row (or the focused one), after confirming
-//   d      show completed tasks / open tasks
+//   d      delete the hovered row (or the focused one), after confirming
+//   t      show completed tasks / open tasks
 //   v      folders / a flat list of tasks
 //   x      cut the focused task   p  paste it here   Esc  cancel the cut
 //   1-9    open an "Up next" task
@@ -146,7 +146,7 @@ export function useTreeKeyboard({
       const cb = latest.current
 
       const handled = () => e.preventDefault()
-      // The hovered row wins over the focused one (for a, c and D).
+      // The hovered row wins over the focused one (for a, c and d).
       const pointed = () =>
         containerRef.current
           ?.querySelector(HOVERED_ROW)
@@ -270,7 +270,7 @@ export function useTreeKeyboard({
           handled()
           cb.onEdit(isFolder ? 'folder' : 'task', id)
           return
-        case 'D':
+        case 'd':
         case 'Delete': {
           const target = pointed()
           if (!target) return
@@ -288,7 +288,7 @@ export function useTreeKeyboard({
           cb.onComplete(Number(target.dataset.id))
           return
         }
-        case 'd':
+        case 't':
           handled()
           cb.onToggleDone()
           return

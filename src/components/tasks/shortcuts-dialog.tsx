@@ -35,7 +35,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       },
       { keys: [mod(SHORTCUTS.newFolder.label)], action: 'New folder' },
       { keys: [['1'], ['…'], ['9']], action: 'Open an “Up next” task' },
-      { keys: [['d']], action: 'Show completed / open tasks' },
+      { keys: [['t']], action: 'Show completed / open tasks' },
       { keys: [['v']], action: 'Folders / one list' },
       {
         keys: [['Shift', 'H']],
@@ -61,7 +61,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       { keys: [['c']], action: 'Complete / reopen hovered or focused task' },
       { keys: [['e'], ['r']], action: 'Edit task / rename folder' },
       {
-        keys: [['Shift', 'D'], ['Del']],
+        keys: [['d'], ['Del']],
         action: 'Delete hovered or focused row',
       },
       { keys: [['x']], action: 'Cut task' },
@@ -75,7 +75,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
     shortcuts: [
       { keys: [['c']], action: 'Complete / reopen' },
       { keys: [['e']], action: 'Edit' },
-      { keys: [['Shift', 'D'], ['Del']], action: 'Delete' },
+      { keys: [['d'], ['Del']], action: 'Delete' },
       { keys: [['Esc']], action: 'Close' },
     ],
   },

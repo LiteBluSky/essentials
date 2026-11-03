@@ -261,7 +261,7 @@ A to-do list. The row menu has open, complete/reopen, edit/move, move up/down
   open, yellow after 1 (elapsed 24h periods, so SSR and client agree), green
   when done. Shown on the checkbox and the age label.
 - **Views** (`useTaskView`, stored in `tasks:view`): open / completed
-  (`d`) × folders / one flat list (`v`), with matching button groups next
+  (`t`) × folders / one flat list (`v`), with matching button groups next
   to the search for touch screens. The open view hides folders whose tasks
   are all done (but keeps never-used empty ones); the done view shows only
   folders with completed tasks (`filterStatus`). The flat list is oldest
@@ -272,7 +272,7 @@ A to-do list. The row menu has open, complete/reopen, edit/move, move up/down
   first, keys `1`–`9`; newer ones aren't listed until those are done.
 - Clicking a task / `o` / Enter opens its details (`TaskView` in
   `editor-dialogs.tsx`): path, title, description, created/completed dates;
-  `c` completes, `e` edits, `Shift+D` deletes. The form is Task (focused),
+  `c` completes, `e` edits, `d` deletes. The form is Task (focused),
   Folder, Description (plain `Textarea`); Enter saves; a new task closes
   the dialog and reveals the task in the tree.
 - **Import/export**: `{ format: 1, folders: [{ name, folders, tasks }],
@@ -315,8 +315,8 @@ tasks: [{ title, description?, createdAt?, completedAt? }] }` (ISO dates,
   `data-tree-row` on the hover area (row + its menu).
 - Tasks tree (`src/hooks/tasks/use-tree-keyboard.ts`): the notes motions,
   but `a` new task (hovered folder, else Today), `c` complete/reopen
-  (hovered, else focused), `d` open/completed view, `v` folders/list,
-  `Shift+D` or `Delete` delete, `1`–`9` Up next.
+  (hovered, else focused), `t` open/completed view, `v` folders/list,
+  `d` or `Delete` delete, `1`–`9` Up next.
 - `?` (or the header keyboard button) opens the app's shortcuts help
   (`src/components/<app>/shortcuts-dialog.tsx`) — keep its list in sync
   when adding or changing a shortcut.

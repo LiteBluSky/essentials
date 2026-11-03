@@ -150,7 +150,7 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] Tables `task_folders` / `tasks` (`completedAt`), migration 0003
 - [x] Server layer: CRUD, complete/reopen, move, import; "Today" folder
       (named after the client's date) created on first use
-- [x] Tree + flat list (`v`), open / completed (`d`), buttons for both
+- [x] Tree + flat list (`v`), open / completed (`t`), buttons for both
 - [x] Age colours: yellow after 1 day, red after 3, green when done
 - [x] Checkbox + `c` to complete; details dialog (`o`/Enter/click) with a
       plain-text description

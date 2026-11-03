@@ -75,7 +75,7 @@ function Home() {
   const { data } = useSuspenseQuery(tasksTreeQueryOptions)
   const tree = useMemo(() => buildTree(data.folders, data.tasks), [data])
 
-  // `d`: open / completed tasks; `v`: in folders / one flat list.
+  // `t`: open / completed tasks; `v`: in folders / one flat list.
   const { view, setStatus, setLayout, toggleStatus, toggleLayout } =
     useTaskView()
   const shown = useMemo(
@@ -296,7 +296,7 @@ function Home() {
             <ViewButton
               active={view.status === 'open'}
               onClick={() => setStatus('open')}
-              title="Open tasks (d)"
+              title="Open tasks (t)"
             >
               <CircleIcon data-icon="inline-start" />
               Open
@@ -304,7 +304,7 @@ function Home() {
             <ViewButton
               active={view.status === 'done'}
               onClick={() => setStatus('done')}
-              title="Completed tasks (d)"
+              title="Completed tasks (t)"
             >
               <CircleCheckBigIcon data-icon="inline-start" />
               Done

@@ -156,7 +156,7 @@ const dateTime = new Intl.DateTimeFormat(undefined, {
 })
 
 // A task's details: folder path, the title large, its age, the description.
-// `e` edits, `c` completes / reopens, `D` deletes.
+// `e` edits, `c` completes / reopens, `d` deletes.
 function TaskView({
   task,
   path,
@@ -195,7 +195,7 @@ function TaskView({
         } else if (e.key === 'c') {
           e.preventDefault()
           onComplete(task.id)
-        } else if (e.key === 'D' || e.key === 'Delete') {
+        } else if (e.key === 'd' || e.key === 'Delete') {
           e.preventDefault()
           onDelete(task)
         }
