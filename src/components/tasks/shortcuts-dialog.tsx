@@ -69,7 +69,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       { keys: [['x']], action: 'Cut task' },
       { keys: [['p']], action: 'Paste cut task here' },
       { keys: [['Esc']], action: 'Cancel cut' },
-      { keys: [['q']], action: 'Clear search' },
+      { keys: [['q']], action: 'Clear search and date filter' },
     ],
   },
   {
@@ -96,7 +96,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       { keys: [['k'], ['j']], action: 'Previous / next week' },
       { keys: [['m'], ['Shift', 'M']], action: 'Next / previous month' },
       { keys: [['y'], ['Shift', 'Y']], action: 'Next / previous year' },
-      { keys: [['Enter']], action: 'Pick the date' },
+      { keys: [['Enter']], action: 'Pick the date (calendar: show its tasks)' },
       { keys: [['a']], action: 'Calendar: new task on that day' },
     ],
   },

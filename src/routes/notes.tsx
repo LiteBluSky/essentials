@@ -203,7 +203,7 @@ function Home() {
             <Button onClick={() => newNote()}>
               <PlusIcon data-icon="inline-start" />
               Note
-              <ShortcutHint name="newItem" />
+              <Kbd className="max-sm:hidden">a</Kbd>
             </Button>
           </div>
           <ButtonGroup aria-label="Settings">

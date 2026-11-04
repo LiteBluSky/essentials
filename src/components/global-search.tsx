@@ -79,15 +79,19 @@ export function GlobalSearch({
     return out
   }, [results.data])
 
-  // Acted on once the dialog has closed, so it doesn't take focus back from
-  // what the app opens or focuses.
+  // Acted on once the dialog is gone, and the dialog doesn't hand focus back
+  // to what opened it (the app opens or focuses the pick). The flag is only
+  // reset once it has opened again: Base UI may restore focus after
+  // onOpenChangeComplete.
   const picked = useRef<Entry | null>(null)
+  const returnFocus = useRef(true)
   const pick = (entry: Entry) => {
     if (entry.url) {
       // Right away: popup blockers only allow it during the click / key.
       window.open(entry.url, '_blank', 'noreferrer')
     } else {
       picked.current = entry
+      returnFocus.current = false
     }
     onOpenChange(false)
   }
@@ -97,12 +101,16 @@ export function GlobalSearch({
       open={open}
       onOpenChange={onOpenChange}
       onOpenChangeComplete={(isOpen) => {
+        if (isOpen) returnFocus.current = true
         if (!isOpen) setQuery('')
         const entry = picked.current
         if (isOpen || !entry) return
         picked.current = null
-        requestOpen({ app: entry.app, kind: entry.kind, id: entry.id })
-        void navigate({ to: `/${entry.app}` })
+        // After the popup has unmounted and any focus handling is done.
+        setTimeout(() => {
+          requestOpen({ app: entry.app, kind: entry.kind, id: entry.id })
+          void navigate({ to: `/${entry.app}` })
+        })
       }}
     >
       <DialogHeader className="sr-only">
@@ -114,7 +122,7 @@ export function GlobalSearch({
       <DialogContent
         className="top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0 sm:max-w-lg"
         showCloseButton={false}
-        finalFocus={() => picked.current === null}
+        finalFocus={() => returnFocus.current}
       >
         {/* The server filters and ranks; cmdk only handles the keys. */}
         <Command shouldFilter={false}>

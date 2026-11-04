@@ -194,7 +194,7 @@ function Home() {
             >
               <PlusIcon data-icon="inline-start" />
               Link
-              <ShortcutHint name="newItem" />
+              <Kbd className="max-sm:hidden">a</Kbd>
             </Button>
           </div>
           <ButtonGroup aria-label="Settings">

@@ -76,6 +76,28 @@ function taskMatches(task: Task, query: string) {
   )
 }
 
+/** Only the tasks dated `day` (`YYYY-MM-DD`, local; see `todayName`), plus
+ * the folders leading to them. Browser only (timezone). */
+export function filterDay(tree: Tree, day: string): Tree {
+  const onDay = (t: Task) => todayName(t.createdAt) === day
+  const filterNode = (node: FolderNode): FolderNode | null => {
+    const folders = node.folders
+      .map(filterNode)
+      .filter((n): n is FolderNode => n !== null)
+    const tasks = node.tasks.filter(onDay)
+    if (!folders.length && !tasks.length) return null
+    const next = { ...node, folders, tasks }
+    count(next)
+    return next
+  }
+  return {
+    folders: tree.folders
+      .map(filterNode)
+      .filter((n): n is FolderNode => n !== null),
+    tasks: tree.tasks.filter(onDay),
+  }
+}
+
 // Keeps tasks that match, plus the folders leading to them. A folder whose own
 // name matches keeps all of its contents.
 export function filterTree(tree: Tree, rawQuery: string): Tree {

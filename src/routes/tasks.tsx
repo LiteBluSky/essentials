@@ -2,6 +2,7 @@ import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import {
   CalendarDaysIcon,
+  CalendarIcon,
   CircleCheckBigIcon,
   CircleIcon,
   FolderPlusIcon,
@@ -13,7 +14,9 @@ import {
   PlusIcon,
   SearchIcon,
   SearchXIcon,
+  XIcon,
 } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
 import { useMemo, useRef, useState } from 'react'
 
 import { CalendarDialog } from '@/components/tasks/calendar-dialog'
@@ -58,11 +61,13 @@ import type { ShortcutName } from '@/lib/shortcuts'
 import type { TaskInput } from '@/lib/tasks/schemas'
 import {
   buildTree,
+  filterDay,
   filterStatus,
   filterTree,
   findFolder,
   flatTasks,
   folderPath,
+  todayName,
   todayTasks,
   upNext,
 } from '@/lib/tasks/tree'
@@ -88,9 +93,17 @@ function Home() {
     [tree, view.status],
   )
 
+  // A day picked in the calendar (`YYYY-MM-DD`): only tasks dated that day.
+  const [day, setDay] = useState<string | null>(null)
+  const dated = useMemo(
+    () => (day ? filterDay(shown, day) : shown),
+    [shown, day],
+  )
   const [query, setQuery] = useState('')
-  const visible = useMemo(() => filterTree(shown, query), [shown, query])
+  const visible = useMemo(() => filterTree(dated, query), [dated, query])
   const searching = query.trim().length > 0
+  // Any filter on (search or day): folders forced open, no drag and drop.
+  const filtering = searching || day !== null
   const flat = useMemo(
     () => (view.layout === 'list' ? flatTasks(visible, view.status) : []),
     [visible, view],
@@ -138,6 +151,7 @@ function Home() {
     setFolderOpen: setOpen,
     clearSearch: () => {
       setQuery('')
+      setDay(null)
       setLayout('folders')
     },
     openItem: (id) => openEditor({ kind: 'task', mode: 'view', taskId: id }),
@@ -165,7 +179,7 @@ function Home() {
     collapseAll,
     onSearch: focusSearch,
     onClearSearch: () => {
-      if (!searching) return false
+      if (!filtering) return false
       // Folders stop being forced open, so expand the focused row's
       // ancestors to keep it visible (and focused).
       const active = document.activeElement
@@ -179,6 +193,7 @@ function Home() {
         parentId = data.folders.find((f) => f.id === id)?.parentId ?? null
       }
       setQuery('')
+      setDay(null)
       return true
     },
     onHelp: () => setHelpOpen(true),
@@ -253,7 +268,7 @@ function Home() {
             <Button onClick={() => newTask()}>
               <PlusIcon data-icon="inline-start" />
               Task
-              <ShortcutHint name="newItem" />
+              <Kbd className="max-sm:hidden">a</Kbd>
             </Button>
           </div>
           <ButtonGroup aria-label="Settings">
@@ -337,6 +352,19 @@ function Home() {
             </InputGroupAddon>
           )}
         </InputGroup>
+        {day && (
+          <Button
+            variant="secondary"
+            title="Clear the date filter (q)"
+            aria-label={`Showing tasks dated ${day}. Clear the date filter`}
+            onClick={() => setDay(null)}
+          >
+            <CalendarIcon data-icon="inline-start" />
+            {format(parseISO(day), 'd MMM yyyy')}
+            <Kbd className="max-sm:hidden">q</Kbd>
+            <XIcon data-icon="inline-end" />
+          </Button>
+        )}
         <div className="flex gap-2 max-[500px]:w-full max-[500px]:justify-between">
           <ButtonGroup aria-label="Which tasks">
             <ViewButton
@@ -397,7 +425,7 @@ function Home() {
             </Button>
           </EmptyContent>
         </Empty>
-      ) : searching && noneShown ? (
+      ) : filtering && noneShown ? (
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -405,8 +433,9 @@ function Home() {
             </EmptyMedia>
             <EmptyTitle>No matches</EmptyTitle>
             <EmptyDescription>
-              Nothing {view.status === 'done' ? 'completed ' : 'open '}
-              matches “{query.trim()}”.
+              Nothing {view.status === 'done' ? 'completed' : 'open'}
+              {day && ` dated ${format(parseISO(day), 'd MMM yyyy')}`}
+              {searching && ` matches “${query.trim()}”`}.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -440,7 +469,7 @@ function Home() {
             tree={tree}
             shown={shown}
             enabled={
-              !searching && view.layout === 'folders' && view.status === 'open'
+              !filtering && view.layout === 'folders' && view.status === 'open'
             }
             onExpand={(id) => setOpen(id, true)}
           >
@@ -448,7 +477,7 @@ function Home() {
               <TaskTree
                 tree={visible}
                 expanded={expanded}
-                forceOpen={searching}
+                forceOpen={filtering}
                 onToggle={setOpen}
                 onEdit={openEditor}
                 onComplete={complete}
@@ -485,7 +514,9 @@ function Home() {
         open={calendarOpen}
         onOpenChange={setCalendarOpen}
         tasks={data.tasks}
+        selected={day ? parseISO(day) : undefined}
         onNewTask={(date) => newTask(null, date)}
+        onShowDay={(date) => setDay(todayName(date))}
       />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </main>

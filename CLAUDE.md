@@ -307,8 +307,13 @@ A to-do list. The row menu has open, complete/reopen, edit/move, move up/down
 - **Calendar** (`calendar-dialog.tsx`, `i` or the header's calendar button):
   a bigger month calendar with a dot per task on the day it was created
   (up to 4, coloured by `taskTone`), the selected day's task count, and the
-  same keys; `a` (or the button) closes it and opens the new-task form
-  dated that day (`EditorState.date`).
+  same keys (a click only selects). Enter (or "Show") closes it and filters
+  the list to that day's tasks (`filterDay`, applied before the search; a
+  chip next to the search shows the day and clears it, as does `q`); `a`
+  (or the button) closes it and opens the new-task form dated that day
+  (`EditorState.date`). It opens on the filtered day, else today. Like the
+  global search, it acts once fully closed and doesn't return focus then
+  (`returnFocus`, reset when it next opens), so the form keeps focus.
 - **Up next** (`up-next.tsx`, `upNext`): the 9 oldest open tasks, oldest
   first, keys `1`–`9`; newer ones aren't listed until those are done.
 - Clicking a task / `o` / Enter opens its details (`TaskView` in
@@ -358,7 +363,8 @@ tasks: [{ title, description?, createdAt?, completedAt? }] }` (ISO dates,
 - Tasks tree (`src/hooks/tasks/use-tree-keyboard.ts`): the notes motions,
   but `a` new task (hovered folder, else top level), `c` complete/reopen
   (hovered, else focused), `t` open/completed view, `v` folders/list,
-  `i` calendar, `d` or `Delete` delete, `1`–`9` Up next.
+  `i` calendar, `d` or `Delete` delete, `1`–`9` Up next, `q` clears the
+  search and the date filter.
 - `z` opens the global search on every app (`useGlobalSearch`).
 - `?` (or the header keyboard button) opens the app's shortcuts help
   (`src/components/<app>/shortcuts-dialog.tsx`) — keep its list in sync

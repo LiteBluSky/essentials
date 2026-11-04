@@ -187,6 +187,11 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       `a` opens the new-task form on that day
 - [x] No dated folders: no folder picked = top level, folders need a name;
       "Today" lists the tasks dated today
+- [x] Calendar: Enter / "Show" filters the list to that day (chip by the
+      search, `q` clears it)
+- [x] The new-task form keeps focus when opened from the calendar (and
+      global search picks keep theirs)
+- [x] The new-item button hints `a` (the tree key) instead of Ctrl+B
 
 ## History of the notes app (before the merge)
 

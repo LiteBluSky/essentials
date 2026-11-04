@@ -1,5 +1,5 @@
 import { format, isToday } from 'date-fns'
-import { PlusIcon } from 'lucide-react'
+import { ListFilterIcon, PlusIcon } from 'lucide-react'
 import { createContext, use, useMemo, useRef, useState } from 'react'
 import type { ComponentProps } from 'react'
 
@@ -76,20 +76,27 @@ export function CalendarKeysHint({
 /**
  * The month at a glance (`i` or the header button): a dot per task on the
  * day it was created, coloured like the task. The same keys as the form's
- * date picker move the selection; `a` (or the button) starts a new task
- * dated that day.
+ * date picker move the selection (a click selects too); Enter (or the
+ * button) shows that day's tasks in the list, `a` (or the button) starts a
+ * new task dated that day.
  */
 export function CalendarDialog({
   open,
   onOpenChange,
   tasks,
+  selected,
   onNewTask,
+  onShowDay,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   tasks: Array<Task>
+  /** The day it opens on (the list's date filter); else today. */
+  selected?: Date
   /** New task on this day (opened once this dialog has closed). */
   onNewTask: (date: Date) => void
+  /** Filter the list to this day's tasks. */
+  onShowDay: (date: Date) => void
 }) {
   const byDay = useMemo(() => {
     const map = new Map<string, Array<Task>>()
@@ -102,30 +109,41 @@ export function CalendarDialog({
     return map
   }, [tasks])
 
-  // Acted on once closed, so the dialog doesn't take focus back from the
-  // task form.
+  // A new task is opened once this dialog is gone, and this dialog doesn't
+  // hand focus back to what opened it (the form has it by then). The flag is
+  // only reset once it has opened again: Base UI may restore focus after
+  // onOpenChangeComplete.
   const picked = useRef<Date | null>(null)
+  const returnFocus = useRef(true)
 
   return (
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
       onOpenChangeComplete={(isOpen) => {
+        if (isOpen) returnFocus.current = true
         const date = picked.current
         if (isOpen || !date) return
         picked.current = null
-        onNewTask(date)
+        // After the popup has unmounted and any focus handling is done.
+        setTimeout(() => onNewTask(date))
       }}
     >
       <DialogContent
         className="sm:max-w-md"
-        finalFocus={() => picked.current === null}
+        finalFocus={() => returnFocus.current}
       >
         <TasksByDay value={byDay}>
           <CalendarBody
             byDay={byDay}
-            onPick={(date) => {
+            initial={selected}
+            onNewTask={(date) => {
               picked.current = date
+              returnFocus.current = false
+              onOpenChange(false)
+            }}
+            onShowDay={(date) => {
+              onShowDay(date)
               onOpenChange(false)
             }}
           />
@@ -135,15 +153,19 @@ export function CalendarDialog({
   )
 }
 
-// Mounted per opening, so it starts on today.
+// Mounted per opening, so it starts on `initial` (or today) each time.
 function CalendarBody({
   byDay,
-  onPick,
+  initial,
+  onNewTask,
+  onShowDay,
 }: {
   byDay: ReadonlyMap<string, Array<Task>>
-  onPick: (date: Date) => void
+  initial?: Date
+  onNewTask: (date: Date) => void
+  onShowDay: (date: Date) => void
 }) {
-  const [date, setDate] = useState(() => new Date())
+  const [date, setDate] = useState(() => initial ?? new Date())
   const keys = useCalendarKeys(date, setDate)
   const dayTasks = byDay.get(todayName(date)) ?? []
   const done = dayTasks.filter((t) => t.completedAt !== null).length
@@ -153,10 +175,13 @@ function CalendarBody({
       ref={keys.ref}
       className="flex flex-col gap-4"
       onKeyDownCapture={(e) => {
-        if (e.key === 'a' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const plain = !e.ctrlKey && !e.metaKey && !e.altKey
+        if (plain && (e.key === 'a' || e.key === 'Enter')) {
+          // Before the focused day's own Enter (which would just select it).
           e.preventDefault()
           e.stopPropagation()
-          onPick(date)
+          if (e.key === 'a') onNewTask(date)
+          else onShowDay(date)
           return
         }
         keys.onKeyDownCapture(e)
@@ -185,9 +210,14 @@ function CalendarBody({
           className="[--cell-size:--spacing(11)]"
         />
       </div>
-      <CalendarKeysHint action="new task" actionKey="a" />
+      <CalendarKeysHint action="show its tasks" actionKey="Enter" />
       <DialogFooter>
-        <Button onClick={() => onPick(date)}>
+        <Button variant="outline" onClick={() => onShowDay(date)}>
+          <ListFilterIcon data-icon="inline-start" />
+          Show {format(date, 'd MMM')}
+          <Kbd>Enter</Kbd>
+        </Button>
+        <Button onClick={() => onNewTask(date)}>
           <PlusIcon data-icon="inline-start" />
           New task on {format(date, 'd MMM')}
           <Kbd>a</Kbd>
