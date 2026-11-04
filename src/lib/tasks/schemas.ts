@@ -4,18 +4,15 @@ import { z } from 'zod'
 
 const id = z.number().int().positive()
 
-/** A local calendar date, `YYYY-MM-DD` — the name of a dated folder. */
-const dateName = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected a date')
-
 export const folderInput = z.object({
-  // Optional — an unnamed folder is named after today's date.
-  name: z.string().trim().max(255, 'Keep it under 255 characters'),
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Name is required')
+    .max(255, 'Keep it under 255 characters'),
   parentId: id.nullable(),
 })
 export type FolderInput = z.infer<typeof folderInput>
-
-/** Folder picker value meaning "today's dated folder" (created if missing). */
-export const TODAY = 'today'
 
 export const taskInput = z.object({
   title: z
@@ -24,19 +21,22 @@ export const taskInput = z.object({
     .min(1, 'What needs doing?')
     .max(500, 'Keep it under 500 characters'),
   description: z.string().max(10_000, 'Keep the description shorter'),
-  folderId: z.union([id, z.literal(TODAY)]).nullable(),
+  // null = top level (the default: no folder picked).
+  folderId: id.nullable(),
 })
 export type TaskInput = z.infer<typeof taskInput>
 
-// What the server gets: the form plus the client's local date, which names
-// the "Today" folder (the server may run in another timezone).
-export const saveTaskInput = taskInput.extend({ today: dateName })
-export type SaveTaskInput = z.infer<typeof saveTaskInput>
+// A new task can be dated (the form's date picker: the picked day at the
+// current time). Sent as an ISO string. Editing keeps the original date.
+export const createTaskInput = taskInput.extend({
+  createdAt: z.coerce.date().optional(),
+})
+export type CreateTaskInput = z.infer<typeof createTaskInput>
 
 export const byId = z.object({ id })
 
 export const updateFolderInput = folderInput.extend({ id })
-export const updateTaskInput = saveTaskInput.extend({ id })
+export const updateTaskInput = taskInput.extend({ id })
 
 export const completeInput = z.object({ id, done: z.boolean() })
 export type CompleteInput = z.infer<typeof completeInput>

@@ -111,6 +111,7 @@ export function EditorDialogs({
                 key={state.task?.id ?? 'new'}
                 task={state.task}
                 folderId={state.folderId}
+                date={state.date}
                 folderOptions={flattenFolders(tree)}
                 onDone={(id) => {
                   onSaved(id)

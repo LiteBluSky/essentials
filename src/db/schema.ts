@@ -136,8 +136,7 @@ export const notesRelations = relations(notes, ({ one }) => ({
 
 // ---- Tasks ----------------------------------------------------------------
 
-// Same shape as the bookmark folders. Unnamed folders are named after the
-// date they were created (see `todayName`).
+// Same shape as the bookmark folders.
 export const taskFolders = sqliteTable(
   'task_folders',
   {

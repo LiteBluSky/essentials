@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button'
 import { DialogClose, DialogFooter } from '@/components/ui/dialog'
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -16,7 +15,6 @@ import { toast } from '@/components/ui/toast'
 import type { Folder } from '@/db/schema'
 import { folderInput } from '@/lib/tasks/schemas'
 import type { FolderInput } from '@/lib/tasks/schemas'
-import { todayName } from '@/lib/tasks/tree'
 import type { FolderOption } from '@/lib/tasks/tree'
 import {
   createFolder,
@@ -40,10 +38,8 @@ export function FolderForm({
   const queryClient = useQueryClient()
   const save = useMutation({
     mutationFn: async (input: FolderInput) => {
-      // Unnamed folders are named after today's (local) date.
-      const value = { ...input, name: input.name || todayName() }
-      if (folder) await updateFolder({ data: { id: folder.id, ...value } })
-      else await createFolder({ data: value })
+      if (folder) await updateFolder({ data: { id: folder.id, ...input } })
+      else await createFolder({ data: input })
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries(tasksTreeQueryOptions)
@@ -93,15 +89,11 @@ export function FolderForm({
                   name={field.name}
                   autoFocus
                   autoComplete="off"
-                  placeholder={todayName()}
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
                   aria-invalid={isInvalid}
                 />
-                <FieldDescription>
-                  Leave empty to name it after today's date.
-                </FieldDescription>
                 {isInvalid && <FieldError errors={field.state.meta.errors} />}
               </Field>
             )

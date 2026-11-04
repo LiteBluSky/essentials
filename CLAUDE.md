@@ -72,7 +72,7 @@ Each app is self-contained and namespaced; only the shell is shared.
   (`search`, `newItem`, `newFolder`), `hooks/use-expanded-folders.ts`,
   `hooks/use-install-app.ts`, `components/theme-toggle.tsx`, the global
   search (`components/global-search.tsx`, `hooks/use-global-search.ts`,
-  `lib/global-search.ts`), `ui/`.
+  `lib/global-search.ts`, `server/search.*.ts`), `ui/`.
 - Apps don't import from each other. The tree code (keyboard hook, DnD,
   folder form/select) is duplicated per app on purpose for now (see
   TASKS.md); keep the copies behaving alike.
@@ -80,7 +80,7 @@ Each app is self-contained and namespaced; only the shell is shared.
   prefixed with the app name; render `<AppNav />` at the left of its header
   and pass `onSwitchApp` to its tree keyboard hook; call `useGlobalSearch`,
   render `<GlobalSearch>` and the header search button, and add its folders
-  and items to `GlobalSearch`; add its page to `PAGES` in `public/sw.js`
+  and items to `search.server.ts`; add its page to `PAGES` in `public/sw.js`
   (bump the cache name).
 
 ## Data model (`src/db/schema.ts`)
@@ -98,8 +98,7 @@ One SQLite file holds every app. Bookmark tables keep their original names.
   `viewCount` + `openedAt` (bumped by `viewNote` when a note's preview
   opens; drive "Recent" / "Most viewed"), timestamps. Recording a view or
   reordering keeps `updatedAt` (it means "edited").
-- `task_folders` (same shape; an unnamed folder is named after the local
-  date, `YYYY-MM-DD`) / `tasks` — `id`, `title`, `description` (plain
+- `task_folders` (same shape) / `tasks` — `id`, `title`, `description` (plain
   text, `''` = none), `folderId`, `position`, `completedAt?` (set = done),
   timestamps. `createdAt` drives the colour.
 - `position` orders siblings within the same parent (folders and items are
@@ -195,10 +194,14 @@ fn rewrites sibling positions in a transaction and `useMoveBookmark` /
 
 **Global search** (`z`, or the search button first in the header's button
 group, on every app): a `Command` dialog listing every app's folders and
-items, grouped by app (`src/components/global-search.tsx`). It loads each
-app's tree query (already cached for the current app). Every search word
-must appear in the name, folder path or extra text (URL + description, note
-body, task description); name matches rank first. Picking a link opens it
+items, grouped by app (`src/components/global-search.tsx`). It doesn't load
+the trees: each (debounced) search calls `globalSearch`
+(`src/server/search.functions.ts` / `search.server.ts`, shared by all apps),
+which returns at most `SEARCH_LIMIT` (20) folders and 20 items per app, with
+their folder paths (no note bodies). Every search word must appear in the
+name or the item's other text (URL + description, note body, task
+description); name matches rank first, then the latest edited — which is
+also what an empty search lists. Picking a link opens it
 in a new tab; anything else is stored with `requestOpen`
 (`src/lib/global-search.ts`) once the dialog has closed, then the app is
 navigated to and its page's `useGlobalSearch` takes it: an item opens (note
@@ -245,7 +248,13 @@ copy text, move up/down, delete.
   (`sm:max-w-3xl`): Title (optional) + Folder, a formatting toolbar and a
   monospace textarea. Enter continues lists/checklists (Enter on an empty
   item ends the list), Tab/Shift+Tab indent, Ctrl+B/I/K bold/italic/link,
-  Ctrl+Enter or Ctrl+S saves and shows the preview. **Esc / clicking
+  Ctrl+Enter or Ctrl+S saves and shows the preview. **Ctrl+M** is a format
+  mode over the toolbar (`FORMATS`): `h`/`l` (←/→) move the highlight
+  (wrapping), `0`/`$` first/last, Enter/Space applies it to the caret's line
+  (inline styles wrap the line's text after any list/quote/heading marker,
+  via `lineContent`; a selection is used as is), Esc/Ctrl+M cancels without
+  closing the dialog. Other keys are swallowed while it's on; it reopens on
+  the last format used. **Esc / clicking
   outside saves and closes** (the form registers a save-on-close handler;
   Cancel discards). A blank new note is simply not created.
 
@@ -268,11 +277,11 @@ one transaction — it never replaces or dedupes.
 A to-do list. The row menu has open, complete/reopen, edit/move, move up/down
 (folders view only), delete; folder rows as in Notes.
 
-- **Today**: the task form's folder picker offers "Today" (the default when
-  no folder is pointed at): the top-level folder named after the client's
-  local date (`todayName`), created by the server on first use
-  (`resolveFolder`; the client sends `today` since the server may be in
-  another timezone). Unnamed folders also get the date.
+- **No dated folders**: a task with no folder picked goes to the top level;
+  folders need a name. **Today** (`TodayTasks` in `up-next.tsx`,
+  `todayTasks`) is a list above Up next of the tasks dated today (created
+  on the browser's local date, open and done, wherever they're filed),
+  shown after hydration only.
 - **Colours** (`taskTone` in `src/lib/tasks/tree.ts`, tokens `--warning` /
   `--success` in `styles.css` next to `--destructive`): red after 3 days
   open, yellow after 1 (calendar days in the browser's timezone, so
@@ -288,12 +297,25 @@ A to-do list. The row menu has open, complete/reopen, edit/move, move up/down
   first (completed: latest first). Drag and drop only in open + folders.
   Move up/down steps past hidden (completed) siblings (`shown` in
   `tree-dnd.tsx`).
+- **Date** (`date-picker.tsx`, shadcn `Calendar` in a `Popover`): a new
+  task's day, today by default; saved as `createdAt` = that day at the
+  current time (`createTaskInput`, ISO string). Not offered when editing.
+  In the calendar `h`/`l` day, `j`/`k` week, `m`/`M` month and `y`/`Y` year
+  forward/back move the selection (handled in capture, before the
+  calendar's own keys); Enter picks. The keys live in `useCalendarKeys`
+  (`src/hooks/tasks/use-calendar-keys.ts`), shared with the calendar dialog.
+- **Calendar** (`calendar-dialog.tsx`, `i` or the header's calendar button):
+  a bigger month calendar with a dot per task on the day it was created
+  (up to 4, coloured by `taskTone`), the selected day's task count, and the
+  same keys; `a` (or the button) closes it and opens the new-task form
+  dated that day (`EditorState.date`).
 - **Up next** (`up-next.tsx`, `upNext`): the 9 oldest open tasks, oldest
   first, keys `1`–`9`; newer ones aren't listed until those are done.
 - Clicking a task / `o` / Enter opens its details (`TaskView` in
   `editor-dialogs.tsx`): path, title, description, created/completed dates;
   `c` completes, `e` edits, `d` deletes. The form is Task (focused),
-  Folder, Description (plain `Textarea`); Enter saves; a new task closes
+  Folder (top level by default), Date (new tasks only), Description (plain
+  `Textarea`); Enter saves; a new task closes
   the dialog and reveals the task in the tree.
 - **Import/export**: `{ format: 1, folders: [{ name, folders, tasks }],
 tasks: [{ title, description?, createdAt?, completedAt? }] }` (ISO dates,
@@ -334,9 +356,9 @@ tasks: [{ title, description?, createdAt?, completedAt? }] }` (ISO dates,
   `data-id`, `data-parent-id` on their focusable element, and
   `data-tree-row` on the hover area (row + its menu).
 - Tasks tree (`src/hooks/tasks/use-tree-keyboard.ts`): the notes motions,
-  but `a` new task (hovered folder, else Today), `c` complete/reopen
+  but `a` new task (hovered folder, else top level), `c` complete/reopen
   (hovered, else focused), `t` open/completed view, `v` folders/list,
-  `d` or `Delete` delete, `1`–`9` Up next.
+  `i` calendar, `d` or `Delete` delete, `1`–`9` Up next.
 - `z` opens the global search on every app (`useGlobalSearch`).
 - `?` (or the header keyboard button) opens the app's shortcuts help
   (`src/components/<app>/shortcuts-dialog.tsx`) — keep its list in sync

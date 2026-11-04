@@ -4,9 +4,9 @@ import { createServerFn } from '@tanstack/react-start'
 import {
   byId,
   completeInput,
+  createTaskInput,
   folderInput,
   moveInput,
-  saveTaskInput,
   tasksFile,
   updateFolderInput,
   updateTaskInput,
@@ -55,7 +55,7 @@ export const deleteFolder = createServerFn({ method: 'POST' })
   })
 
 export const createTask = createServerFn({ method: 'POST' })
-  .validator(saveTaskInput)
+  .validator(createTaskInput)
   .handler(({ data }) => insertTask(data))
 
 export const updateTask = createServerFn({ method: 'POST' })

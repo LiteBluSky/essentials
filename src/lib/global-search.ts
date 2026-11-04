@@ -1,8 +1,29 @@
-// Global search (`z`) hands the picked item to its app's page: it stores the
-// target here, navigates to the app, and the page (mounted or already
-// showing) takes it with `useGlobalSearch` and opens / reveals it.
+import { z } from 'zod'
+
+// Global search (`z`): the server returns at most SEARCH_LIMIT matches of
+// each kind (per app: folders, items). Picking one hands it to its app's
+// page: the target is stored here, the app navigated to, and the page
+// (mounted or already showing) takes it with `useGlobalSearch` and opens /
+// reveals it.
+
+export const SEARCH_LIMIT = 20
+
+export const searchInput = z.object({ query: z.string().trim().max(200) })
 
 export type SearchApp = 'bookmarks' | 'notes' | 'tasks'
+
+export type SearchResult = {
+  kind: 'folder' | 'item'
+  id: number
+  label: string
+  /** The containing folders, "A / B". */
+  path: string
+  /** Links open straight in a new tab. */
+  url?: string
+  done?: boolean
+}
+
+export type SearchResults = Record<SearchApp, Array<SearchResult>>
 
 /** What to open: a folder is revealed in the tree, an item opened. (Links
  * open straight in a new tab, so they never get here.) */

@@ -32,12 +32,13 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       { keys: [['z']], action: 'Search everything (all apps)' },
       {
         keys: [['a'], mod(SHORTCUTS.newItem.label)],
-        action: 'New task (in Today)',
+        action: 'New task',
       },
       { keys: [mod(SHORTCUTS.newFolder.label)], action: 'New folder' },
       { keys: [['1'], ['…'], ['9']], action: 'Open an “Up next” task' },
       { keys: [['t']], action: 'Show completed / open tasks' },
       { keys: [['v']], action: 'Folders / one list' },
+      { keys: [['i']], action: 'Calendar of the month' },
       {
         keys: [['Shift', 'H']],
         action: 'Collapse all folders, then previous app',
@@ -86,6 +87,17 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       { keys: [['Enter']], action: 'Save (from the task field)' },
       { keys: [mod('Enter')], action: 'Save (from the description)' },
       { keys: [['Esc']], action: 'Cancel' },
+    ],
+  },
+  {
+    title: 'Date picker (new task) and calendar',
+    shortcuts: [
+      { keys: [['h'], ['l']], action: 'Previous / next day' },
+      { keys: [['k'], ['j']], action: 'Previous / next week' },
+      { keys: [['m'], ['Shift', 'M']], action: 'Next / previous month' },
+      { keys: [['y'], ['Shift', 'Y']], action: 'Next / previous year' },
+      { keys: [['Enter']], action: 'Pick the date' },
+      { keys: [['a']], action: 'Calendar: new task on that day' },
     ],
   },
   {

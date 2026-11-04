@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 
-import { TODAY } from '@/lib/tasks/schemas'
 import type { TaskInput } from '@/lib/tasks/schemas'
 
 // Vim-style motions over the visible tree rows (anywhere on the page, except
@@ -15,11 +14,12 @@ import type { TaskInput } from '@/lib/tasks/schemas'
 //   n / N  next / previous visible task (wraps around)
 //   o      open task / toggle folder (Enter works natively too)
 //   r / e  edit the focused task, or rename / move the focused folder
-//   a      new task in the hovered (or focused) folder, else in Today
+//   a      new task in the hovered (or focused) folder, else top level
 //   c      complete (or reopen) the hovered task, or the focused one
 //   d      delete the hovered row (or the focused one), after confirming
 //   t      show completed tasks / open tasks
 //   v      folders / a flat list of tasks
+//   i      calendar of the month
 //   x      cut the focused task   p  paste it here   Esc  cancel the cut
 //   1-9    open an "Up next" task
 //   /      focus search       q  clear the search
@@ -60,6 +60,7 @@ export function useTreeKeyboard({
   onPaste,
   onCancelCut,
   onOpenUpNext,
+  onCalendar,
   enabled,
 }: {
   containerRef: RefObject<HTMLElement | null>
@@ -86,6 +87,7 @@ export function useTreeKeyboard({
   onCancelCut: () => boolean
   /** `index` is 0-based (key 1 = 0). */
   onOpenUpNext: (index: number) => void
+  onCalendar: () => void
   enabled: boolean
 }) {
   const callbacks = {
@@ -106,6 +108,7 @@ export function useTreeKeyboard({
     onPaste,
     onCancelCut,
     onOpenUpNext,
+    onCalendar,
   }
   const latest = useRef(callbacks)
   useEffect(() => {
@@ -296,6 +299,10 @@ export function useTreeKeyboard({
           handled()
           cb.onToggleLayout()
           return
+        case 'i':
+          handled()
+          cb.onCalendar()
+          return
         case 'x':
           if (!current || isFolder) return
           handled()
@@ -303,12 +310,12 @@ export function useTreeKeyboard({
           return
         case 'a': {
           // New task in the hovered (or focused) folder, or the folder of
-          // the hovered task; Today when nothing is pointed at.
+          // the hovered task; the top level when nothing is pointed at.
           const target = pointed()
           handled()
           cb.onNew(
             !target
-              ? TODAY
+              ? null
               : target.dataset.kind === 'folder'
                 ? Number(target.dataset.id)
                 : target.dataset.parentId

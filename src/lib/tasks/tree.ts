@@ -172,6 +172,13 @@ export function ageLabel(task: Pick<Task, 'createdAt'>, now = new Date()) {
   return days === 0 ? 'today' : `${days} day${days === 1 ? '' : 's'}`
 }
 
+/** The tasks dated today (created on the local date `now`), open or done,
+ * in the order they were added. Depends on the timezone: browser only. */
+export function todayTasks(tasks: Array<Task>, now = new Date()) {
+  const today = todayName(now)
+  return tasks.filter((t) => todayName(t.createdAt) === today).sort(byCreated)
+}
+
 /** The local date as `YYYY-MM-DD`: names the "Today" folder and unnamed
  * folders. */
 export function todayName(date = new Date()) {

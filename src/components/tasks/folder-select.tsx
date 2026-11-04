@@ -1,10 +1,5 @@
 import { useState } from 'react'
-import {
-  CalendarIcon,
-  ChevronDownIcon,
-  FolderIcon,
-  HouseIcon,
-} from 'lucide-react'
+import { ChevronDownIcon, FolderIcon, HouseIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -20,9 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { TODAY } from '@/lib/tasks/schemas'
 import type { TaskInput } from '@/lib/tasks/schemas'
-import { todayName } from '@/lib/tasks/tree'
 import type { FolderOption } from '@/lib/tasks/tree'
 
 const INDENT_PX = 12
@@ -37,22 +30,11 @@ type Item = {
   path: string
 }
 
-function toItems(
-  options: Array<FolderOption>,
-  withToday: boolean,
-): Array<Item> {
+function toItems(options: Array<FolderOption>): Array<Item> {
   const ancestors: Array<string> = []
   const items: Array<Item> = [
     { label: 'Top level', value: null, depth: -1, path: '' },
   ]
-  if (withToday) {
-    items.unshift({
-      label: 'Today',
-      value: TODAY,
-      depth: -1,
-      path: todayName(),
-    })
-  }
   for (const o of options) {
     ancestors.length = o.depth
     items.push({
@@ -76,27 +58,21 @@ function filterByName(
   return name.includes(search.trim().toLowerCase()) ? 1 : 0
 }
 
-/**
- * Folder picker with type-to-filter (shadcn Command in a Popover). With
- * `withToday`, offers "Today": the folder named after today's date, created
- * when needed.
- */
+/** Folder picker with type-to-filter (shadcn Command in a Popover). */
 export function FolderSelect<TValue extends Value>({
   id,
   value,
   onChange,
   options,
   invalid,
-  withToday = false,
 }: {
   id?: string
   value: TValue
   onChange: (value: TValue) => void
   options: Array<FolderOption>
   invalid?: boolean
-  withToday?: boolean
 }) {
-  const items = toItems(options, withToday)
+  const items = toItems(options)
   const selected = items.find((i) => i.value === value) ?? items[0]
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -155,7 +131,7 @@ export function FolderSelect<TValue extends Value>({
                 >
                   <ItemIcon value={item.value} />
                   <span className="truncate">{item.label}</span>
-                  {(filtering || item.value === TODAY) && item.path && (
+                  {filtering && item.path && (
                     <span className="truncate text-xs text-muted-foreground">
                       {item.path}
                     </span>
@@ -171,6 +147,5 @@ export function FolderSelect<TValue extends Value>({
 }
 
 function ItemIcon({ value }: { value: Value }) {
-  if (value === TODAY) return <CalendarIcon />
   return value === null ? <HouseIcon /> : <FolderIcon />
 }

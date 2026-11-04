@@ -1,15 +1,15 @@
-import { and, asc, eq, inArray, isNull, max, sql } from 'drizzle-orm'
+import { asc, eq, inArray, isNull, max, sql } from 'drizzle-orm'
 
 import { db } from '@/db'
 import { taskFolders as folders, tasks } from '@/db/schema'
-import { TODAY } from '@/lib/tasks/schemas'
 import type {
   CompleteInput,
+  CreateTaskInput,
   ExportFolder,
   ExportTask,
   FolderInput,
   MoveInput,
-  SaveTaskInput,
+  TaskInput,
   TasksFile,
 } from '@/lib/tasks/schemas'
 import { reorderIds } from '@/lib/tasks/tree'
@@ -135,39 +135,19 @@ export async function removeFolder(id: number) {
   })
 }
 
-// "Today" is the top-level folder named after the client's date; it's
-// created the first time a task goes into it.
-async function resolveFolder(
-  folderId: SaveTaskInput['folderId'],
-  today: string,
-) {
-  if (folderId !== TODAY) {
-    await assertFolderExists(folderId)
-    return folderId
-  }
-  const existing = (
-    await db
-      .select({ id: folders.id })
-      .from(folders)
-      .where(and(isNull(folders.parentId), eq(folders.name, today)))
-      .limit(1)
-  ).at(0)
-  if (existing) return existing.id
-  return (await insertFolder({ name: today, parentId: null })).id
-}
-
-export async function insertTask({ today, ...input }: SaveTaskInput) {
-  const folderId = await resolveFolder(input.folderId, today)
-  const position = await nextTaskPosition(folderId)
+export async function insertTask({ createdAt, ...input }: CreateTaskInput) {
+  await assertFolderExists(input.folderId)
+  const position = await nextTaskPosition(input.folderId)
   const [row] = await db
     .insert(tasks)
-    .values({ ...input, folderId, position })
+    .values({ ...input, position, ...(createdAt && { createdAt }) })
     .returning({ id: tasks.id })
   return row
 }
 
-export async function editTask(id: number, { today, ...input }: SaveTaskInput) {
-  const folderId = await resolveFolder(input.folderId, today)
+export async function editTask(id: number, input: TaskInput) {
+  const { folderId } = input
+  await assertFolderExists(folderId)
   const existing = (
     await db
       .select({ folderId: tasks.folderId })

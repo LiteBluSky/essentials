@@ -12,7 +12,7 @@ import {
   QuoteIcon,
   StrikethroughIcon,
 } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, RefObject } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -36,6 +36,7 @@ import {
   continueList,
   indentLines,
   insertLink,
+  lineContent,
   toggleLines,
   toggleWrap,
 } from '@/lib/notes/markdown-edit'
@@ -94,6 +95,19 @@ const LINE_TOOLS: Array<{
   { label: 'Numbered list', icon: ListOrderedIcon, style: 'number' },
   { label: 'Checklist', icon: ListChecksIcon, style: 'task' },
   { label: 'Quote', icon: QuoteIcon, style: 'quote' },
+]
+
+/** Every toolbar option in order, for Ctrl+M's format mode. Inline styles
+ * wrap the selection, or else the caret's line. */
+const FORMATS: Array<{ label: string; edit: (sel: Sel) => Edit }> = [
+  ...TOOLBAR.map((tool) => ({
+    label: tool.label,
+    edit: (sel: Sel) => tool.edit(lineContent(sel)),
+  })),
+  ...LINE_TOOLS.map((tool) => ({
+    label: tool.label,
+    edit: (sel: Sel) => toggleLines(sel, tool.style),
+  })),
 ]
 
 export function NoteForm({
@@ -168,6 +182,11 @@ export function NoteForm({
     }
   })
 
+  // Ctrl+M: pick a toolbar option with h/l, Enter applies it to the line.
+  // The index of the highlighted option, null when not choosing.
+  const [formatAt, setFormatAt] = useState<number | null>(null)
+  const lastFormat = useRef(0)
+
   const runEdit = (make: (sel: Sel) => Edit | null) => {
     const el = bodyRef.current
     if (!el) return false
@@ -181,8 +200,62 @@ export function NoteForm({
     return true
   }
 
-  const onBodyKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+  const onFormatKeyDown = (
+    e: KeyboardEvent<HTMLTextAreaElement>,
+    at: number,
+  ) => {
     const mod = e.ctrlKey || e.metaKey
+    if (mod && !e.altKey && e.key.toLowerCase() === 'm') {
+      e.preventDefault()
+      setFormatAt(null)
+      return
+    }
+    // Other shortcuts (Ctrl+S...) leave the mode and do their usual thing.
+    if (mod || e.altKey) {
+      setFormatAt(null)
+      return
+    }
+    // Everything else is a format-mode key: nothing gets typed.
+    e.preventDefault()
+    const last = FORMATS.length - 1
+    switch (e.key) {
+      case 'h':
+      case 'ArrowLeft':
+        setFormatAt(at === 0 ? last : at - 1)
+        break
+      case 'l':
+      case 'ArrowRight':
+        setFormatAt(at === last ? 0 : at + 1)
+        break
+      case '0':
+      case '^':
+        setFormatAt(0)
+        break
+      case '$':
+        setFormatAt(last)
+        break
+      case 'Enter':
+      case ' ':
+        lastFormat.current = at
+        setFormatAt(null)
+        runEdit(FORMATS[at].edit)
+        break
+      case 'Escape':
+        // Leave the mode, don't close (and save) the dialog.
+        e.stopPropagation()
+        setFormatAt(null)
+        break
+    }
+  }
+
+  const onBodyKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (formatAt !== null) return onFormatKeyDown(e, formatAt)
+    const mod = e.ctrlKey || e.metaKey
+    if (mod && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'm') {
+      e.preventDefault()
+      setFormatAt(lastFormat.current)
+      return
+    }
     if (mod && !e.altKey && !e.shiftKey) {
       const tool = TOOLBAR.find((t) => t.keys?.toLowerCase() === e.key)
       if (tool) {
@@ -277,25 +350,31 @@ export function NoteForm({
                   <FieldLabel htmlFor={field.name}>Note</FieldLabel>
                   <div className="flex flex-wrap gap-1">
                     <ButtonGroup aria-label="Text formatting">
-                      {TOOLBAR.map((tool) => (
+                      {TOOLBAR.map((tool, i) => (
                         <ToolButton
                           key={tool.label}
                           label={tool.label}
                           keys={tool.keys}
                           icon={tool.icon}
-                          onClick={() => runEdit(tool.edit)}
+                          active={formatAt === i}
+                          onClick={() => {
+                            setFormatAt(null)
+                            runEdit(tool.edit)
+                          }}
                         />
                       ))}
                     </ButtonGroup>
                     <ButtonGroup aria-label="Lists and blocks">
-                      {LINE_TOOLS.map((tool) => (
+                      {LINE_TOOLS.map((tool, i) => (
                         <ToolButton
                           key={tool.label}
                           label={tool.label}
                           icon={tool.icon}
-                          onClick={() =>
+                          active={formatAt === TOOLBAR.length + i}
+                          onClick={() => {
+                            setFormatAt(null)
                             runEdit((sel) => toggleLines(sel, tool.style))
-                          }
+                          }}
                         />
                       ))}
                     </ButtonGroup>
@@ -309,14 +388,28 @@ export function NoteForm({
                   placeholder="Write here. Markdown works: **bold**, - lists, - [ ] checkboxes, # headings…"
                   className="max-h-[55dvh] min-h-[40dvh] font-mono"
                   value={field.state.value}
-                  onBlur={field.handleBlur}
+                  onBlur={() => {
+                    field.handleBlur()
+                    setFormatAt(null)
+                  }}
                   onChange={(e) => field.handleChange(e.target.value)}
                   onKeyDown={onBodyKeyDown}
                   aria-invalid={isInvalid}
                 />
-                <FieldDescription className="max-sm:hidden">
-                  Lists continue on Enter, Tab indents. Esc or clicking outside
-                  saves and closes.
+                <FieldDescription className="max-sm:hidden" aria-live="polite">
+                  {formatAt === null ? (
+                    <>
+                      Lists continue on Enter, Tab indents, {MOD_LABEL}+M
+                      formats the line. Esc or clicking outside saves and
+                      closes.
+                    </>
+                  ) : (
+                    <>
+                      Format the line ({FORMATS[formatAt].label}): <Kbd>h</Kbd>{' '}
+                      <Kbd>l</Kbd> to choose, <Kbd>Enter</Kbd> to apply,{' '}
+                      <Kbd>Esc</Kbd> to cancel.
+                    </>
+                  )}
                 </FieldDescription>
                 {isInvalid && <FieldError errors={field.state.meta.errors} />}
               </Field>
@@ -356,17 +449,21 @@ function ToolButton({
   label,
   keys,
   icon: Icon,
+  active = false,
   onClick,
 }: {
   label: string
   keys?: string
   icon: typeof BoldIcon
+  /** Highlighted while choosing a format with Ctrl+M. */
+  active?: boolean
   onClick: () => void
 }) {
   return (
     <Button
       type="button"
-      variant="outline"
+      variant={active ? 'default' : 'outline'}
+      aria-pressed={active}
       size="icon-sm"
       aria-label={label}
       title={keys ? `${label} (${MOD_LABEL}+${keys})` : label}

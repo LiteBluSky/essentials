@@ -56,6 +56,25 @@ export function toggleWrap({ value, start, end }: Sel, marker: string): Edit {
   }
 }
 
+/**
+ * The caret's line as a selection, for formatting "this line": its text
+ * after the indent and any list / quote / heading marker, without trailing
+ * spaces. A real selection is returned unchanged.
+ */
+export function lineContent(sel: Sel): Sel {
+  const { value, start, end } = sel
+  if (start !== end) return sel
+  const from = lineStart(value, start)
+  const line = value.slice(from, lineEnd(value, start))
+  const prefix =
+    /^\s*(?:#{1,6}\s+|>\s?|(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?)?/.exec(
+      line,
+    )![0]
+  const text = line.slice(prefix.length).trimEnd()
+  const at = from + prefix.length
+  return { value, start: at, end: at + text.length }
+}
+
 /** `[selection](url)` with "url" selected, ready to paste over. */
 export function insertLink({ value, start, end }: Sel): Edit {
   const label = value.slice(start, end) || 'link'

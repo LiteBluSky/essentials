@@ -1,6 +1,7 @@
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import {
+  CalendarDaysIcon,
   CircleCheckBigIcon,
   CircleIcon,
   FolderPlusIcon,
@@ -15,13 +16,14 @@ import {
 } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 
+import { CalendarDialog } from '@/components/tasks/calendar-dialog'
 import type { EditorState } from '@/components/tasks/editor'
 import { EditorDialogs } from '@/components/tasks/editor-dialogs'
 import { ImportExportMenu } from '@/components/tasks/import-export-menu'
 import { ShortcutsDialog } from '@/components/tasks/shortcuts-dialog'
 import { TaskList, TaskTree } from '@/components/tasks/task-tree'
 import { TreeDndProvider } from '@/components/tasks/tree-dnd'
-import { UpNext } from '@/components/tasks/up-next'
+import { TodayTasks, UpNext } from '@/components/tasks/up-next'
 import { AppNav } from '@/components/app-nav'
 import { GlobalSearch } from '@/components/global-search'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -44,6 +46,7 @@ import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { Separator } from '@/components/ui/separator'
 import { useCompleteTask } from '@/hooks/tasks/use-complete-task'
 import { useCutTask } from '@/hooks/tasks/use-cut-task'
+import { useHydrated } from '@/hooks/tasks/use-hydrated'
 import { useTaskView } from '@/hooks/tasks/use-task-view'
 import { useTreeKeyboard } from '@/hooks/tasks/use-tree-keyboard'
 import { useAppSwitch } from '@/hooks/use-app-switch'
@@ -52,7 +55,6 @@ import { useGlobalSearch } from '@/hooks/use-global-search'
 import { APP_NAME } from '@/lib/config'
 import { MOD_LABEL, SHORTCUTS, useShortcuts } from '@/lib/shortcuts'
 import type { ShortcutName } from '@/lib/shortcuts'
-import { TODAY } from '@/lib/tasks/schemas'
 import type { TaskInput } from '@/lib/tasks/schemas'
 import {
   buildTree,
@@ -61,6 +63,7 @@ import {
   findFolder,
   flatTasks,
   folderPath,
+  todayTasks,
   upNext,
 } from '@/lib/tasks/tree'
 import { tasksTreeQueryOptions } from '@/server/tasks.functions'
@@ -93,6 +96,12 @@ function Home() {
     [visible, view],
   )
   const next = useMemo(() => upNext(data.tasks), [data.tasks])
+  // Dated today in the browser's timezone, so only once hydrated.
+  const hydrated = useHydrated()
+  const today = useMemo(
+    () => (hydrated ? todayTasks(data.tasks) : []),
+    [hydrated, data.tasks],
+  )
   const complete = useCompleteTask()
 
   const { expanded, setOpen, collapseAll } = useExpandedFolders('tasks')
@@ -100,14 +109,16 @@ function Home() {
   const [editor, setEditor] = useState<EditorState | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  const [calendarOpen, setCalendarOpen] = useState(false)
   const openEditor = (state: EditorState) => {
     setEditor(state)
     setEditorOpen(true)
   }
-  // New tasks go into Today unless a folder is given.
-  const newTask = (folderId: TaskInput['folderId'] = TODAY) => {
+  // New tasks go to the top level unless a folder is given, dated today
+  // unless a day is given (from the calendar).
+  const newTask = (folderId: TaskInput['folderId'] = null, date?: Date) => {
     if (typeof folderId === 'number') setOpen(folderId, true)
-    openEditor({ kind: 'task', mode: 'edit', folderId })
+    openEditor({ kind: 'task', mode: 'edit', folderId, date })
   }
   // After saving, open the folders leading to the task so it's on screen.
   const revealTask = (id: number) => {
@@ -130,9 +141,9 @@ function Home() {
       setLayout('folders')
     },
     openItem: (id) => openEditor({ kind: 'task', mode: 'view', taskId: id }),
-    enabled: !editorOpen && !helpOpen,
+    enabled: !editorOpen && !helpOpen && !calendarOpen,
   })
-  const dialogOpen = editorOpen || helpOpen || globalSearch.open
+  const dialogOpen = editorOpen || helpOpen || calendarOpen || globalSearch.open
 
   const searchRef = useRef<HTMLInputElement>(null)
   const focusSearch = () => {
@@ -202,6 +213,7 @@ function Home() {
       const task = next.at(index)
       if (task) openEditor({ kind: 'task', mode: 'view', taskId: task.id })
     },
+    onCalendar: () => setCalendarOpen(true),
     onSwitchApp: switchApp,
     enabled: !dialogOpen,
   })
@@ -254,6 +266,15 @@ function Home() {
             >
               <SearchIcon />
             </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Calendar"
+              title="Calendar (i)"
+              onClick={() => setCalendarOpen(true)}
+            >
+              <CalendarDaysIcon />
+            </Button>
             <ImportExportMenu tree={tree} />
             <Button
               variant="outline"
@@ -276,6 +297,7 @@ function Home() {
         enabled={false}
         onExpand={(id) => setOpen(id, true)}
       >
+        <TodayTasks tasks={today} onEdit={openEditor} onComplete={complete} />
         <UpNext tasks={next} onEdit={openEditor} onComplete={complete} />
       </TreeDndProvider>
 
@@ -365,7 +387,7 @@ function Home() {
             </EmptyMedia>
             <EmptyTitle>No tasks yet</EmptyTitle>
             <EmptyDescription>
-              Press <Kbd>a</Kbd> to add one — it goes into today's folder.
+              Press <Kbd>a</Kbd> to add one.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
@@ -458,6 +480,12 @@ function Home() {
       <GlobalSearch
         open={globalSearch.open}
         onOpenChange={globalSearch.setOpen}
+      />
+      <CalendarDialog
+        open={calendarOpen}
+        onOpenChange={setCalendarOpen}
+        tasks={data.tasks}
+        onNewTask={(date) => newTask(null, date)}
       />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </main>

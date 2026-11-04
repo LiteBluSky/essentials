@@ -170,6 +170,23 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       revealed and focused in its app's tree
 - [x] `z` in each app's shortcuts help
 - [x] Shortcuts help: actions wrap instead of scrolling sideways
+- [x] Search on the server: at most 20 folders + 20 items per app, refined
+      as you type (no whole trees loaded); path at the row's right edge
+
+## 15. Notes: format the line from the keyboard
+
+- [x] Ctrl+M format mode: h/l through the toolbar, Enter applies to the
+      caret's line (or selection), Esc cancels; listed in shortcuts help
+
+## 16. Tasks: pick a new task's date
+
+- [x] Date field (shadcn date picker) on the new-task form, today by
+      default; saved at the current time of day
+- [x] Calendar keys: h/l day, j/k week, m/M month, y/Y year, Enter picks
+- [x] Calendar dialog (`i`): month with a coloured dot per task, same keys,
+      `a` opens the new-task form on that day
+- [x] No dated folders: no folder picked = top level, folders need a name;
+      "Today" lists the tasks dated today
 
 ## History of the notes app (before the merge)
 

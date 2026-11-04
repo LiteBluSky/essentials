@@ -1,5 +1,6 @@
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { DialogClose, DialogFooter } from '@/components/ui/dialog'
@@ -16,38 +17,45 @@ import { toast } from '@/components/ui/toast'
 import type { Task } from '@/db/schema'
 import { taskInput } from '@/lib/tasks/schemas'
 import type { TaskInput } from '@/lib/tasks/schemas'
-import { todayName } from '@/lib/tasks/tree'
 import type { FolderOption } from '@/lib/tasks/tree'
 import {
   createTask,
   tasksTreeQueryOptions,
   updateTask,
 } from '@/server/tasks.functions'
+import { DatePicker } from './date-picker'
 import { FolderSelect } from './folder-select'
 
-// Kept short on purpose: type the task, Enter, done. The folder and the
-// description are optional extras (Ctrl+Enter saves from the description).
+// Kept short on purpose: type the task, Enter, done. The folder, the date (new
+// tasks only) and the description are optional extras (Ctrl+Enter saves from
+// the description).
 export function TaskForm({
   task,
   folderId,
+  date: initialDate,
   folderOptions,
   onDone,
 }: {
   task?: Task
   folderId: TaskInput['folderId']
+  /** A new task's day; today when unset. */
+  date?: Date
   folderOptions: Array<FolderOption>
   /** Called with the saved task's id. */
   onDone: (id: number) => void
 }) {
   const queryClient = useQueryClient()
+  // A new task's day (today by default); it gets the current time on save.
+  const [date, setDate] = useState(() => initialDate ?? new Date())
   const save = useMutation({
     mutationFn: async (value: TaskInput) => {
-      const data = { ...value, today: todayName() }
+      const data = value
       if (task) {
         await updateTask({ data: { id: task.id, ...data } })
         return task.id
       }
-      return (await createTask({ data })).id
+      const createdAt = atCurrentTime(date).toISOString()
+      return (await createTask({ data: { ...data, createdAt } })).id
     },
     onSuccess: async (id) => {
       await queryClient.invalidateQueries(tasksTreeQueryOptions)
@@ -119,11 +127,16 @@ export function TaskForm({
                 value={field.state.value}
                 onChange={field.handleChange}
                 options={folderOptions}
-                withToday
               />
             </Field>
           )}
         />
+        {!task && (
+          <Field>
+            <FieldLabel htmlFor="task-date">Date</FieldLabel>
+            <DatePicker id="task-date" value={date} onChange={setDate} />
+          </Field>
+        )}
         <form.Field
           name="description"
           children={(field) => {
@@ -167,5 +180,18 @@ export function TaskForm({
         />
       </DialogFooter>
     </form>
+  )
+}
+
+/** `day`'s date at the current time of day. */
+function atCurrentTime(day: Date) {
+  const now = new Date()
+  return new Date(
+    day.getFullYear(),
+    day.getMonth(),
+    day.getDate(),
+    now.getHours(),
+    now.getMinutes(),
+    now.getSeconds(),
   )
 }
