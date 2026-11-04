@@ -32,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { Task } from '@/db/schema'
+import { useHydrated } from '@/hooks/tasks/use-hydrated'
 import { ageLabel, taskTone } from '@/lib/tasks/tree'
 import type { FolderNode, TaskTone, Tree } from '@/lib/tasks/tree'
 import { cn } from '@/lib/utils'
@@ -380,6 +381,7 @@ export function TaskCheck({
   onComplete: (taskId: number) => void
 }) {
   const done = task.completedAt !== null
+  const tone = useTone(task)
   return (
     // Same footprint as a folder row's chevron, so rows line up.
     <span className="flex w-8 shrink-0 justify-center">
@@ -389,7 +391,7 @@ export function TaskCheck({
         aria-label={
           done ? `Reopen “${task.title}”` : `Complete “${task.title}”`
         }
-        className={CHECK_TONE[taskTone(task)]}
+        className={CHECK_TONE[tone]}
       />
     </span>
   )
@@ -408,6 +410,14 @@ export function TaskTitle({ task }: { task: Task }) {
   )
 }
 
+/** The task's colour. Ages depend on the browser's timezone, so until
+ * hydration an open task is shown uncoloured (the server can't know it). */
+function useTone(task: Task): TaskTone {
+  const hydrated = useHydrated()
+  if (task.completedAt) return 'done'
+  return hydrated ? taskTone(task) : 'fresh'
+}
+
 /** How long the task has been open ("today", "3 days"), in its colour. */
 export function TaskAge({
   task,
@@ -416,15 +426,13 @@ export function TaskAge({
   task: Task
   className?: string
 }) {
+  const hydrated = useHydrated()
+  const tone = useTone(task)
   return (
     <span
-      className={cn(
-        'shrink-0 text-xs tabular-nums',
-        AGE_TONE[taskTone(task)],
-        className,
-      )}
+      className={cn('shrink-0 text-xs tabular-nums', AGE_TONE[tone], className)}
     >
-      {ageLabel(task)}
+      {hydrated ? ageLabel(task) : null}
     </span>
   )
 }

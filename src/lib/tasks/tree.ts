@@ -138,10 +138,17 @@ export function upNext(tasks: Array<Task>) {
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
-/** Whole days since the task was created (elapsed time, so it's the same in
- * every timezone and on the server). */
-export function taskAgeDays(task: Pick<Task, 'createdAt'>, now = Date.now()) {
-  return Math.max(0, Math.floor((now - task.createdAt.getTime()) / DAY_MS))
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+/** Calendar days since the task was created, in the local timezone: a task
+ * from yesterday is 1 day old even if it's been less than 24h. Depends on the
+ * timezone, so only compute it in the browser (see `useHydrated`). */
+export function taskAgeDays(task: Pick<Task, 'createdAt'>, now = new Date()) {
+  const diff = startOfDay(now).getTime() - startOfDay(task.createdAt).getTime()
+  // Round: a day across a DST change is 23h or 25h.
+  return Math.max(0, Math.round(diff / DAY_MS))
 }
 
 /**
@@ -152,7 +159,7 @@ export type TaskTone = 'done' | 'overdue' | 'due' | 'fresh'
 
 export function taskTone(
   task: Pick<Task, 'createdAt' | 'completedAt'>,
-  now = Date.now(),
+  now = new Date(),
 ): TaskTone {
   if (task.completedAt) return 'done'
   const days = taskAgeDays(task, now)
@@ -160,7 +167,7 @@ export function taskTone(
 }
 
 /** "today", "1 day", "5 days". */
-export function ageLabel(task: Pick<Task, 'createdAt'>, now = Date.now()) {
+export function ageLabel(task: Pick<Task, 'createdAt'>, now = new Date()) {
   const days = taskAgeDays(task, now)
   return days === 0 ? 'today' : `${days} day${days === 1 ? '' : 's'}`
 }

@@ -159,6 +159,8 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] Unnamed folders are named after today's date
 - [x] Import/export JSON, shortcuts help, navbar entry, service worker page
 - [ ] Verify in a real browser (layout on mobile, DnD, toasts)
+- [x] Ages count calendar days in the local timezone (yesterday's task is
+      "1 day" and yellow), computed in the browser after hydration
 
 ## History of the notes app (before the merge)
 

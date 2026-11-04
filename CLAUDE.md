@@ -258,8 +258,11 @@ A to-do list. The row menu has open, complete/reopen, edit/move, move up/down
   another timezone). Unnamed folders also get the date.
 - **Colours** (`taskTone` in `src/lib/tasks/tree.ts`, tokens `--warning` /
   `--success` in `styles.css` next to `--destructive`): red after 3 days
-  open, yellow after 1 (elapsed 24h periods, so SSR and client agree), green
-  when done. Shown on the checkbox and the age label.
+  open, yellow after 1 (calendar days in the browser's timezone, so
+  yesterday's task is "1 day"), green when done. Shown on the checkbox and
+  the age label. The server can't know the timezone, so open tasks' ages
+  render only after hydration (`useHydrated`); they update on the next
+  re-render (e.g. a refetch), with no timer.
 - **Views** (`useTaskView`, stored in `tasks:view`): open / completed
   (`t`) × folders / one flat list (`v`), with matching button groups next
   to the search for touch screens. The open view hides folders whose tasks
