@@ -4,7 +4,6 @@ import { useEffect, useRef } from 'react'
 // to avoid ones browsers reserve or users rely on (Ctrl+L/N/T/W/F).
 export const SHORTCUTS = {
   search: { key: 'k', label: 'K' },
-  newItem: { key: 'b', label: 'B' },
   newFolder: { key: 'g', label: 'G' },
 } as const
 

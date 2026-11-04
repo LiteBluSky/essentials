@@ -31,7 +31,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       { keys: [mod(SHORTCUTS.search.label), ['/']], action: 'Search this app' },
       { keys: [['z']], action: 'Search everything (all apps)' },
       {
-        keys: [['a'], mod(SHORTCUTS.newItem.label)],
+        keys: [['a']],
         action: 'New task',
       },
       { keys: [mod(SHORTCUTS.newFolder.label)], action: 'New folder' },

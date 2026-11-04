@@ -192,6 +192,7 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] The new-task form keeps focus when opened from the calendar (and
       global search picks keep theirs)
 - [x] The new-item button hints `a` (the tree key) instead of Ctrl+B
+- [x] Drop the Ctrl+B new-item shortcut; `a` is the only one
 
 ## History of the notes app (before the merge)
 

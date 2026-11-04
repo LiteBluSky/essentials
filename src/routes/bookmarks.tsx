@@ -165,7 +165,6 @@ function Home() {
   useShortcuts(
     {
       search: focusSearch,
-      newItem: () => openEditor({ kind: 'link', folderId: null }),
       newFolder: () => openEditor({ kind: 'folder', parentId: null }),
     },
     !dialogOpen,

@@ -176,7 +176,6 @@ function Home() {
   useShortcuts(
     {
       search: focusSearch,
-      newItem: () => newNote(),
       newFolder: () => openEditor({ kind: 'folder', parentId: null }),
     },
     !dialogOpen,

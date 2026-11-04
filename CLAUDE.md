@@ -69,7 +69,7 @@ Each app is self-contained and namespaced; only the shell is shared.
   own query key (`['<app>', 'tree']`, `<app>TreeQueryOptions`) and its own
   localStorage keys (`<app>:…`, e.g. `useExpandedFolders('<app>')`).
 - **Shared**: `lib/config.ts`, `lib/theme.ts`, `lib/shortcuts.ts`
-  (`search`, `newItem`, `newFolder`), `hooks/use-expanded-folders.ts`,
+  (`search`, `newFolder`), `hooks/use-expanded-folders.ts`,
   `hooks/use-install-app.ts`, `components/theme-toggle.tsx`, the global
   search (`components/global-search.tsx`, `hooks/use-global-search.ts`,
   `lib/global-search.ts`, `server/search.*.ts`), `ui/`.
@@ -332,8 +332,8 @@ tasks: [{ title, description?, createdAt?, completedAt? }] }` (ISO dates,
   collapses all folders if any are open (press again to switch). Wraps
   around; order follows `APPS`. Handled in each app's tree keyboard hook
   (`onSwitchApp`, from `useAppSwitch`).
-- Global (`src/lib/shortcuts.ts`): `Ctrl+K` search, `Ctrl+B` new item
-  (link / note / task), `Ctrl+G` new folder (⌘ on macOS). Avoid browser-reserved
+- Global (`src/lib/shortcuts.ts`): `Ctrl+K` search, `Ctrl+G` new folder
+  (⌘ on macOS); new items are `a` in each tree. Avoid browser-reserved
   combos (Ctrl+L/N/T/W/F) when adding more. Ignored when the event was
   already handled (`defaultPrevented`), so the note editor can use Ctrl+B
   for bold.

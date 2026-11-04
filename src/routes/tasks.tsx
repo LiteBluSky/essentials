@@ -236,7 +236,6 @@ function Home() {
   useShortcuts(
     {
       search: focusSearch,
-      newItem: () => newTask(),
       newFolder: () => openEditor({ kind: 'folder', parentId: null }),
     },
     !dialogOpen,
