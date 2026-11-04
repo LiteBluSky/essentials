@@ -18,6 +18,7 @@ import { ImportExportMenu } from '@/components/bookmarks/import-export-menu'
 import { ShortcutsDialog } from '@/components/bookmarks/shortcuts-dialog'
 import { TreeDndProvider } from '@/components/bookmarks/tree-dnd'
 import { AppNav } from '@/components/app-nav'
+import { GlobalSearch } from '@/components/global-search'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
@@ -39,6 +40,7 @@ import { Separator } from '@/components/ui/separator'
 import { useCutLink } from '@/hooks/bookmarks/use-cut-link'
 import { useAppSwitch } from '@/hooks/use-app-switch'
 import { useExpandedFolders } from '@/hooks/use-expanded-folders'
+import { useGlobalSearch } from '@/hooks/use-global-search'
 import { useFavorite } from '@/hooks/bookmarks/use-favorite'
 import { useTreeKeyboard } from '@/hooks/bookmarks/use-tree-keyboard'
 import { APP_NAME } from '@/lib/config'
@@ -74,11 +76,20 @@ function Home() {
   const [editor, setEditor] = useState<EditorState | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
-  const dialogOpen = editorOpen || helpOpen
   const openEditor = (state: EditorState) => {
     setEditor(state)
     setEditorOpen(true)
   }
+
+  // `z` / the header button: search every app. Picks for this app land here.
+  const globalSearch = useGlobalSearch({
+    app: 'bookmarks',
+    folders: data.folders,
+    setFolderOpen: setOpen,
+    clearSearch: () => setQuery(''),
+    enabled: !editorOpen && !helpOpen,
+  })
+  const dialogOpen = editorOpen || helpOpen || globalSearch.open
 
   const searchRef = useRef<HTMLInputElement>(null)
   const focusSearch = () => {
@@ -187,6 +198,15 @@ function Home() {
             </Button>
           </div>
           <ButtonGroup aria-label="Settings">
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Search everything"
+              title="Search everything (z)"
+              onClick={() => globalSearch.setOpen(true)}
+            >
+              <SearchIcon />
+            </Button>
             <ImportExportMenu tree={tree} />
             <Button
               variant="outline"
@@ -308,6 +328,10 @@ function Home() {
         state={editor}
         open={editorOpen}
         onOpenChange={setEditorOpen}
+      />
+      <GlobalSearch
+        open={globalSearch.open}
+        onOpenChange={globalSearch.setOpen}
       />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </main>

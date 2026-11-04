@@ -70,14 +70,18 @@ Each app is self-contained and namespaced; only the shell is shared.
   localStorage keys (`<app>:…`, e.g. `useExpandedFolders('<app>')`).
 - **Shared**: `lib/config.ts`, `lib/theme.ts`, `lib/shortcuts.ts`
   (`search`, `newItem`, `newFolder`), `hooks/use-expanded-folders.ts`,
-  `hooks/use-install-app.ts`, `components/theme-toggle.tsx`, `ui/`.
+  `hooks/use-install-app.ts`, `components/theme-toggle.tsx`, the global
+  search (`components/global-search.tsx`, `hooks/use-global-search.ts`,
+  `lib/global-search.ts`), `ui/`.
 - Apps don't import from each other. The tree code (keyboard hook, DnD,
   folder form/select) is duplicated per app on purpose for now (see
   TASKS.md); keep the copies behaving alike.
 - **Adding an app**: route + `APPS` entry + its namespaced files + tables
   prefixed with the app name; render `<AppNav />` at the left of its header
-  and pass `onSwitchApp` to its tree keyboard hook; add its page to `PAGES`
-  in `public/sw.js` (bump the cache name).
+  and pass `onSwitchApp` to its tree keyboard hook; call `useGlobalSearch`,
+  render `<GlobalSearch>` and the header search button, and add its folders
+  and items to `GlobalSearch`; add its page to `PAGES` in `public/sw.js`
+  (bump the cache name).
 
 ## Data model (`src/db/schema.ts`)
 
@@ -156,8 +160,8 @@ unless it's actually slow.
 
 Each app is one page laid out the same way: header (the **app navbar** on
 the left — icon + name per app, the current one highlighted — then New
-folder, New <item>, and a `ButtonGroup` of the ⋮ import/export menu,
-shortcuts help and theme menu; below 500px the buttons wrap under the
+folder, New <item>, and a `ButtonGroup` of global search, the ⋮
+import/export menu, shortcuts help and theme menu; below 500px the buttons wrap under the
 navbar), the app's quick list, search box, then the tree. Folders are
 `Collapsible` rows (expanded state persisted in localStorage per app), each
 row has a hover `DropdownMenu`. Create/edit happens in a `Dialog`, delete
@@ -188,6 +192,19 @@ moves to the top level. `resolveMove` turns a drop into
 `{ kind, id, parentId, index }` (or null for invalid/no-op); the move server
 fn rewrites sibling positions in a transaction and `useMoveBookmark` /
 `useMoveItem` applies it optimistically. Disabled while searching.
+
+**Global search** (`z`, or the search button first in the header's button
+group, on every app): a `Command` dialog listing every app's folders and
+items, grouped by app (`src/components/global-search.tsx`). It loads each
+app's tree query (already cached for the current app). Every search word
+must appear in the name, folder path or extra text (URL + description, note
+body, task description); name matches rank first. Picking a link opens it
+in a new tab; anything else is stored with `requestOpen`
+(`src/lib/global-search.ts`) once the dialog has closed, then the app is
+navigated to and its page's `useGlobalSearch` takes it: an item opens (note
+preview / task details), a folder is revealed (search cleared, folder +
+ancestors expanded, row focused; Tasks also switches to the folders view).
+The app's own search box (`Ctrl+K`, `/`) still filters just its tree.
 
 ### Bookmarks (`/bookmarks`)
 
@@ -320,6 +337,7 @@ tasks: [{ title, description?, createdAt?, completedAt? }] }` (ISO dates,
   but `a` new task (hovered folder, else Today), `c` complete/reopen
   (hovered, else focused), `t` open/completed view, `v` folders/list,
   `d` or `Delete` delete, `1`–`9` Up next.
+- `z` opens the global search on every app (`useGlobalSearch`).
 - `?` (or the header keyboard button) opens the app's shortcuts help
   (`src/components/<app>/shortcuts-dialog.tsx`) — keep its list in sync
   when adding or changing a shortcut.

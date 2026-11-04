@@ -162,6 +162,15 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] Ages count calendar days in the local timezone (yesterday's task is
       "1 day" and yellow), computed in the browser after hydration
 
+## 14. Global search
+
+- [x] `z` / header search button opens a command dialog over every app's
+      folders and items, grouped by app
+- [x] Picking a link opens it; a note / task opens in its app; a folder is
+      revealed and focused in its app's tree
+- [x] `z` in each app's shortcuts help
+- [x] Shortcuts help: actions wrap instead of scrolling sideways
+
 ## History of the notes app (before the merge)
 
 ### Notes 0. Scaffold (from the bookmarks app)

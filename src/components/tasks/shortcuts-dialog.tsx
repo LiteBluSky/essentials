@@ -28,7 +28,8 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
   {
     title: 'Anywhere',
     shortcuts: [
-      { keys: [mod(SHORTCUTS.search.label), ['/']], action: 'Search' },
+      { keys: [mod(SHORTCUTS.search.label), ['/']], action: 'Search this app' },
+      { keys: [['z']], action: 'Search everything (all apps)' },
       {
         keys: [['a'], mod(SHORTCUTS.newItem.label)],
         action: 'New task (in Today)',
@@ -105,7 +106,7 @@ export function ShortcutsDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Keyboard shortcuts</DialogTitle>
           <DialogDescription>
@@ -123,9 +124,10 @@ export function ShortcutsDialog({
             <TableBody>
               {group.shortcuts.map(({ keys, action }) => (
                 <TableRow key={action}>
-                  <TableCell>{action}</TableCell>
-                  <TableCell className="text-right">
-                    <KbdGroup>
+                  {/* Wrap the action so the keys always fit (no sideways scroll). */}
+                  <TableCell className="whitespace-normal">{action}</TableCell>
+                  <TableCell className="w-px text-right">
+                    <KbdGroup className="justify-end">
                       {keys.map((combo, i) => (
                         <Fragment key={combo.join('+')}>
                           {i > 0 && (

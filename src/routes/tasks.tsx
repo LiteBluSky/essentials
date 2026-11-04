@@ -23,6 +23,7 @@ import { TaskList, TaskTree } from '@/components/tasks/task-tree'
 import { TreeDndProvider } from '@/components/tasks/tree-dnd'
 import { UpNext } from '@/components/tasks/up-next'
 import { AppNav } from '@/components/app-nav'
+import { GlobalSearch } from '@/components/global-search'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
@@ -47,6 +48,7 @@ import { useTaskView } from '@/hooks/tasks/use-task-view'
 import { useTreeKeyboard } from '@/hooks/tasks/use-tree-keyboard'
 import { useAppSwitch } from '@/hooks/use-app-switch'
 import { useExpandedFolders } from '@/hooks/use-expanded-folders'
+import { useGlobalSearch } from '@/hooks/use-global-search'
 import { APP_NAME } from '@/lib/config'
 import { MOD_LABEL, SHORTCUTS, useShortcuts } from '@/lib/shortcuts'
 import type { ShortcutName } from '@/lib/shortcuts'
@@ -98,7 +100,6 @@ function Home() {
   const [editor, setEditor] = useState<EditorState | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
-  const dialogOpen = editorOpen || helpOpen
   const openEditor = (state: EditorState) => {
     setEditor(state)
     setEditorOpen(true)
@@ -118,6 +119,20 @@ function Home() {
       folderId = latest?.folders.find((f) => f.id === current)?.parentId ?? null
     }
   }
+
+  // `z` / the header button: search every app. Picks for this app land here.
+  const globalSearch = useGlobalSearch({
+    app: 'tasks',
+    folders: data.folders,
+    setFolderOpen: setOpen,
+    clearSearch: () => {
+      setQuery('')
+      setLayout('folders')
+    },
+    openItem: (id) => openEditor({ kind: 'task', mode: 'view', taskId: id }),
+    enabled: !editorOpen && !helpOpen,
+  })
+  const dialogOpen = editorOpen || helpOpen || globalSearch.open
 
   const searchRef = useRef<HTMLInputElement>(null)
   const focusSearch = () => {
@@ -230,6 +245,15 @@ function Home() {
             </Button>
           </div>
           <ButtonGroup aria-label="Settings">
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Search everything"
+              title="Search everything (z)"
+              onClick={() => globalSearch.setOpen(true)}
+            >
+              <SearchIcon />
+            </Button>
             <ImportExportMenu tree={tree} />
             <Button
               variant="outline"
@@ -430,6 +454,10 @@ function Home() {
         onChange={openEditor}
         onComplete={complete}
         onSaved={revealTask}
+      />
+      <GlobalSearch
+        open={globalSearch.open}
+        onOpenChange={globalSearch.setOpen}
       />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </main>

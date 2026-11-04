@@ -18,6 +18,7 @@ import { QuickNotes } from '@/components/notes/quick-notes'
 import { ShortcutsDialog } from '@/components/notes/shortcuts-dialog'
 import { TreeDndProvider } from '@/components/notes/tree-dnd'
 import { AppNav } from '@/components/app-nav'
+import { GlobalSearch } from '@/components/global-search'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
@@ -39,6 +40,7 @@ import { Separator } from '@/components/ui/separator'
 import { useCutNote } from '@/hooks/notes/use-cut-note'
 import { useAppSwitch } from '@/hooks/use-app-switch'
 import { useExpandedFolders } from '@/hooks/use-expanded-folders'
+import { useGlobalSearch } from '@/hooks/use-global-search'
 import { useTreeKeyboard } from '@/hooks/notes/use-tree-keyboard'
 import { useViewNote } from '@/hooks/notes/use-view-note'
 import { APP_NAME } from '@/lib/config'
@@ -75,7 +77,6 @@ function Home() {
   const [editor, setEditor] = useState<EditorState | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
-  const dialogOpen = editorOpen || helpOpen
   const openEditor = (state: EditorState) => {
     // Opening a note's preview counts for "Recent" / "Most viewed".
     if (state.kind === 'note' && state.mode === 'view') viewNote(state.noteId)
@@ -84,6 +85,17 @@ function Home() {
   }
   const newNote = (folderId: number | null = null) =>
     openEditor({ kind: 'note', mode: 'edit', folderId })
+
+  // `z` / the header button: search every app. Picks for this app land here.
+  const globalSearch = useGlobalSearch({
+    app: 'notes',
+    folders: data.folders,
+    setFolderOpen: setOpen,
+    clearSearch: () => setQuery(''),
+    openItem: (id) => openEditor({ kind: 'note', mode: 'view', noteId: id }),
+    enabled: !editorOpen && !helpOpen,
+  })
+  const dialogOpen = editorOpen || helpOpen || globalSearch.open
 
   const searchRef = useRef<HTMLInputElement>(null)
   const focusSearch = () => {
@@ -195,6 +207,15 @@ function Home() {
             </Button>
           </div>
           <ButtonGroup aria-label="Settings">
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Search everything"
+              title="Search everything (z)"
+              onClick={() => globalSearch.setOpen(true)}
+            >
+              <SearchIcon />
+            </Button>
             <ImportExportMenu tree={tree} />
             <Button
               variant="outline"
@@ -315,6 +336,10 @@ function Home() {
         open={editorOpen}
         onOpenChange={setEditorOpen}
         onChange={openEditor}
+      />
+      <GlobalSearch
+        open={globalSearch.open}
+        onOpenChange={globalSearch.setOpen}
       />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </main>
