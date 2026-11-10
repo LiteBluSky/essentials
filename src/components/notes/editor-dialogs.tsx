@@ -38,6 +38,7 @@ import { cn } from '@/lib/utils'
 import {
   deleteFolder,
   deleteNote,
+  notesBinQueryOptions,
   notesTreeQueryOptions,
   updateNote,
 } from '@/server/notes.functions'
@@ -326,8 +327,15 @@ function DeleteConfirm({
         ? deleteNote({ data: { id: state.note.id } })
         : deleteFolder({ data: { id: state.node.folder.id } }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries(notesTreeQueryOptions)
-      toast.add({ title: 'Deleted', type: 'success' })
+      await Promise.all([
+        queryClient.invalidateQueries(notesTreeQueryOptions),
+        queryClient.invalidateQueries(notesBinQueryOptions),
+      ])
+      toast.add({
+        title: 'Moved to the bin',
+        description: 'Restore it from the ⋮ menu within a day.',
+        type: 'success',
+      })
       onDone()
     },
     onError: (error) =>
@@ -342,7 +350,7 @@ function DeleteConfirm({
   let description: string
   if (state.kind === 'delete-note') {
     title = `Delete “${noteLabel(state.note)}”?`
-    description = 'The note will be removed permanently.'
+    description = 'It goes to the bin (⋮ menu) for a day, then it’s gone.'
   } else {
     const subfolders = countFolders(state.node)
     const notes = state.node.noteCount
@@ -354,7 +362,7 @@ function DeleteConfirm({
             notes && plural(notes, 'note'),
           ]
             .filter(Boolean)
-            .join(' and ')} inside it.`
+            .join(' and ')} inside it. The notes go to the bin for a day.`
         : 'The folder is empty.'
   }
 

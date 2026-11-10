@@ -23,6 +23,7 @@ import type { FolderNode, Tree } from '@/lib/bookmarks/tree'
 import {
   deleteFolder,
   deleteLink,
+  bookmarksBinQueryOptions,
   bookmarksTreeQueryOptions,
 } from '@/server/bookmarks.functions'
 import type { EditorState } from './editor'
@@ -115,8 +116,15 @@ function DeleteConfirm({
         ? deleteLink({ data: { id: state.link.id } })
         : deleteFolder({ data: { id: state.node.folder.id } }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries(bookmarksTreeQueryOptions)
-      toast.add({ title: 'Deleted', type: 'success' })
+      await Promise.all([
+        queryClient.invalidateQueries(bookmarksTreeQueryOptions),
+        queryClient.invalidateQueries(bookmarksBinQueryOptions),
+      ])
+      toast.add({
+        title: 'Moved to the bin',
+        description: 'Restore it from the ⋮ menu within a day.',
+        type: 'success',
+      })
       onDone()
     },
     onError: (error) =>
@@ -131,7 +139,7 @@ function DeleteConfirm({
   let description: string
   if (state.kind === 'delete-link') {
     title = `Delete “${state.link.title}”?`
-    description = 'The link will be removed permanently.'
+    description = 'It goes to the bin (⋮ menu) for a day, then it’s gone.'
   } else {
     const subfolders = countFolders(state.node)
     const links = state.node.linkCount
@@ -143,7 +151,7 @@ function DeleteConfirm({
             links && plural(links, 'link'),
           ]
             .filter(Boolean)
-            .join(' and ')} inside it.`
+            .join(' and ')} inside it. The links go to the bin for a day.`
         : 'The folder is empty.'
   }
 

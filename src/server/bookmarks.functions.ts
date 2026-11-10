@@ -12,15 +12,19 @@ import {
   updateLinkInput,
 } from '@/lib/bookmarks/schemas'
 import {
+  clearBin,
   editFolder,
   editLink,
   importFile,
   insertFolder,
   insertLink,
+  loadBin,
   loadTree,
   moveItem,
   removeFolder,
+  removeFromBin,
   removeLink,
+  restoreLink,
   setFavorite,
 } from './bookmarks.server'
 
@@ -82,3 +86,26 @@ export const moveBookmark = createServerFn({ method: 'POST' })
 export const importBookmarks = createServerFn({ method: 'POST' })
   .validator(bookmarksFile)
   .handler(({ data }) => importFile(data))
+
+// ---- Bin: deleted links, kept for a day -----------------------------------
+
+export const getBin = createServerFn({ method: 'GET' }).handler(() => loadBin())
+
+export const bookmarksBinQueryOptions = queryOptions({
+  queryKey: ['bookmarks', 'bin'],
+  queryFn: () => getBin(),
+})
+
+export const restoreFromBin = createServerFn({ method: 'POST' })
+  .validator(byId)
+  .handler(({ data }) => restoreLink(data.id))
+
+export const deleteFromBin = createServerFn({ method: 'POST' })
+  .validator(byId)
+  .handler(async ({ data }) => {
+    await removeFromBin(data.id)
+  })
+
+export const emptyBin = createServerFn({ method: 'POST' }).handler(async () => {
+  await clearBin()
+})

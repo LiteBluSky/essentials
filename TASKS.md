@@ -194,6 +194,13 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] The new-item button hints `a` (the tree key) instead of Ctrl+B
 - [x] Drop the Ctrl+B new-item shortcut; `a` is the only one
 
+## 17. Bin: recover deleted links and notes
+
+- [x] Deleted links / notes (also those inside a deleted folder) go to the
+      app's bin (`links_bin` / `notes_bin`) for a day, then are purged
+- [x] "Bin" in the ⋮ menu: restore (back to its folder, or the top level if
+      that's gone), delete forever, empty bin
+
 ## History of the notes app (before the merge)
 
 ### Notes 0. Scaffold (from the bookmarks app)

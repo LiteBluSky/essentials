@@ -3,9 +3,12 @@ import {
   DownloadIcon,
   EllipsisVerticalIcon,
   MonitorDownIcon,
+  Trash2Icon,
   UploadIcon,
 } from 'lucide-react'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
+
+import { LinksBin } from './bin'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -69,6 +72,7 @@ async function readFile(file: File): Promise<BookmarksFile> {
 export function ImportExportMenu({ tree }: { tree: Tree }) {
   const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement>(null)
+  const [binOpen, setBinOpen] = useState(false)
   const app = useInstallApp()
 
   const install = async () => {
@@ -138,6 +142,13 @@ export function ImportExportMenu({ tree }: { tree: Tree }) {
               Export JSON
             </DropdownMenuItem>
           </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuItem onClick={() => setBinOpen(true)}>
+              <Trash2Icon />
+              Bin
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
           {app.state !== 'installed' && (
             <>
               <DropdownMenuSeparator />
@@ -151,6 +162,7 @@ export function ImportExportMenu({ tree }: { tree: Tree }) {
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      <LinksBin open={binOpen} onOpenChange={setBinOpen} />
       <input
         ref={inputRef}
         type="file"

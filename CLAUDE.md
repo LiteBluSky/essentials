@@ -101,6 +101,15 @@ One SQLite file holds every app. Bookmark tables keep their original names.
 - `task_folders` (same shape) / `tasks` — `id`, `title`, `description` (plain
   text, `''` = none), `folderId`, `position`, `completedAt?` (set = done),
   timestamps. `createdAt` drives the colour.
+- `links_bin` / `notes_bin` — the **bin**: a copy of each deleted link /
+  note (also those inside a deleted folder; folders themselves aren't
+  kept) with its `folderId`, `folderPath` (display only) and `deletedAt`.
+  Kept for a day (`BIN_TTL_MS` in `src/lib/bin.ts`), purged lazily when a
+  bin is read or added to. Restoring re-inserts it at the end of its folder
+  (top level if that's gone), keeping its dates (and note views); a link
+  comes back without its favourite. The ⋮ menu's "Bin" opens it
+  (`src/components/<app>/bin.tsx` → shared `components/bin-dialog.tsx`;
+  query key `['<app>', 'bin']`). Tasks has no bin.
 - `position` orders siblings within the same parent (folders and items are
   ordered separately; folders render before items, like a file explorer).
 - `notes.server.ts` imports `noteFolders as folders`, so its queries read

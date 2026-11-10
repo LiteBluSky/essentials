@@ -1,16 +1,20 @@
 import {
   asc,
   count,
+  desc,
   eq,
   inArray,
   isNotNull,
   isNull,
+  lt,
   max,
   sql,
 } from 'drizzle-orm'
 
 import { db } from '@/db'
-import { folders, links } from '@/db/schema'
+import { folders, links, linksBin } from '@/db/schema'
+import type { Link } from '@/db/schema'
+import { binCutoff, folderPathOf } from '@/lib/bin'
 import { MAX_FAVORITES } from '@/lib/bookmarks/schemas'
 import type {
   BookmarksFile,
@@ -123,9 +127,33 @@ export async function editFolder(id: number, input: FolderInput) {
     .where(eq(folders.id, id))
 }
 
-// Deletes the folder with all its subfolders and links. Done by hand: SQLite
-// only honours ON DELETE CASCADE with a per-connection pragma, which libsql
-// doesn't keep across the connections it opens.
+// Copies of deleted links for the bin, with where they were.
+async function binnedLinks(rows: Array<Link>) {
+  const pathOf = folderPathOf(
+    await db
+      .select({
+        id: folders.id,
+        name: folders.name,
+        parentId: folders.parentId,
+      })
+      .from(folders),
+  )
+  const deletedAt = new Date()
+  return rows.map((link) => ({
+    title: link.title,
+    url: link.url,
+    description: link.description,
+    folderId: link.folderId,
+    folderPath: pathOf(link.folderId),
+    createdAt: link.createdAt,
+    updatedAt: link.updatedAt,
+    deletedAt,
+  }))
+}
+
+// Deletes the folder with all its subfolders; their links go to the bin.
+// Done by hand: SQLite only honours ON DELETE CASCADE with a per-connection
+// pragma, which libsql doesn't keep across the connections it opens.
 export async function removeFolder(id: number) {
   const all = await db
     .select({ id: folders.id, parentId: folders.parentId })
@@ -135,10 +163,17 @@ export async function removeFolder(id: number) {
   for (const parentId of ids) {
     for (const f of all) if (f.parentId === parentId) ids.push(f.id)
   }
+  const inside = await db
+    .select()
+    .from(links)
+    .where(inArray(links.folderId, ids))
+  const binned = await binnedLinks(inside)
   await db.transaction(async (tx) => {
+    if (binned.length) await tx.insert(linksBin).values(binned)
     await tx.delete(links).where(inArray(links.folderId, ids))
     await tx.delete(folders).where(inArray(folders.id, ids))
   })
+  await purgeBin()
 }
 
 export async function insertLink(input: LinkInput) {
@@ -178,8 +213,74 @@ export async function editLink(id: number, input: LinkInput) {
     .where(eq(links.id, id))
 }
 
+// Moves the link to the bin (it stops being a favourite).
 export async function removeLink(id: number) {
-  await db.delete(links).where(eq(links.id, id))
+  const link = (await db.select().from(links).where(eq(links.id, id))).at(0)
+  if (!link) return
+  const binned = await binnedLinks([link])
+  await db.transaction(async (tx) => {
+    await tx.insert(linksBin).values(binned)
+    await tx.delete(links).where(eq(links.id, id))
+  })
+  await purgeBin()
+}
+
+// ---- Bin ------------------------------------------------------------------
+
+async function purgeBin() {
+  await db.delete(linksBin).where(lt(linksBin.deletedAt, binCutoff()))
+}
+
+export async function loadBin() {
+  await purgeBin()
+  return db
+    .select()
+    .from(linksBin)
+    .orderBy(desc(linksBin.deletedAt), desc(linksBin.id))
+}
+
+// Puts the link back at the end of its folder, or the top level if that
+// folder is gone too.
+export async function restoreLink(id: number) {
+  const row = (await db.select().from(linksBin).where(eq(linksBin.id, id))).at(
+    0,
+  )
+  if (!row) throw new Error('That link is no longer in the bin')
+  let folderId = row.folderId
+  if (folderId !== null) {
+    const folder = (
+      await db
+        .select({ id: folders.id })
+        .from(folders)
+        .where(eq(folders.id, folderId))
+    ).at(0)
+    if (!folder) folderId = null
+  }
+  const position = await nextLinkPosition(folderId)
+  return db.transaction(async (tx) => {
+    const [link] = await tx
+      .insert(links)
+      .values({
+        title: row.title,
+        url: row.url,
+        description: row.description,
+        folderId,
+        position,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      })
+      .returning({ id: links.id, folderId: links.folderId })
+    await tx.delete(linksBin).where(eq(linksBin.id, id))
+    return link
+  })
+}
+
+export async function removeFromBin(id: number) {
+  await db.delete(linksBin).where(eq(linksBin.id, id))
+}
+
+export async function clearBin() {
+  await db.delete(linksBin)
 }
 
 // Adds the link at the end of the favourites, or removes it.

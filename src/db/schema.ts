@@ -63,6 +63,25 @@ export const links = sqliteTable(
   (t) => [index('links_folder_idx').on(t.folderId)],
 )
 
+// Deleted links, kept for a day (BIN_TTL_MS) so they can be restored. A copy
+// of the row, plus where it was: restoring puts it back in folderId (or the
+// top level if that folder is gone too). folderPath is for display only.
+export const linksBin = sqliteTable(
+  'links_bin',
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    title: text().notNull(),
+    url: text().notNull(),
+    description: text(),
+    folderId: integer('folder_id'),
+    folderPath: text('folder_path').notNull().default(''),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+    deletedAt: integer('deleted_at', { mode: 'timestamp' }).notNull(),
+  },
+  (t) => [index('links_bin_deleted_idx').on(t.deletedAt)],
+)
+
 export const foldersRelations = relations(folders, ({ one, many }) => ({
   parent: one(folders, {
     fields: [folders.parentId],
@@ -115,6 +134,24 @@ export const notes = sqliteTable(
     ...timestamps,
   },
   (t) => [index('notes_folder_idx').on(t.folderId)],
+)
+
+// Deleted notes, kept for a day, like linksBin.
+export const notesBin = sqliteTable(
+  'notes_bin',
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    title: text().notNull().default(''),
+    body: text().notNull().default(''),
+    folderId: integer('folder_id'),
+    folderPath: text('folder_path').notNull().default(''),
+    viewCount: integer('view_count').notNull().default(0),
+    openedAt: integer('opened_at', { mode: 'timestamp' }),
+    createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+    deletedAt: integer('deleted_at', { mode: 'timestamp' }).notNull(),
+  },
+  (t) => [index('notes_bin_deleted_idx').on(t.deletedAt)],
 )
 
 export const noteFoldersRelations = relations(noteFolders, ({ one, many }) => ({
@@ -194,7 +231,9 @@ export type Folder = typeof folders.$inferSelect
 export type NewFolder = typeof folders.$inferInsert
 export type Link = typeof links.$inferSelect
 export type NewLink = typeof links.$inferInsert
+export type BinnedLink = typeof linksBin.$inferSelect
 export type Note = typeof notes.$inferSelect
 export type NewNote = typeof notes.$inferInsert
+export type BinnedNote = typeof notesBin.$inferSelect
 export type Task = typeof tasks.$inferSelect
 export type NewTask = typeof tasks.$inferInsert

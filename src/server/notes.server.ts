@@ -1,7 +1,9 @@
-import { asc, eq, inArray, isNull, max, sql } from 'drizzle-orm'
+import { asc, desc, eq, inArray, isNull, lt, max, sql } from 'drizzle-orm'
 
 import { db } from '@/db'
-import { noteFolders as folders, notes } from '@/db/schema'
+import { noteFolders as folders, notes, notesBin } from '@/db/schema'
+import type { Note } from '@/db/schema'
+import { binCutoff, folderPathOf } from '@/lib/bin'
 import type {
   ExportFolder,
   ExportNote,
@@ -108,9 +110,34 @@ export async function editFolder(id: number, input: FolderInput) {
     .where(eq(folders.id, id))
 }
 
-// Deletes the folder with all its subfolders and notes. Done by hand: SQLite
-// only honours ON DELETE CASCADE with a per-connection pragma, which libsql
-// doesn't keep across the connections it opens.
+// Copies of deleted notes for the bin, with where they were.
+async function binnedNotes(rows: Array<Note>) {
+  const pathOf = folderPathOf(
+    await db
+      .select({
+        id: folders.id,
+        name: folders.name,
+        parentId: folders.parentId,
+      })
+      .from(folders),
+  )
+  const deletedAt = new Date()
+  return rows.map((note) => ({
+    title: note.title,
+    body: note.body,
+    folderId: note.folderId,
+    folderPath: pathOf(note.folderId),
+    viewCount: note.viewCount,
+    openedAt: note.openedAt,
+    createdAt: note.createdAt,
+    updatedAt: note.updatedAt,
+    deletedAt,
+  }))
+}
+
+// Deletes the folder with all its subfolders; their notes go to the bin.
+// Done by hand: SQLite only honours ON DELETE CASCADE with a per-connection
+// pragma, which libsql doesn't keep across the connections it opens.
 export async function removeFolder(id: number) {
   const all = await db
     .select({ id: folders.id, parentId: folders.parentId })
@@ -120,10 +147,17 @@ export async function removeFolder(id: number) {
   for (const parentId of ids) {
     for (const f of all) if (f.parentId === parentId) ids.push(f.id)
   }
+  const inside = await db
+    .select()
+    .from(notes)
+    .where(inArray(notes.folderId, ids))
+  const binned = await binnedNotes(inside)
   await db.transaction(async (tx) => {
+    if (binned.length) await tx.insert(notesBin).values(binned)
     await tx.delete(notes).where(inArray(notes.folderId, ids))
     await tx.delete(folders).where(inArray(folders.id, ids))
   })
+  await purgeBin()
 }
 
 // A new note counts as opened, so it shows up under "Recent" straight away.
@@ -157,8 +191,75 @@ export async function editNote(id: number, input: NoteInput) {
     .where(eq(notes.id, id))
 }
 
+// Moves the note to the bin.
 export async function removeNote(id: number) {
-  await db.delete(notes).where(eq(notes.id, id))
+  const note = (await db.select().from(notes).where(eq(notes.id, id))).at(0)
+  if (!note) return
+  const binned = await binnedNotes([note])
+  await db.transaction(async (tx) => {
+    await tx.insert(notesBin).values(binned)
+    await tx.delete(notes).where(eq(notes.id, id))
+  })
+  await purgeBin()
+}
+
+// ---- Bin ------------------------------------------------------------------
+
+async function purgeBin() {
+  await db.delete(notesBin).where(lt(notesBin.deletedAt, binCutoff()))
+}
+
+export async function loadBin() {
+  await purgeBin()
+  return db
+    .select()
+    .from(notesBin)
+    .orderBy(desc(notesBin.deletedAt), desc(notesBin.id))
+}
+
+// Puts the note back at the end of its folder, or the top level if that
+// folder is gone too. Its views and dates come back with it.
+export async function restoreNote(id: number) {
+  const row = (await db.select().from(notesBin).where(eq(notesBin.id, id))).at(
+    0,
+  )
+  if (!row) throw new Error('That note is no longer in the bin')
+  let folderId = row.folderId
+  if (folderId !== null) {
+    const folder = (
+      await db
+        .select({ id: folders.id })
+        .from(folders)
+        .where(eq(folders.id, folderId))
+    ).at(0)
+    if (!folder) folderId = null
+  }
+  const position = await nextNotePosition(folderId)
+  return db.transaction(async (tx) => {
+    const [note] = await tx
+      .insert(notes)
+      .values({
+        title: row.title,
+        body: row.body,
+        folderId,
+        position,
+        viewCount: row.viewCount,
+        openedAt: row.openedAt,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      })
+      .returning({ id: notes.id, folderId: notes.folderId })
+    await tx.delete(notesBin).where(eq(notesBin.id, id))
+    return note
+  })
+}
+
+export async function removeFromBin(id: number) {
+  await db.delete(notesBin).where(eq(notesBin.id, id))
+}
+
+export async function clearBin() {
+  await db.delete(notesBin)
 }
 
 // Counts an open for "Recent" / "Most viewed" without touching updatedAt.
