@@ -254,7 +254,7 @@ copy text, move up/down, delete.
   (`note-print.tsx`: a print-only portal, always light, page titled after
   the note so it's the default file name).
 - `mode: 'edit'` — `note-form.tsx`, the bookmarks link form scaled up
-  (`sm:max-w-3xl`): Title (optional) + Folder, a formatting toolbar and a
+  (`sm:max-w-3xl`): Title (optional, focused first; Enter moves to the note) + Folder, a formatting toolbar and a
   monospace textarea. Enter continues lists/checklists (Enter on an empty
   item ends the list), Tab/Shift+Tab indent, Ctrl+B/I/K bold/italic/link,
   Ctrl+Enter or Ctrl+S saves and shows the preview. **Ctrl+M** is a format

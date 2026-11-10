@@ -306,7 +306,7 @@ export function NoteForm({
                     name={field.name}
                     autoComplete="off"
                     placeholder="Optional"
-                    autoFocus={!note}
+                    autoFocus
                     value={field.state.value}
                     onBlur={field.handleBlur}
                     onChange={(e) => field.handleChange(e.target.value)}
@@ -384,7 +384,6 @@ export function NoteForm({
                   ref={bodyRef}
                   id={field.name}
                   name={field.name}
-                  autoFocus={!!note}
                   placeholder="Write here. Markdown works: **bold**, - lists, - [ ] checkboxes, # headings…"
                   className="max-h-[55dvh] min-h-[40dvh] font-mono"
                   value={field.state.value}
