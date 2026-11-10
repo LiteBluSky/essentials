@@ -68,6 +68,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
   {
     title: 'Open note',
     shortcuts: [
+      { keys: [['j'], ['k']], action: 'Scroll down / up' },
       { keys: [['e']], action: 'Edit' },
       { keys: [['d']], action: 'Delete (d again confirms)' },
       { keys: [mod('P')], action: 'Export as PDF' },

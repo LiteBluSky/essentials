@@ -249,7 +249,7 @@ copy text, move up/down, delete.
   a gap, then the rendered markdown (`markdown.tsx`, `.markdown` styles in
   `styles.css`). Task boxes are clickable: `toggleTaskAt` flips `[ ]`/`[x]`
   at the list item's source offset and saves optimistically. Reads the note
-  live from the tree query by id. `e` edits, `d` deletes. Export PDF /
+  live from the tree query by id. `j`/`k` scroll, `e` edits, `d` deletes. Export PDF /
   Ctrl+P prints just the note via the browser's "Save as PDF"
   (`note-print.tsx`: a print-only portal, always light, page titled after
   the note so it's the default file name).

@@ -202,6 +202,7 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       that's gone), delete forever, empty bin
 - [x] `d` confirms a delete dialog (so `d` `d` deletes), hinted on the button
 - [x] Editing a note focuses its title first (Enter moves on to the note)
+- [x] `j`/`k` scroll the note preview
 
 ## History of the notes app (before the merge)
 

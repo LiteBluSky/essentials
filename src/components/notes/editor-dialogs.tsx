@@ -166,6 +166,9 @@ const edited = new Intl.DateTimeFormat(undefined, {
 // The note's preview: title large, a gap, then the rendered markdown. Task
 // boxes can be ticked right here. `e` edits, `d` deletes, Ctrl+P exports it
 // as a PDF.
+// How far j / k scroll the preview (held keys repeat).
+const SCROLL_STEP = 60
+
 function NoteView({
   note,
   path,
@@ -250,6 +253,12 @@ function NoteView({
         } else if (e.key === 'd') {
           e.preventDefault()
           onDelete(note)
+        } else if (e.key === 'j' || e.key === 'k') {
+          // Scroll the dialog (it's the scroll container), vim-style.
+          e.preventDefault()
+          e.currentTarget
+            .closest('[data-slot="dialog-content"]')
+            ?.scrollBy({ top: e.key === 'j' ? SCROLL_STEP : -SCROLL_STEP })
         }
       }}
     >
