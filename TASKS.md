@@ -239,6 +239,7 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       favourites
 - [x] Shortcuts help lists tree, preview and writing keys
 - [x] Export the previewed note as a PDF (print dialog, Ctrl+P)
+- [x] Download the previewed note as `.md` or `.pdf` (no print dialog)
 
 ### Notes 4. Installable app
 

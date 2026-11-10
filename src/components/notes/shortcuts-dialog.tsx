@@ -71,7 +71,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       { keys: [['j'], ['k']], action: 'Scroll down / up' },
       { keys: [['e']], action: 'Edit' },
       { keys: [['d']], action: 'Delete (d again confirms)' },
-      { keys: [mod('P')], action: 'Export as PDF' },
+      { keys: [mod('P')], action: 'Print (or Save as PDF)' },
       { keys: [['Esc']], action: 'Close' },
     ],
   },

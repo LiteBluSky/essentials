@@ -1,5 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { CopyIcon, FileDownIcon, PencilIcon, Trash2Icon } from 'lucide-react'
+import {
+  ChevronDownIcon,
+  CopyIcon,
+  DownloadIcon,
+  FileDownIcon,
+  FileTextIcon,
+  PencilIcon,
+  PrinterIcon,
+  Trash2Icon,
+} from 'lucide-react'
 import { useRef } from 'react'
 
 import {
@@ -27,10 +36,20 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from '@/components/ui/empty'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Kbd } from '@/components/ui/kbd'
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
 import { useConfirmKey } from '@/hooks/use-confirm-key'
+import { MOD_LABEL } from '@/lib/shortcuts'
 import type { Note } from '@/db/schema'
 import { toggleTaskAt } from '@/lib/notes/markdown-edit'
 import { flattenFolders, folderPath, noteLabel } from '@/lib/notes/tree'
@@ -47,6 +66,7 @@ import type { EditorState, OpenEditor } from './editor'
 import { FolderForm } from './folder-form'
 import { Markdown } from './markdown'
 import { NoteForm } from './note-form'
+import { downloadMarkdown, downloadPdf } from './note-download'
 import { usePrintNote } from './note-print'
 
 // `state` is kept around after closing (only `open` flips) so the dialog
@@ -164,8 +184,8 @@ const edited = new Intl.DateTimeFormat(undefined, {
 })
 
 // The note's preview: title large, a gap, then the rendered markdown. Task
-// boxes can be ticked right here. `e` edits, `d` deletes, Ctrl+P exports it
-// as a PDF.
+// boxes can be ticked right here. `e` edits, `d` deletes; Download saves it
+// as .md or .pdf, Ctrl+P prints it.
 // How far j / k scroll the preview (held keys repeat).
 const SCROLL_STEP = 60
 
@@ -236,6 +256,18 @@ function NoteView({
     }
   }
 
+  const savePdf = async () => {
+    try {
+      await downloadPdf(note, path)
+    } catch (error) {
+      toast.add({
+        title: "Couldn't create the PDF",
+        description: error instanceof Error ? error.message : undefined,
+        type: 'error',
+      })
+    }
+  }
+
   return (
     <div
       className="flex flex-col gap-6"
@@ -299,10 +331,31 @@ function NoteView({
           <CopyIcon data-icon="inline-start" />
           Copy text
         </Button>
-        <Button variant="outline" onClick={() => printNote(note, path)}>
-          <FileDownIcon data-icon="inline-start" />
-          Export PDF
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger render={<Button variant="outline" />}>
+            <DownloadIcon data-icon="inline-start" />
+            Download
+            <ChevronDownIcon data-icon="inline-end" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuGroup>
+              <DropdownMenuItem onClick={() => downloadMarkdown(note)}>
+                <FileTextIcon />
+                Markdown (.md)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={savePdf}>
+                <FileDownIcon />
+                PDF
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => printNote(note, path)}>
+              <PrinterIcon />
+              Print…
+              <DropdownMenuShortcut>{MOD_LABEL}+P</DropdownMenuShortcut>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         {/* Focused on open so e / d / Esc work straight away. */}
         <Button autoFocus onClick={() => onEdit(note)}>
           <PencilIcon data-icon="inline-start" />

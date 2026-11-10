@@ -249,8 +249,14 @@ copy text, move up/down, delete.
   a gap, then the rendered markdown (`markdown.tsx`, `.markdown` styles in
   `styles.css`). Task boxes are clickable: `toggleTaskAt` flips `[ ]`/`[x]`
   at the list item's source offset and saves optimistically. Reads the note
-  live from the tree query by id. `j`/`k` scroll, `e` edits, `d` deletes. Export PDF /
-  Ctrl+P prints just the note via the browser's "Save as PDF"
+  live from the tree query by id. `j`/`k` scroll, `e` edits, `d` deletes. The Download
+  menu saves it as `.md` (title as a `# ` heading, then the body) or `.pdf`,
+  named after the note (`src/lib/notes/note-file.ts`). The PDF is built in
+  the browser with pdfmake (lazy-loaded on first use by
+  `components/notes/note-download.ts`): the markdown is parsed to mdast
+  (same GFM + line breaks as the preview) and mapped to a pdfmake document —
+  real text, Roboto + Courier for code, A4, light. Images become links.
+  Its "Print…" / Ctrl+P prints just the note via the browser
   (`note-print.tsx`: a print-only portal, always light, page titled after
   the note so it's the default file name).
 - `mode: 'edit'` — `note-form.tsx`, the bookmarks link form scaled up
