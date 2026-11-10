@@ -200,6 +200,7 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       app's bin (`links_bin` / `notes_bin`) for a day, then are purged
 - [x] "Bin" in the ⋮ menu: restore (back to its folder, or the top level if
       that's gone), delete forever, empty bin
+- [x] `d` confirms a delete dialog (so `d` `d` deletes), hinted on the button
 
 ## History of the notes app (before the merge)
 

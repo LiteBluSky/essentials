@@ -55,7 +55,10 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       { keys: [['o'], ['Enter']], action: 'Open note / toggle folder' },
       { keys: [['e'], ['r']], action: 'Edit note / rename folder' },
       { keys: [['a']], action: 'New note in hovered or focused folder' },
-      { keys: [['d']], action: 'Delete hovered or focused row' },
+      {
+        keys: [['d']],
+        action: 'Delete hovered or focused row (d again confirms)',
+      },
       { keys: [['x']], action: 'Cut note' },
       { keys: [['p']], action: 'Paste cut note here' },
       { keys: [['Esc']], action: 'Cancel cut' },
@@ -66,7 +69,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
     title: 'Open note',
     shortcuts: [
       { keys: [['e']], action: 'Edit' },
-      { keys: [['d']], action: 'Delete' },
+      { keys: [['d']], action: 'Delete (d again confirms)' },
       { keys: [mod('P')], action: 'Export as PDF' },
       { keys: [['Esc']], action: 'Close' },
     ],

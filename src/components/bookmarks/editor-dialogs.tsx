@@ -16,8 +16,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Kbd } from '@/components/ui/kbd'
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
+import { useConfirmKey } from '@/hooks/use-confirm-key'
 import { flattenFolders } from '@/lib/bookmarks/tree'
 import type { FolderNode, Tree } from '@/lib/bookmarks/tree'
 import {
@@ -134,6 +136,9 @@ function DeleteConfirm({
         type: 'error',
       }),
   })
+  useConfirmKey('d', () => {
+    if (!remove.isPending) remove.mutate()
+  })
 
   let title: string
   let description: string
@@ -170,6 +175,7 @@ function DeleteConfirm({
         >
           {remove.isPending && <Spinner data-icon="inline-start" />}
           Delete
+          <Kbd className="max-sm:hidden">d</Kbd>
         </AlertDialogAction>
       </AlertDialogFooter>
     </>

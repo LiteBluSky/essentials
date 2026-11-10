@@ -374,6 +374,9 @@ tasks: [{ title, description?, createdAt?, completedAt? }] }` (ISO dates,
   (hovered, else focused), `t` open/completed view, `v` folders/list,
   `i` calendar, `d` or `Delete` delete, `1`–`9` Up next, `q` clears the
   search and the date filter.
+- Delete confirmations (every app): `d` presses Delete, so `d` `d`
+  deletes (`useConfirmKey` in `src/hooks/use-confirm-key.ts`; repeats of a
+  held key are ignored).
 - `z` opens the global search on every app (`useGlobalSearch`).
 - `?` (or the header keyboard button) opens the app's shortcuts help
   (`src/components/<app>/shortcuts-dialog.tsx`) — keep its list in sync

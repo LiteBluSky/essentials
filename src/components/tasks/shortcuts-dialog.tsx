@@ -64,7 +64,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       { keys: [['e'], ['r']], action: 'Edit task / rename folder' },
       {
         keys: [['d'], ['Del']],
-        action: 'Delete hovered or focused row',
+        action: 'Delete hovered or focused row (d again confirms)',
       },
       { keys: [['x']], action: 'Cut task' },
       { keys: [['p']], action: 'Paste cut task here' },
@@ -77,7 +77,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
     shortcuts: [
       { keys: [['c']], action: 'Complete / reopen' },
       { keys: [['e']], action: 'Edit' },
-      { keys: [['d'], ['Del']], action: 'Delete' },
+      { keys: [['d'], ['Del']], action: 'Delete (d again confirms)' },
       { keys: [['Esc']], action: 'Close' },
     ],
   },
