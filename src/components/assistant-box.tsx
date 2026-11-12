@@ -26,6 +26,7 @@ import type {
   ChangeSummary,
 } from '@/lib/assistant'
 import { requestOpen } from '@/lib/global-search'
+import { useRequestHistory } from '@/hooks/use-request-history'
 import { useUndoRun } from '@/hooks/use-undo-run'
 import {
   askAssistant,
@@ -59,6 +60,7 @@ function AssistantField({ enabled }: { enabled: boolean }) {
   const navigate = useNavigate()
   const ref = useRef<HTMLTextAreaElement>(null)
   const [text, setText] = useState('')
+  const history = useRequestHistory()
 
   useEffect(() => {
     if (!enabled) return
@@ -84,6 +86,7 @@ function AssistantField({ enabled }: { enabled: boolean }) {
       }),
     onSuccess: async ({ created, found, changed, runId, answer }) => {
       setText('')
+      history.reset()
       await Promise.all(
         [...new Set([...created, ...changed].map((item) => item.app))].map(
           (app) => queryClient.invalidateQueries({ queryKey: [app, 'tree'] }),
@@ -224,6 +227,29 @@ function AssistantField({ enabled }: { enabled: boolean }) {
               send()
             } else if (e.key === 'Escape') {
               e.currentTarget.blur()
+            } else if (
+              (e.key === 'ArrowUp' || e.key === 'ArrowDown') &&
+              !e.shiftKey &&
+              !e.altKey &&
+              !e.ctrlKey &&
+              !e.metaKey
+            ) {
+              // Like a terminal: ↑ on the first line brings back older
+              // requests, ↓ on the last line newer ones, then the draft.
+              const el = e.currentTarget
+              const older = e.key === 'ArrowUp'
+              const edge = older
+                ? !el.value.slice(0, el.selectionStart).includes('\n')
+                : !el.value.slice(el.selectionEnd).includes('\n')
+              if (!edge || (!older && !history.browsing())) return
+              e.preventDefault()
+              void history.recall(older ? 1 : -1, text).then((next) => {
+                if (next === null) return
+                setText(next)
+                requestAnimationFrame(() =>
+                  el.setSelectionRange(next.length, next.length),
+                )
+              })
             }
           }}
         />

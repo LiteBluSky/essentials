@@ -37,7 +37,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       },
       {
         keys: [['s']],
-        action: `Ask ${ASSISTANT_NAME}… (tasks, notes, questions; Esc goes back)`,
+        action: `Ask ${ASSISTANT_NAME}… (tasks, notes, questions; ↑/↓ past requests; Esc goes back)`,
       },
       {
         keys: [['a']],

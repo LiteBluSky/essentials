@@ -485,6 +485,13 @@ it (never part of what to create or search). Use the constant, never the
 literal name. ("Tell me" stays the internal name of the field's flow:
 `tellPrompt`, `source: 'tell'`.)
 
+**Recall** (`useRequestHistory`): in the field, ↑ with the caret on the
+first line steps back through past requests (the history dialog's entries,
+Ask Jarvis and Chat, each text once, newest first) and ↓ on the last line
+forward, then back to the draft, like a terminal. Loaded on the first ↑
+(`fetchQuery`, refetched only after a request invalidated it); a send
+resets it. While the `@` list is open it keeps ↑/↓.
+
 `AssistantBox` (`src/components/assistant-box.tsx`) is a field right under
 each app's header (not focused on load: `s` or a tap goes in): type or
 dictate (phone keyboard mic) a sentence, Enter (Shift+Enter = newline). `askAssistant`
