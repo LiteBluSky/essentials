@@ -423,11 +423,15 @@ task / bookmark descriptions, contact context, Tell me, the chat box):
 emails don't trigger it), picking one inserts `@contact(` and then searches
 that app as you type with the global search (same `['search', q]` query),
 and picking an item inserts `@contact(Name#id) ` (inserted with
-`execCommand`, so undo works). Its keys (↑/↓, Enter / Tab, Esc) are native
+`execCommand`, so undo works). Its keys (↑/↓ or Ctrl+J / Ctrl+K, like
+the global search; Enter / Tab; Esc) are native
 listeners on the field, so they win over the field's own `onKeyDown` and a
 dialog's Esc while the list is open; Esc keeps that `@` closed. The list
-sits under the caret (measured with a hidden mirror), or above it with no
-room below. **Showing**: a clickable chip (`ReferenceChip` /
+is a Base UI `Popover` (primitives, since the shadcn wrapper has no
+`anchor`) in a portal, anchored to the caret (measured with a hidden mirror;
+flips / shifts to fit), with `initialFocus`/`finalFocus` off so the field
+keeps focus. Being a nested popup, it never stretches a dialog's scroll
+area and picking from it isn't an outside press for the dialog. **Showing**: a clickable chip (`ReferenceChip` /
 `ReferenceText` in `components/reference.tsx`; markdown via the
 `remarkReferences` plugin in the notes preview and chat answers; plain text
 in task descriptions, contact context, the user's chat messages and Tell me
@@ -577,7 +581,10 @@ box (Enter sends, Shift+Enter new line, Esc leaves it), `z` global search,
 `Shift+H` / `Shift+L` switch apps.
 
 **Navbar** (`components/app-nav.tsx`, every app): scrolls sideways (no
-scrollbar shown) when the apps don't fit, keeping the current one in view;
+scrollbar shown) when the apps don't fit. Each page mounts its own, so the
+scroll position is kept in a module variable across switches and the
+current app then glides to the middle (instant with reduced motion), so it
+follows `Shift+H` / `Shift+L`;
 below `sm` (640px) it shows only the icons (names stay as `title` and for
 screen readers).
 

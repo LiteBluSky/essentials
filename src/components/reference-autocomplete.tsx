@@ -1,6 +1,7 @@
+import { Popover } from '@base-ui/react/popover'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { FolderIcon } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 
 import {
@@ -22,7 +23,6 @@ import { globalSearch } from '@/server/search.functions'
 
 type Field = HTMLTextAreaElement | HTMLInputElement
 
-const POPUP_WIDTH = 288
 const POPUP_MAX_HEIGHT = 280
 const MAX_ITEMS = 8
 const DEBOUNCE_MS = 150
@@ -133,23 +133,29 @@ const appIcon = (app: string) =>
  * `@` suggestions for a text field (render it next to the field, passing its
  * ref). Typing `@` lists the item types, `@contact(` then searches that app
  * as you type (the global search), and picking one inserts
- * `@contact(Name#id)`. ↑/↓ choose, Enter / Tab pick, Esc closes; the keys
+ * `@contact(Name#id)`. ↑/↓ (or Ctrl+J / Ctrl+K) choose, Enter / Tab pick,
+ * Esc closes; the keys
  * are taken before the field's own handlers (and a dialog's Esc) while the
  * list is open.
+ *
+ * The list is a Base UI popover anchored to the caret and rendered in a
+ * portal, so it never stretches or scrolls a dialog it's typed in (a nested
+ * popup, so picking from it doesn't count as clicking outside the dialog).
+ * Focus stays in the field the whole time.
  */
 export function ReferenceAutocomplete({
   target,
 }: {
   target: RefObject<Field | null>
 }) {
-  const anchorRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const [query, setQuery] = useState<ReferenceQuery | null>(null)
-  const [position, setPosition] = useState<{
-    top: number
-    left: number
-    above: boolean
-  } | null>(null)
+  // The caret (at the `@`), in viewport coordinates: the popover's anchor.
+  const [caretRect, setCaretRect] = useState<DOMRect | null>(null)
+  const anchor = useMemo(
+    () => (caretRect ? { getBoundingClientRect: () => caretRect } : null),
+    [caretRect],
+  )
   const [active, setActive] = useState(0)
   // The `@` whose list was closed with Esc stays closed until it's gone.
   const dismissed = useRef<number | null>(null)
@@ -251,26 +257,18 @@ export function ReferenceAutocomplete({
       }
       setQuery(next)
 
-      // Where the list goes: under the caret, or above it when there's no
-      // room below (e.g. the chat box at the bottom of the page).
-      const anchor = anchorRef.current?.getBoundingClientRect()
-      if (!anchor) return
+      // The popover goes under the `@` (flipping above it, or shifting
+      // sideways, when it doesn't fit).
       const box = el.getBoundingClientRect()
       const at = caretCoords(el, next.start)
-      const top = box.top + at.top - el.scrollTop
-      const left = box.left + at.left - el.scrollLeft
-      const above =
-        top + at.height + POPUP_MAX_HEIGHT > window.innerHeight &&
-        top > POPUP_MAX_HEIGHT
-      const clampedLeft = Math.max(
-        8,
-        Math.min(left, window.innerWidth - POPUP_WIDTH - 8),
+      setCaretRect(
+        new DOMRect(
+          box.left + at.left - el.scrollLeft,
+          box.top + at.top - el.scrollTop,
+          0,
+          at.height,
+        ),
       )
-      setPosition({
-        top: (above ? top - 4 : top + at.height + 4) - anchor.top,
-        left: clampedLeft - anchor.left,
-        above,
-      })
     }
 
     const onKeyDown = (e: Event) => {
@@ -282,10 +280,20 @@ export function ReferenceAutocomplete({
         // Not the field's own handlers, nor a dialog's Esc.
         event.stopPropagation()
       }
-      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      // ↓ / ↑, or Ctrl+J / Ctrl+K like the global search's list. (Not
+      // Ctrl+N / P: the browser keeps Ctrl+N for a new window.)
+      const ctrlOnly =
+        event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey
+      const key = event.key.toLowerCase()
+      const step =
+        event.key === 'ArrowDown' || (ctrlOnly && key === 'j')
+          ? 1
+          : event.key === 'ArrowUp' || (ctrlOnly && key === 'k')
+            ? -1
+            : 0
+      if (step) {
         take()
         if (!list.length) return
-        const step = event.key === 'ArrowDown' ? 1 : -1
         setActive((index + step + list.length) % list.length)
       } else if (
         (event.key === 'Enter' || event.key === 'Tab') &&
@@ -340,68 +348,82 @@ export function ReferenceAutocomplete({
       : 'Link to'
 
   return (
-    <div ref={anchorRef} className="absolute">
-      {open && position && (
-        <div
-          className="absolute z-50"
-          style={{
-            top: position.top,
-            left: position.left,
-            width: POPUP_WIDTH,
-            transform: position.above ? 'translateY(-100%)' : undefined,
-          }}
-          // Clicking an option mustn't take the focus from the field.
-          onMouseDown={(e) => e.preventDefault()}
+    <Popover.Root
+      open={open && anchor !== null}
+      // Only closing comes from the popover (a press outside it); opening
+      // follows the text.
+      onOpenChange={(next) => {
+        if (!next) setQuery(null)
+      }}
+    >
+      <Popover.Portal>
+        <Popover.Positioner
+          anchor={anchor}
+          side="bottom"
+          align="start"
+          sideOffset={4}
+          collisionPadding={8}
+          className="isolate z-50"
         >
-          <Command
-            shouldFilter={false}
-            loop
-            value={options.at(current)?.key ?? ''}
-            onValueChange={(value) => {
-              const index = options.findIndex((o) => o.key === value)
-              if (index !== -1) setActive(index)
-            }}
-            className="border shadow-md"
+          <Popover.Popup
+            initialFocus={false}
+            finalFocus={false}
+            className="w-72 outline-hidden"
+            // Clicking an option mustn't take the focus from the field.
+            onMouseDown={(e) => e.preventDefault()}
           >
-            <CommandList ref={listRef} style={{ maxHeight: POPUP_MAX_HEIGHT }}>
-              <CommandEmpty>
-                {searching ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Spinner />
-                    Searching…
-                  </span>
-                ) : (
-                  'Nothing found.'
+            <Command
+              shouldFilter={false}
+              value={options.at(current)?.key ?? ''}
+              onValueChange={(value) => {
+                const index = options.findIndex((o) => o.key === value)
+                if (index !== -1) setActive(index)
+              }}
+              className="shadow-md ring-1 ring-foreground/10"
+            >
+              <CommandList
+                ref={listRef}
+                style={{ maxHeight: POPUP_MAX_HEIGHT }}
+              >
+                <CommandEmpty>
+                  {searching ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Spinner />
+                      Searching…
+                    </span>
+                  ) : (
+                    'Nothing found.'
+                  )}
+                </CommandEmpty>
+                {options.length > 0 && (
+                  <CommandGroup heading={heading}>
+                    {options.map((option) => (
+                      <CommandItem
+                        key={option.key}
+                        value={option.key}
+                        onSelect={() => {
+                          const el = target.current
+                          if (el) option.apply(el)
+                        }}
+                      >
+                        <option.icon />
+                        <span className="flex min-w-0 flex-1 items-center justify-between gap-4">
+                          <span className="truncate">{option.label}</span>
+                          {option.path && (
+                            <span className="max-w-1/2 shrink-0 truncate text-xs text-muted-foreground">
+                              {option.path}
+                            </span>
+                          )}
+                        </span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
                 )}
-              </CommandEmpty>
-              {options.length > 0 && (
-                <CommandGroup heading={heading}>
-                  {options.map((option) => (
-                    <CommandItem
-                      key={option.key}
-                      value={option.key}
-                      onSelect={() => {
-                        const el = target.current
-                        if (el) option.apply(el)
-                      }}
-                    >
-                      <option.icon />
-                      <span className="flex min-w-0 flex-1 items-center justify-between gap-4">
-                        <span className="truncate">{option.label}</span>
-                        {option.path && (
-                          <span className="max-w-1/2 shrink-0 truncate text-xs text-muted-foreground">
-                            {option.path}
-                          </span>
-                        )}
-                      </span>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-            </CommandList>
-          </Command>
-        </div>
-      )}
-    </div>
+              </CommandList>
+            </Command>
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
   )
 }
