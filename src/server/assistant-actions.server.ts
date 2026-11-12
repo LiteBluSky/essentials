@@ -116,7 +116,7 @@ export async function runActions(
   actions: Array<PlannedAction>,
   timeZone: string,
 ): Promise<AssistantResult> {
-  const result: AssistantResult = { created: [], found: [] }
+  const result: AssistantResult = { created: [], found: [], changed: [] }
   for (const action of actions) await runAction(action, timeZone, result)
   return result
 }

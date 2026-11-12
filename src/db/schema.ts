@@ -270,11 +270,40 @@ export const assistantLog = sqliteTable(
     outputTokens: integer('output_tokens'),
     costUsd: real('cost_usd'),
     durationMs: integer('duration_ms').notNull().default(0),
+    /** Its changes (assistant_changes), if it made any: they can be undone. */
+    runId: text('run_id'),
     createdAt: integer('created_at', { mode: 'timestamp' })
       .notNull()
       .$defaultFn(() => new Date()),
   },
   (t) => [index('assistant_log_created_idx').on(t.createdAt)],
+)
+
+// Every change the assistant makes (Tell me or Chat), grouped by run (one
+// request / chat turn), with what was there before, so a run can be undone:
+// a created thing is deleted, an edit put back, a deletion restored (with
+// its original ids; the Bin copies it made, `binIds`, are removed).
+export const assistantChanges = sqliteTable(
+  'assistant_changes',
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    runId: text('run_id').notNull(),
+    app: text({ enum: ['bookmarks', 'notes', 'tasks'] }).notNull(),
+    target: text({ enum: ['item', 'folder'] }).notNull(),
+    op: text({ enum: ['create', 'update', 'delete'] }).notNull(),
+    itemId: integer('item_id').notNull(),
+    /** What it is called, for messages ("Renamed task …"). */
+    label: text().notNull().default(''),
+    /** JSON: the row before (update), or every row deleted (delete). */
+    before: text(),
+    /** JSON: ids of the Bin rows the deletion made. */
+    binIds: text('bin_ids'),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    undoneAt: integer('undone_at', { mode: 'timestamp' }),
+  },
+  (t) => [index('assistant_changes_run_idx').on(t.runId)],
 )
 
 // ---- Chat -------------------------------------------------------------------
@@ -302,6 +331,8 @@ export const chatMessages = sqliteTable(
     content: text().notNull(),
     actions: text(),
     error: integer({ mode: 'boolean' }).notNull().default(false),
+    /** The turn's changes (assistant_changes), for its Undo button. */
+    runId: text('run_id'),
     createdAt: integer('created_at', { mode: 'timestamp' })
       .notNull()
       .$defaultFn(() => new Date()),
@@ -326,3 +357,4 @@ export const settings = sqliteTable('settings', {
 export type AssistantLogEntry = typeof assistantLog.$inferSelect
 export type ChatConversation = typeof chatConversations.$inferSelect
 export type ChatMessage = typeof chatMessages.$inferSelect
+export type AssistantChange = typeof assistantChanges.$inferSelect

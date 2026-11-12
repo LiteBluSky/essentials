@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
-import { CircleAlertIcon, Trash2Icon } from 'lucide-react'
+import { CircleAlertIcon, Trash2Icon, Undo2Icon } from 'lucide-react'
 
 import {
   AlertDialog,
@@ -37,6 +37,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { toast } from '@/components/ui/toast'
+import { useUndoRun } from '@/hooks/use-undo-run'
 import {
   assistantHistoryQueryOptions,
   clearAssistantHistory,
@@ -68,6 +69,7 @@ export function AssistantHistoryDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const queryClient = useQueryClient()
+  const undo = useUndoRun()
   const history = useQuery({ ...assistantHistoryQueryOptions, enabled: open })
   const clear = useMutation({
     mutationFn: () => clearAssistantHistory(),
@@ -146,6 +148,25 @@ export function AssistantHistoryDialog({
                           {entry.result}
                         </span>
                       )}
+                      {entry.runId &&
+                        (entry.undoable ? (
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            className="mt-1.5 flex"
+                            disabled={undo.isPending}
+                            onClick={() =>
+                              entry.runId && undo.mutate(entry.runId)
+                            }
+                          >
+                            <Undo2Icon data-icon="inline-start" />
+                            Undo changes
+                          </Button>
+                        ) : (
+                          <span className="mt-1 block text-xs text-muted-foreground">
+                            Changes undone
+                          </span>
+                        ))}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {entry.model || '—'}

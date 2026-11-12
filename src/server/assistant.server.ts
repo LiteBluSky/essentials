@@ -1,13 +1,13 @@
 import { z } from 'zod'
 
-import type { AssistantInput } from '@/lib/assistant'
 import { MAX_REMIND_MINUTES } from '@/lib/tasks/schemas'
-import { callModel, llmConfig, localTime } from './llm.server'
-import type { ModelUsage, ToolCall, ToolDef } from './llm.server'
+import { APP_PROMPT } from './prompts.server'
+import { localTime } from './llm.server'
+import type { ToolCall, ToolDef } from './llm.server'
 
-// Server-only: what the Tell me field asks the LLM (llm.server.ts). It only
-// reads the sentence and returns what to create / open plus what the call
-// cost; assistant.functions.ts acts on it and logs it.
+// Server-only: the Tell me field's prompt and the tools that create and
+// open things (shared with Chat; the full tool set is in
+// agent-tools.server.ts, the loop in agent.server.ts).
 
 // The tools that create and open things (also offered by the chat).
 export const ACTION_TOOLS: Array<ToolDef> = [
@@ -163,46 +163,14 @@ export function toAction({ name, args }: ToolCall): PlannedAction | null {
   return null
 }
 
-export type Plan = {
-  actions: Array<PlannedAction>
-  usage: ModelUsage
-  /** The model's own words, if it answered without (or besides) tools. */
-  text: string
-}
-
-/** Asks the LLM what to create / open from the sentence. Throws only when
- * the call itself fails; an answer without actions comes back empty. */
-export async function planActions({
-  text,
-  now,
-  timeZone,
-}: AssistantInput): Promise<Plan> {
-  const config = await llmConfig()
-  if (!config) {
-    throw new Error('The assistant is off: add an API key in Settings')
-  }
-
-  const system = [
-    'You turn what the user says (often dictated, so forgive odd wording) into tasks and notes, or open things they already have, by calling the tools. Always answer by calling at least one tool, never with text alone; call them several times if they mention several separate things.',
-    'A task is one thing to do; a note is information to keep. "Remind me…" is always a task.',
-    'A list of items (shopping, packing, groceries, ideas, things to bring or buy, several things under one topic) is ONE note, never several tasks: give it a short title and write the items as a markdown checklist, one "- [ ] item" per line. Separate unrelated actions ("call the dentist and pay the bill") are separate tasks.',
-    'When they ask to open, show, find or go to something ("open…", "show me…", "where is…"), call open_item instead of creating anything.',
+/** The Tell me prompt: carry out one request, then say what was done. */
+export function tellPrompt(now: string, timeZone: string) {
+  return [
+    'You carry out what the user says in a quick command box (often dictated, so forgive odd wording), using the tools, then reply with one short sentence saying what you did.',
+    APP_PROMPT,
+    'Creating: a task is one thing to do; a note is information to keep. "Remind me…" is always a task. Separate unrelated actions ("call the dentist and pay the bill") are separate tasks.',
+    'When they ask to open, show, find or go to something ("open…", "show me…", "where is…"), call open_item (it shows it to them).',
     `The user's local time is ${localTime(new Date(now), timeZone)} (day/month/year, ${timeZone}). Resolve relative dates ("tomorrow", "Friday", "in 2 hours", "tonight") against it and give due times in that local time. A weekday means the next one to come.`,
     "Keep titles short and in the user's language. Never invent details.",
   ].join('\n')
-
-  const {
-    calls,
-    text: said,
-    raw: _raw,
-    ...usage
-  } = await callModel(config, {
-    system,
-    turns: [{ role: 'user', text }],
-    tools: ACTION_TOOLS,
-  })
-  const actions = calls
-    .map(toAction)
-    .filter((action): action is PlannedAction => action !== null)
-  return { actions, usage, text: said }
 }

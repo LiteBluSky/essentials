@@ -228,6 +228,10 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       providers
 - [x] Find / open: best partial match when no item has every word
 - [x] Chat keys: j/k through conversations, gg/G, d deletes (d d), ? help
+- [x] The assistant can edit and delete anything (items, folders,
+      bookmarks), in Chat and Tell me (now the same tool loop); every change
+      recorded (`assistant_changes`, migration 0010) and undoable per
+      request (chat answer, Tell me toast, history row)
 - [x] Lists become one checklist note; "open / find / show …" opens the best
       match (link, note, task or folder) via the global search
 - [x] Per-task reminder time (`remindMinutes`, migration 0007): at the

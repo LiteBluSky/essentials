@@ -7,6 +7,11 @@ import {
   NotebookPenIcon,
   SearchIcon,
   SearchXIcon,
+  FolderPlusIcon,
+  PencilIcon,
+  PlusIcon,
+  Trash2Icon,
+  Undo2Icon,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
@@ -30,9 +35,14 @@ import {
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller'
 import { Spinner } from '@/components/ui/spinner'
-import type { ChatMessage } from '@/db/schema'
-import type { AssistantFound, AssistantItem } from '@/lib/assistant'
+import type {
+  AssistantFound,
+  AssistantItem,
+  ChangeSummary,
+} from '@/lib/assistant'
 import { messageActions } from '@/lib/chat'
+import type { ChatMessageView } from '@/lib/chat'
+import { useUndoRun } from '@/hooks/use-undo-run'
 import { requestOpen } from '@/lib/global-search'
 import { ChatMarkdown } from './chat-markdown'
 
@@ -46,7 +56,7 @@ export function ChatThread({
   messages,
   pending,
 }: {
-  messages: Array<ChatMessage>
+  messages: Array<ChatMessageView>
   pending: PendingMessage | null
 }) {
   return (
@@ -94,7 +104,7 @@ export function ChatThread({
   )
 }
 
-function ChatBubble({ message }: { message: ChatMessage }) {
+function ChatBubble({ message }: { message: ChatMessageView }) {
   if (message.role === 'user') {
     return (
       <Message align="end">
@@ -120,6 +130,9 @@ function ChatBubble({ message }: { message: ChatMessage }) {
             {actions.found.map((found, i) => (
               <FoundMarker key={i} found={found} />
             ))}
+            {actions.changed.map((change, i) => (
+              <ChangedMarker key={i} change={change} />
+            ))}
           </div>
         )}
         <Bubble variant={message.error ? 'destructive' : 'ghost'}>
@@ -131,8 +144,83 @@ function ChatBubble({ message }: { message: ChatMessage }) {
             )}
           </BubbleContent>
         </Bubble>
+        {message.runId && (
+          <UndoButton runId={message.runId} undoable={message.undoable} />
+        )}
       </MessageContent>
     </Message>
+  )
+}
+
+/** Puts back everything the turn changed (once). */
+function UndoButton({ runId, undoable }: { runId: string; undoable: boolean }) {
+  const undo = useUndoRun()
+  if (!undoable) {
+    return <p className="text-xs text-muted-foreground">Changes undone.</p>
+  }
+  return (
+    <div>
+      <Button
+        size="xs"
+        variant="outline"
+        disabled={undo.isPending}
+        onClick={() => undo.mutate(runId)}
+      >
+        {undo.isPending ? (
+          <Spinner data-icon="inline-start" />
+        ) : (
+          <Undo2Icon data-icon="inline-start" />
+        )}
+        Undo changes
+      </Button>
+    </div>
+  )
+}
+
+const APP_ITEM: Record<ChangeSummary['app'], string> = {
+  bookmarks: 'bookmark',
+  notes: 'note',
+  tasks: 'task',
+}
+
+function ChangedMarker({ change }: { change: ChangeSummary }) {
+  const open = useOpen()
+  const Icon =
+    change.op === 'delete'
+      ? Trash2Icon
+      : change.op === 'create'
+        ? change.target === 'folder'
+          ? FolderPlusIcon
+          : PlusIcon
+        : PencilIcon
+  const verb =
+    change.op === 'delete'
+      ? 'Deleted'
+      : change.op === 'create'
+        ? 'Added'
+        : 'Changed'
+  const what = change.target === 'folder' ? 'folder' : APP_ITEM[change.app]
+  return (
+    <Marker>
+      <MarkerIcon>
+        <Icon />
+      </MarkerIcon>
+      <MarkerContent>
+        {verb} {what} “{change.label}”
+        {change.detail ? ` · ${change.detail}` : ''}
+      </MarkerContent>
+      {change.op !== 'delete' && (
+        <Button
+          size="xs"
+          variant="outline"
+          onClick={() =>
+            open({ app: change.app, id: change.id, kind: change.target })
+          }
+        >
+          Open
+        </Button>
+      )}
+    </Marker>
   )
 }
 

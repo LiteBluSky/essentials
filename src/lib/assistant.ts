@@ -29,7 +29,24 @@ export type AssistantFound = {
   match: (SearchResult & { app: SearchApp }) | null
 }
 
+/** A change the assistant made to something that existed (or a folder /
+ * bookmark it created), for messages and Undo. */
+export type ChangeSummary = {
+  app: 'bookmarks' | 'notes' | 'tasks'
+  target: 'item' | 'folder'
+  op: 'create' | 'update' | 'delete'
+  id: number
+  label: string
+  /** What happened, in a few words ("renamed", "moved to Work", "done"). */
+  detail?: string
+}
+
 export type AssistantResult = {
   created: Array<AssistantItem>
   found: Array<AssistantFound>
+  changed: Array<ChangeSummary>
+  /** The run's id when it changed anything (its Undo). */
+  runId?: string | null
+  /** The model's own reply, if any. */
+  answer?: string
 }

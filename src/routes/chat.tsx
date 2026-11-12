@@ -148,7 +148,9 @@ function ChatPage() {
       openConversation(id)
       void queryClient.invalidateQueries(chatConversationsQueryOptions)
       void queryClient.invalidateQueries(assistantHistoryQueryOptions)
-      for (const app of new Set(result.created.map((item) => item.app))) {
+      for (const app of new Set(
+        [...result.created, ...result.changed].map((item) => item.app),
+      )) {
         void queryClient.invalidateQueries({ queryKey: [app, 'tree'] })
       }
       return true

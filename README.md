@@ -300,9 +300,15 @@ best match (links in a new tab). It needs an LLM key, set in Settings:
 **Chat** (the fourth app in the navbar) — ask about anything you've saved:
 _"what's due this week?"_, _"what did I write about the CRM?"_, _"which
 links do I have about invoices?"_. It looks things up in your bookmarks,
-notes and tasks before answering, and can add tasks and notes or open
-items, but never edits or deletes. Conversations are saved; delete them
-from the list.
+notes and tasks before answering, and can add, open, **edit and delete**
+things when you ask (_"rename the dentist task to…"_, _"translate all my
+open tasks to Spanish"_, _"delete the old Incidencias folder"_). Every reply
+that changed something has an **Undo** button that puts it all back,
+deletes included. Conversations are saved; delete them from the list.
+
+The **Tell me** field can edit and delete too (its toast offers Undo), and
+⋮ → Assistant history has an Undo on every request that changed
+something.
 
 Only what you type (and, in Chat, the items it looks up to answer) is sent
 to the provider. ⋮ menu → **Assistant history…** lists every request with its result, tokens and cost

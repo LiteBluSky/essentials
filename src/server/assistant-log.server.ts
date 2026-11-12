@@ -2,6 +2,7 @@ import { count, desc, sql, sum } from 'drizzle-orm'
 
 import { db } from '@/db'
 import { assistantLog } from '@/db/schema'
+import { undoableRuns } from './changes.server'
 
 // Server-only: the assistant's history (every request, its result and what
 // it cost). Only import from *.functions.ts.
@@ -41,7 +42,14 @@ export async function loadHistory() {
       })
       .from(assistantLog),
   ])
-  return { entries, totals }
+  const undoable = await undoableRuns(entries.map((e) => e.runId))
+  return {
+    entries: entries.map((e) => ({
+      ...e,
+      undoable: e.runId !== null && undoable.has(e.runId),
+    })),
+    totals,
+  }
 }
 
 export async function clearHistory() {

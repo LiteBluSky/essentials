@@ -80,7 +80,9 @@ Each app is self-contained and namespaced; only the shell is shared.
   search (`components/global-search.tsx`, `hooks/use-global-search.ts`,
   `lib/global-search.ts`, `server/search.*.ts`), the assistant
   (`components/assistant-box.tsx`, `lib/assistant.ts`,
-  `server/assistant*.ts`, `server/llm.server.ts`), settings
+  `server/assistant*.ts`, `server/agent*.ts`, `server/changes.server.ts`,
+  `server/prompts.server.ts`, `server/llm.server.ts`, `hooks/use-undo-run.ts`),
+  settings
   (`components/settings-dialog.tsx`,
   `lib/settings.ts`, `server/settings.*.ts`), `ui/`.
 - Apps don't import from each other. The tree code (keyboard hook, DnD,
@@ -117,6 +119,12 @@ One SQLite file holds every app. Bookmark tables keep their original names.
   the reminder was pushed; cleared when `dueAt` or `remindMinutes`
   changes), timestamps. Without `dueAt`, `createdAt` drives the
   colour and calendar day.
+- `assistant_changes` — every change the assistant made, grouped by
+  `runId` (one Tell me request / chat turn): `app`, `target` (`item` |
+  `folder`), `op` (`create` | `update` | `delete`), `itemId`, `label`,
+  `before` (JSON: the row before an update; every row a delete removed,
+  folders parents-first), `binIds` (Bin rows a delete made), `undoneAt`.
+  `assistant_log.runId` and `chat_messages.runId` point at it.
 - `chat_conversations` (`title` = start of the first message, timestamps) /
   `chat_messages` — `conversationId`, `role` (`user` | `assistant`),
   `content` (markdown), `actions` (JSON: what the turn created / found),
@@ -393,6 +401,36 @@ remindMinutes? }] }` (ISO
   dates, kept so ages survive; past due dates aren't reminded again),
   appended like the other apps.
 
+### Assistant: tools, edits and Undo (Tell me and Chat)
+
+Both run the same **tool loop** (`runAgent` in `agent.server.ts`, at most
+`MAX_STEPS` = 12 model calls per request) with every tool
+(`agent-tools.server.ts`): **look-ups** `search` (the global search),
+`read_item` (a bookmark / note / task in full, note text capped at 20k
+chars), `list_tasks` (status + local due-day range), `list_folders`;
+**create / open** (`ACTION_TOOLS`: `create_task`, `create_note` into
+Unsorted, `open_item`), `create_bookmark` (Unsorted unless `folder_id`);
+**edits** `update_item` (only the fields given: tasks title / description
+/ due / remind / done, notes title / text, bookmarks title / url /
+description / favourite, any `folder_id` to move), `delete_item`,
+`create_folder`, `update_folder` (rename / move), `delete_folder` (with
+everything in it). Edits go through each app's own server functions
+(validation, cycle guard, Bin for deleted notes / links). The shared prompt
+(`APP_PROMPT` in `prompts.server.ts`) says to look things up first, never
+invent ids, only delete what was clearly asked for, and that bulk edits are
+fine. **Every change is recorded** (`changes.server.ts`: `recordCreate`,
+`recordUpdate` with the row before, `deleteItemRecorded` /
+`deleteFolderRecorded` with every removed row + the Bin rows made) under
+the run's id, returned as `result.runId` with `result.changed`
+(`ChangeSummary`). **Undo** (`undoAssistantRun` → `undoRun`) walks a run's
+changes newest first: a create is deleted (a created folder only if still
+empty), an update's row put back (dates revived), a delete re-inserted with
+its original ids and its Bin copies removed; each change is undone once
+(`undoneAt`), and what can't be is reported. `useUndoRun` refreshes every
+app after. Undo buttons: the Tell me toast for edits, each chat answer that
+changed something ("Undo changes", or "Changes undone"), and each history
+row with a run.
+
 ### Assistant ("Tell me…", every app)
 
 `AssistantBox` (`src/components/assistant-box.tsx`) is a field right under
@@ -421,7 +459,10 @@ packing…) **one note** with a `- [ ] item` checklist, never several tasks;
 separate unrelated actions stay separate tasks. Every created item
 goes into the top-level **Unsorted** folder of its app (`UNSORTED_FOLDER`,
 found case-insensitively or created: `ensureTopFolder` in each app's
-server file); no folder guessing. On success the field clears, the trees
+server file); no folder guessing. It now runs the tool loop above
+(`tellPrompt` in `assistant.server.ts`), so it can also edit, delete and
+answer quick questions. Edits show one toast listing the changes with
+**Undo**; an answer with nothing done shows as a toast. On success the field clears, the trees
 are invalidated and a toast per item offers **Open** (`requestOpen`, like
 the global search).
 
@@ -457,17 +498,15 @@ below `md`), latest first, with a hover delete (confirm, `d` `d`). The
 thread uses shadcn's `message`, `bubble`, `marker` and `message-scroller`
 (`components/chat/chat-thread.tsx`); answers render as markdown
 (`chat-markdown.tsx`, `.markdown` styles). A turn
-(`sendChatMessage` → `sendMessage` in `chat.server.ts`) saves the user's
-message, then runs a tool loop (at most `MAX_STEPS` = 8 model calls) with
-the last 30 messages as context: **look-ups** `search` (the global
-search), `read_item` (a bookmark / note / task in full, note bodies capped
-at 20k chars) and `list_tasks` (status + local due-day range), plus the
-Tell me `ACTION_TOOLS` (create task / note in Unsorted, `open_item`). It
-can't edit, move, complete or delete. Within the loop Anthropic's content
+(`sendChatMessage` → `sendMessage` in `chat.server.ts`) runs the tool loop
+above with the last 30 messages as context, then saves the user's message
+and the answer. It can look up, create, edit and delete; each answer that
+changed something shows what (markers) and an Undo button. Within the loop Anthropic's content
 blocks go back unchanged (`Turn.raw`); saved earlier turns are plain text.
 The answer (or the error, as an `error` message) is saved with its
 `actions`, shown as markers with **Open** buttons (`requestOpen` +
-navigate; links open directly). Every turn is logged (`source: 'chat'`,
+navigate; links open directly), plus its `runId` (`undoable` comes back
+with each message from `loadMessages`). Every turn is logged (`source: 'chat'`,
 cost summed over its calls). Without an API key the page shows a
 "Add an API key" empty state with a Settings button. Its ⋮ menu
 (`chat-menu.tsx`) has Settings, Assistant history and Install. Keys (not

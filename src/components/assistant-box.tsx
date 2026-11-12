@@ -18,8 +18,13 @@ import { Kbd } from '@/components/ui/kbd'
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
 import { UNSORTED_FOLDER } from '@/lib/assistant'
-import type { AssistantFound, AssistantItem } from '@/lib/assistant'
+import type {
+  AssistantFound,
+  AssistantItem,
+  ChangeSummary,
+} from '@/lib/assistant'
 import { requestOpen } from '@/lib/global-search'
+import { useUndoRun } from '@/hooks/use-undo-run'
 import {
   askAssistant,
   assistantEnabledQueryOptions,
@@ -65,6 +70,7 @@ function AssistantField({ enabled }: { enabled: boolean }) {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [enabled])
 
+  const undo = useUndoRun()
   const ask = useMutation({
     mutationFn: (sentence: string) =>
       askAssistant({
@@ -74,13 +80,33 @@ function AssistantField({ enabled }: { enabled: boolean }) {
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         },
       }),
-    onSuccess: async ({ created, found }) => {
+    onSuccess: async ({ created, found, changed, runId, answer }) => {
       setText('')
       await Promise.all(
-        [...new Set(created.map((item) => item.app))].map((app) =>
-          queryClient.invalidateQueries({ queryKey: [app, 'tree'] }),
+        [...new Set([...created, ...changed].map((item) => item.app))].map(
+          (app) => queryClient.invalidateQueries({ queryKey: [app, 'tree'] }),
         ),
       )
+      // Edits / deletions: one toast saying what changed, with Undo.
+      if (changed.length) {
+        toast.add({
+          title:
+            answer ||
+            `${changed.length} change${changed.length === 1 ? '' : 's'} made`,
+          description: changeLines(changed),
+          type: 'success',
+          timeout: 10_000,
+          ...(runId && {
+            actionProps: {
+              children: 'Undo',
+              onClick: () => undo.mutate(runId),
+            },
+          }),
+        })
+      } else if (!created.length && !found.length && answer) {
+        // A question answered: just say it.
+        toast.add({ title: answer.slice(0, 300), timeout: 10_000 })
+      }
       // The first thing found opens straight away; any others are offered.
       found.forEach((entry, i) => showFound(entry, i === 0))
       for (const item of created) {
@@ -176,7 +202,7 @@ function AssistantField({ enabled }: { enabled: boolean }) {
           rows={1}
           className="min-h-0"
           aria-label="Tell me a task, a reminder or a note"
-          placeholder="Tell me… “remind me to call the dentist Friday at 3” or “open my packing list”"
+          placeholder="Tell me… “remind me to call the dentist Friday at 3”, “open my packing list”, “rename the dentist task to…”"
           enterKeyHint="send"
           value={text}
           disabled={ask.isPending}
@@ -209,6 +235,17 @@ function AssistantField({ enabled }: { enabled: boolean }) {
       </InputGroup>
     </form>
   )
+}
+
+/** "Deleted note “X”", "Changed task “Y” · renamed", at most 5 lines. */
+function changeLines(changed: Array<ChangeSummary>) {
+  const lines = changed.map(
+    (c) =>
+      `${c.op === 'delete' ? 'Deleted' : c.op === 'create' ? 'Added' : 'Changed'} ${c.target === 'folder' ? 'folder' : APP_LABEL[c.app].toLowerCase().replace(/s$/, '')} “${c.label}”${c.detail ? ` · ${c.detail}` : ''}`,
+  )
+  return lines.length > 5
+    ? [...lines.slice(0, 5), `…and ${lines.length - 5} more`].join('\n')
+    : lines.join('\n')
 }
 
 const APP_LABEL = { bookmarks: 'Bookmarks', notes: 'Notes', tasks: 'Tasks' }

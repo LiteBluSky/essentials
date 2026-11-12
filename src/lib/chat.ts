@@ -16,9 +16,12 @@ export const chatInput = z.object({
 })
 export type ChatInput = z.infer<typeof chatInput>
 
+/** A saved message, and whether its changes can still be undone. */
+export type ChatMessageView = ChatMessage & { undoable: boolean }
+
 export type ChatTurnResult = {
   conversationId: number
-  message: ChatMessage
+  message: ChatMessageView
   result: AssistantResult
 }
 
@@ -26,9 +29,15 @@ export type ChatTurnResult = {
 export function messageActions(message: ChatMessage): AssistantResult | null {
   if (!message.actions) return null
   try {
-    return JSON.parse(message.actions, (key, value: unknown) =>
+    const parsed = JSON.parse(message.actions, (key, value: unknown) =>
       key === 'dueAt' && typeof value === 'string' ? new Date(value) : value,
-    ) as AssistantResult
+    ) as Partial<AssistantResult>
+    // Messages saved before edits existed have no `changed`.
+    return {
+      created: parsed.created ?? [],
+      found: parsed.found ?? [],
+      changed: parsed.changed ?? [],
+    }
   } catch {
     return null
   }
