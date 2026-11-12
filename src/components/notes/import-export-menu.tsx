@@ -3,6 +3,7 @@ import {
   DownloadIcon,
   EllipsisVerticalIcon,
   MonitorDownIcon,
+  SettingsIcon,
   Trash2Icon,
   UploadIcon,
 } from 'lucide-react'
@@ -10,6 +11,7 @@ import { useRef, useState } from 'react'
 
 import { NotesBin } from './bin'
 
+import { SettingsDialog } from '@/components/settings-dialog'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -70,6 +72,7 @@ export function ImportExportMenu({ tree }: { tree: Tree }) {
   const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement>(null)
   const [binOpen, setBinOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const app = useInstallApp()
 
   const install = async () => {
@@ -140,6 +143,13 @@ export function ImportExportMenu({ tree }: { tree: Tree }) {
               Bin
             </DropdownMenuItem>
           </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
+              <SettingsIcon />
+              Settings…
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
           {app.state !== 'installed' && (
             <>
               <DropdownMenuSeparator />
@@ -153,6 +163,7 @@ export function ImportExportMenu({ tree }: { tree: Tree }) {
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <NotesBin open={binOpen} onOpenChange={setBinOpen} />
       <input
         ref={inputRef}

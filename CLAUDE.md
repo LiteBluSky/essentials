@@ -13,9 +13,9 @@ project (`../notes`, port 8009); it was merged in here.
 Keep it **clean, minimal and to the point**. Each app does one thing with as
 little friction as possible. No accounts, no sync, no tags, no
 previews/favicon scraping, no analytics, no rich-text editor. The only
-outside calls are opt-in by env and off without it: the assistant's LLM
-(`LLM_API_KEY`) and phone reminders via ntfy (`NTFY_TOPIC`); the app must
-work exactly as before without them. A new app must
+outside calls are opt-in and off until configured (Settings…, or env): the
+assistant's LLM (`LLM_API_KEY`) and phone reminders via ntfy
+(`NTFY_TOPIC`); the app must work exactly as before without them. A new app must
 be just as small: something to store, organise and open.
 
 Work is tracked in [`TASKS.md`](./TASKS.md) — read it first, pick the next
@@ -77,7 +77,8 @@ Each app is self-contained and namespaced; only the shell is shared.
   search (`components/global-search.tsx`, `hooks/use-global-search.ts`,
   `lib/global-search.ts`, `server/search.*.ts`), the assistant
   (`components/assistant-box.tsx`, `lib/assistant.ts`,
-  `server/assistant.*.ts`), `ui/`.
+  `server/assistant.*.ts`), settings (`components/settings-dialog.tsx`,
+  `lib/settings.ts`, `server/settings.*.ts`), `ui/`.
 - Apps don't import from each other. The tree code (keyboard hook, DnD,
   folder form/select) is duplicated per app on purpose for now (see
   TASKS.md); keep the copies behaving alike.
@@ -110,6 +111,10 @@ One SQLite file holds every app. Bookmark tables keep their original names.
   reminder), `remindedAt?` (set once the reminder was pushed; cleared when
   `dueAt` changes), timestamps. Without `dueAt`, `createdAt` drives the
   colour and calendar day.
+- `settings` — `key` (primary key, one of `SETTINGS` in
+  `src/lib/settings.ts`), `value`, `updatedAt`. Edited in the Settings
+  dialog; read on the server with `readSettings()` (`settings.server.ts`),
+  where a missing row falls back to the env var of the same name.
 - `links_bin` / `notes_bin` — the **bin**: a copy of each deleted link /
   note (also those inside a deleted folder; folders themselves aren't
   kept) with its `folderId`, `folderPath` (display only) and `deletedAt`.
@@ -340,8 +345,9 @@ createdAt`. **Upcoming** (`UpcomingTasks` in `up-next.tsx`,
   `vite.config.ts`) runs it every minute from server start by calling the
   `/api/reminders` route through `nitroApp.fetch`. **Don't import the DB
   from the plugin**: it's bundled apart and would open (and migrate) a
-  second connection. Off without `NTFY_TOPIC`. The menu's "Send test
-  reminder" calls `testReminder`.
+  second connection, so it runs every minute regardless and the route does
+  nothing until an ntfy topic is set. Settings has "Send test reminder"
+  (`testReminder` in `settings.functions.ts`).
 - **Calendar** (`calendar-dialog.tsx`, `i` or the header's calendar button):
   a bigger month calendar with a dot per task on its `taskDay` (up to 4,
   coloured by `taskTone`), the selected day's task count and its tasks
@@ -373,17 +379,32 @@ each app's header, **focused when the page opens**: type or dictate (phone
 keyboard mic) a sentence, Enter (Shift+Enter = newline). `askAssistant`
 (`src/server/assistant.functions.ts`) sends it with the browser's time and
 timezone to an OpenAI-compatible chat completions API (`fetch`, no SDK;
-`assistant.server.ts`: OpenRouter by default, `LLM_API_KEY` / `LLM_BASE_URL`
-/ `LLM_MODEL`, default `anthropic/claude-haiku-5.5`) with two tools,
+`assistant.server.ts`: OpenRouter by default; `LLM_API_KEY` / `LLM_BASE_URL`
+/ `LLM_MODEL` from `readSettings()`, default model
+`anthropic/claude-haiku-5.5`) with two tools,
 `create_task { title, description?, due? }` (local `YYYY-MM-DD[THH:mm]`,
 converted with `zonedTime`) and `create_note { title?, body }`. Every item
 goes into the top-level **Unsorted** folder of its app (`UNSORTED_FOLDER`,
 found case-insensitively or created: `ensureTopFolder` in each app's
 server file); no folder guessing. On success the field clears, the trees
 are invalidated and a toast per item offers **Open** (`requestOpen`, like
-the global search). Without `LLM_API_KEY` the field isn't rendered
+the global search). Without an API key the field isn't rendered
 (`assistantEnabledQueryOptions`, prefetched by each app's loader) and
 nothing else changes.
+
+### Settings (every app's ⋮ menu)
+
+`SettingsDialog` (`src/components/settings-dialog.tsx`) edits the
+`settings` table: Assistant (API key, base URL, model) and Phone reminders
+(ntfy topic, server, token, the app's public URL), plus "Send test
+reminder". An empty field means "fall back to the env var / default"
+(env values show as placeholders). **Secrets (`secret: true` in `SETTINGS`)
+are write-only**: `viewSettings()` sends the browser only whether one is
+set (`source`) and its last 4 characters; an empty secret field keeps it,
+the ✕ button removes it. Saving invalidates `['settings']` and
+`assistantEnabledQueryOptions`, so the field shows up without a restart.
+No auth (like everything else): anyone on the LAN can change them, but
+can't read the secrets back.
 
 ### Keyboard
 
@@ -458,9 +479,11 @@ Treat `eslint --fix` output as untrusted — re-run `typecheck` afterwards.
 ## Environment
 
 See `.env.example`. Nothing is required; overrides (`DATABASE_PATH`,
-`VITE_APP_NAME`, and the optional `LLM_*` / `NTFY_*` / `PUBLIC_URL`, which
-are server-only, never `VITE_`) go in `.env.local` (gitignored); Docker
-passes them through `compose.yaml`. Don't put `PORT` in
+`VITE_APP_NAME`) go in `.env.local` (gitignored). The assistant and
+reminder settings are normally set in the app (Settings…); the
+`LLM_*` / `NTFY_*` / `PUBLIC_URL` env vars (server-only, never `VITE_`;
+Docker passes them through `compose.yaml`) are only a fallback for
+anything not saved there. Don't put `PORT` in
 `.env.local` — Vite picks it up and moves the dev server off 3000.
 Production uses port 8008: on Windows it's set by `scripts/start.ps1`, run
 at logon by the `Essentials` Scheduled Task (`scripts/install-startup.ps1` /

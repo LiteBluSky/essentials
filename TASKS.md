@@ -213,10 +213,13 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] Calendar: dots on due days, the selected day's tasks listed (click
       opens), `a` starts a task due that day
 - [x] Phone reminders via ntfy: pushed once when due (Nitro plugin, every
-      minute); "Send test reminder" in the ⋮ menu
+      minute); "Send test reminder" in Settings
 - [x] "Tell me…" field on every app (focused on open, `s`): an LLM
       (OpenRouter / OpenAI-compatible) turns a sentence into tasks / notes in
-      "Unsorted"; hidden without `LLM_API_KEY`
+      "Unsorted"; hidden without an API key
+- [x] Settings dialog (every app's ⋮ menu): LLM + ntfy settings stored in
+      the DB (`settings` table, migration 0006), env as fallback; secrets
+      write-only
 - [ ] Verify on the phone: dictation into the field, ntfy reminder arrives
 
 ## History of the notes app (before the merge)

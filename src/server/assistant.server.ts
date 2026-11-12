@@ -1,30 +1,28 @@
 import { z } from 'zod'
 
 import type { AssistantInput } from '@/lib/assistant'
+import { readSettings } from './settings.server'
 
 // Server-only: the LLM call behind the assistant. Any OpenAI-compatible chat
 // completions API with tool calling (OpenRouter by default). Off unless
-// LLM_API_KEY is set. It only reads the sentence and returns what to create;
+// LLM_API_KEY is set (Settings…, or the env). It only reads the sentence and returns what to create;
 // assistant.functions.ts creates it.
 
 const OPENROUTER = 'https://openrouter.ai/api/v1'
 const DEFAULT_MODEL = 'anthropic/claude-haiku-5.5'
 
-function llmConfig() {
-  const key = process.env.LLM_API_KEY?.trim()
-  if (!key) return null
+async function llmConfig() {
+  const settings = await readSettings()
+  if (!settings.LLM_API_KEY) return null
   return {
-    key,
-    baseUrl: (process.env.LLM_BASE_URL?.trim() || OPENROUTER).replace(
-      /\/+$/,
-      '',
-    ),
-    model: process.env.LLM_MODEL?.trim() || DEFAULT_MODEL,
+    key: settings.LLM_API_KEY,
+    baseUrl: (settings.LLM_BASE_URL || OPENROUTER).replace(/\/+$/, ''),
+    model: settings.LLM_MODEL || DEFAULT_MODEL,
   }
 }
 
-export function assistantConfigured() {
-  return llmConfig() !== null
+export async function assistantConfigured() {
+  return (await llmConfig()) !== null
 }
 
 const TOOLS = [
@@ -135,8 +133,10 @@ export async function planActions({
   now,
   timeZone,
 }: AssistantInput): Promise<Array<PlannedAction>> {
-  const config = llmConfig()
-  if (!config) throw new Error('The assistant is off: set LLM_API_KEY')
+  const config = await llmConfig()
+  if (!config) {
+    throw new Error('The assistant is off: add an API key in Settings')
+  }
 
   const system = [
     'You turn what the user says (often dictated, so forgive odd wording) into tasks and notes by calling the tools. Always call at least one tool; call it several times if they mention several separate things.',

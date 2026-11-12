@@ -1,13 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  BellRingIcon,
   DownloadIcon,
   EllipsisVerticalIcon,
   MonitorDownIcon,
+  SettingsIcon,
   UploadIcon,
 } from 'lucide-react'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 
+import { SettingsDialog } from '@/components/settings-dialog'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -25,11 +26,7 @@ import { tasksFile } from '@/lib/tasks/schemas'
 import type { TasksFile } from '@/lib/tasks/schemas'
 import { toTasksFile } from '@/lib/tasks/tree'
 import type { Tree } from '@/lib/tasks/tree'
-import {
-  importTasks,
-  tasksTreeQueryOptions,
-  testReminder,
-} from '@/server/tasks.functions'
+import { importTasks, tasksTreeQueryOptions } from '@/server/tasks.functions'
 
 function plural(n: number, word: string) {
   return `${n} ${word}${n === 1 ? '' : 's'}`
@@ -71,6 +68,7 @@ async function readFile(file: File): Promise<TasksFile> {
 export function ImportExportMenu({ tree }: { tree: Tree }) {
   const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const app = useInstallApp()
 
   const install = async () => {
@@ -109,22 +107,6 @@ export function ImportExportMenu({ tree }: { tree: Tree }) {
       }),
   })
 
-  const sendTest = useMutation({
-    mutationFn: () => testReminder(),
-    onSuccess: () =>
-      toast.add({
-        title: 'Test reminder sent',
-        description: 'It should be on your phone now.',
-        type: 'success',
-      }),
-    onError: (error) =>
-      toast.add({
-        title: "Couldn't send a reminder",
-        description: error.message,
-        type: 'error',
-      }),
-  })
-
   const isEmpty = !tree.folders.length && !tree.tasks.length
 
   return (
@@ -152,12 +134,9 @@ export function ImportExportMenu({ tree }: { tree: Tree }) {
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem
-              disabled={sendTest.isPending}
-              onClick={() => sendTest.mutate()}
-            >
-              <BellRingIcon />
-              Send test reminder
+            <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
+              <SettingsIcon />
+              Settings…
             </DropdownMenuItem>
           </DropdownMenuGroup>
           {app.state !== 'installed' && (
@@ -173,6 +152,7 @@ export function ImportExportMenu({ tree }: { tree: Tree }) {
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <input
         ref={inputRef}
         type="file"

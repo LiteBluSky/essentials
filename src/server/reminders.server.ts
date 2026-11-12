@@ -2,23 +2,25 @@ import { and, eq, gt, isNull, lte } from 'drizzle-orm'
 
 import { db } from '@/db'
 import { taskFolders, tasks } from '@/db/schema'
+import { readSettings } from './settings.server'
 
 // Phone reminders: when an open task falls due, it's pushed once through
 // ntfy (https://ntfy.sh, or a self-hosted server) to the topic the phone's
 // ntfy app subscribes to, then marked `remindedAt`. Off unless NTFY_TOPIC is
-// set. Run every minute by the Nitro plugin (reminders.plugin.ts) through
+// set (Settings…, or the env). Run every minute by the Nitro plugin (reminders.plugin.ts) through
 // the /api/reminders route. Only import from server code.
 
 /** Tasks due longer ago than this are never pushed (e.g. after downtime). */
 const MAX_LATE_MS = 24 * 60 * 60 * 1000
 
-export function ntfyConfig() {
-  const topic = process.env.NTFY_TOPIC?.trim()
-  if (!topic) return null
+async function ntfyConfig() {
+  const settings = await readSettings()
+  if (!settings.NTFY_TOPIC) return null
+  const server = (settings.NTFY_URL || 'https://ntfy.sh').replace(/\/+$/, '')
   return {
-    url: `${(process.env.NTFY_URL?.trim() || 'https://ntfy.sh').replace(/\/+$/, '')}/${encodeURIComponent(topic)}`,
-    token: process.env.NTFY_TOKEN?.trim() || undefined,
-    publicUrl: process.env.PUBLIC_URL?.trim().replace(/\/+$/, '') || undefined,
+    url: `${server}/${encodeURIComponent(settings.NTFY_TOPIC)}`,
+    token: settings.NTFY_TOKEN || undefined,
+    publicUrl: settings.PUBLIC_URL.replace(/\/+$/, '') || undefined,
   }
 }
 
@@ -26,8 +28,10 @@ type Push = { title: string; message: string; tags?: string }
 
 /** Sends one notification. Throws if ntfy isn't set up or refuses it. */
 export async function push({ title, message, tags = 'alarm_clock' }: Push) {
-  const config = ntfyConfig()
-  if (!config) throw new Error('Reminders are off: set NTFY_TOPIC')
+  const config = await ntfyConfig()
+  if (!config) {
+    throw new Error('Reminders are off: add an ntfy topic in Settings')
+  }
   const res = await fetch(config.url, {
     method: 'POST',
     headers: {
@@ -49,7 +53,7 @@ export async function push({ title, message, tags = 'alarm_clock' }: Push) {
 /** Pushes every open task that has fallen due and wasn't pushed yet;
  * returns how many went out. */
 export async function sendDueReminders(now = new Date()) {
-  if (!ntfyConfig()) return 0
+  if (!(await ntfyConfig())) return 0
   let sent = 0
   const due = await db
     .select({

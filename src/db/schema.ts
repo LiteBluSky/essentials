@@ -244,3 +244,18 @@ export type NewNote = typeof notes.$inferInsert
 export type BinnedNote = typeof notesBin.$inferSelect
 export type Task = typeof tasks.$inferSelect
 export type NewTask = typeof tasks.$inferInsert
+
+// ---- Settings ---------------------------------------------------------------
+
+// App settings edited in the UI (Settings… in the ⋮ menu): the assistant's
+// LLM key and the ntfy reminder target. One row per key (see SETTINGS in
+// src/lib/settings.ts); a missing row falls back to the env var of the same
+// name.
+export const settings = sqliteTable('settings', {
+  key: text().primaryKey(),
+  value: text().notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date())
+    .$onUpdate(() => new Date()),
+})

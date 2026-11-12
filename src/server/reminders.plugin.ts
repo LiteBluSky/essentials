@@ -7,8 +7,9 @@ import { definePlugin } from 'nitro'
 // Registered in vite.config.ts (`nitro({ plugins })`).
 const EVERY_MS = 60 * 1000
 
+// Always runs: the ntfy topic can be set at any time in Settings (the route
+// does nothing until it is).
 export default definePlugin((nitroApp) => {
-  if (!process.env.NTFY_TOPIC?.trim()) return
   let running = false
   const tick = async () => {
     if (running) return

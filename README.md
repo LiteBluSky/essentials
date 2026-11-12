@@ -274,16 +274,18 @@ with a certificate (Caddy, nginx…).
 
 ## Assistant and reminders
 
-Both are optional and off by default; set them in `.env.local` (Windows /
-native) or a `.env` next to `compose.yaml` (Docker), then restart.
+Both are optional and off by default. Set them up in the app: ⋮ menu →
+**Settings…** (saved in the database, no restart needed). Environment
+variables of the same names (`.env.local`, or a `.env` next to
+`compose.yaml` for Docker) still work as a fallback.
 
 **"Tell me…"** — a field at the top of every app, focused when the app
 opens. Type (or tap the phone keyboard's mic and talk) something like
 _"remind me to call the dentist Friday at 3"_ or _"note: cabin wifi is
 abc123"_, press Enter, and it's created in the **Unsorted** folder of Tasks
 or Notes, ready to file. It needs an LLM key: get one at
-[openrouter.ai](https://openrouter.ai) and set `LLM_API_KEY` (any
-OpenAI-compatible API works via `LLM_BASE_URL` + `LLM_MODEL`). Only the
+[openrouter.ai](https://openrouter.ai) and paste it into Settings → API key
+(any OpenAI-compatible API works: change the base URL and model). Only the
 sentence you type is sent to the provider.
 
 **Phone reminders** — when a task with a due date falls due, the server
@@ -291,13 +293,18 @@ pushes it to your phone through [ntfy](https://ntfy.sh):
 
 1. Install the ntfy app (Android: Play Store / F-Droid; iPhone: App Store).
 2. Pick a long random topic name and subscribe to it in the app.
-3. Set `NTFY_TOPIC` to it (and `NTFY_URL` / `NTFY_TOKEN` if you run your own
-   ntfy server), optionally `PUBLIC_URL` so tapping a reminder opens the app.
-4. Restart, then Tasks ⋮ menu → **Send test reminder**.
+3. Enter it in Settings → ntfy topic (plus the server and token if you run
+   your own ntfy), and optionally the app address so tapping a reminder
+   opens the app. Save.
+4. Settings → **Send test reminder**.
 
 Each due task is pushed once (editing its due date re-arms it); the server
 checks every minute, so it must be running. Works over plain http on the
 LAN: the push goes server → ntfy → phone.
+
+There's no login, so anyone on your network can change these settings,
+but the API key and ntfy token are never shown back (only their last 4
+characters).
 
 ## Data: backup and moving machines
 
