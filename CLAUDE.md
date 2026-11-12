@@ -34,6 +34,7 @@ it. Add new tasks there rather than doing unplanned work.
 | Forms         | TanStack Form + Zod                                               |
 | UI            | shadcn/ui (`base-nova`, **Base UI** engine) + Tailwind v4, lucide |
 | Markdown      | `react-markdown` + `remark-gfm` + `remark-breaks`, typography     |
+| LLM (opt-in)  | `@anthropic-ai/sdk` (Anthropic) or `fetch` (OpenAI-compatible)    |
 | Tooling       | pnpm, ESLint (`@tanstack/eslint-config`), Prettier, TypeScript    |
 
 ### UI: always use shadcn components
@@ -113,6 +114,10 @@ One SQLite file holds every app. Bookmark tables keep their original names.
   the reminder was pushed; cleared when `dueAt` or `remindMinutes`
   changes), timestamps. Without `dueAt`, `createdAt` drives the
   colour and calendar day.
+- `assistant_log` — one row per "Tell me…" request: `text`, `provider`,
+  `model`, `ok`, `result` (one line per item done, or the error),
+  `inputTokens` / `outputTokens`, `costUsd` (null when unknown),
+  `durationMs`, `createdAt`. Kept until cleared from the history dialog.
 - `settings` — `key` (primary key, one of `SETTINGS` in
   `src/lib/settings.ts`), `value`, `updatedAt`. Edited in the Settings
   dialog; read on the server with `readSettings()` (`settings.server.ts`),
@@ -385,10 +390,18 @@ remindMinutes? }] }` (ISO
 each app's header (not focused on load: `s` or a tap goes in): type or
 dictate (phone keyboard mic) a sentence, Enter (Shift+Enter = newline). `askAssistant`
 (`src/server/assistant.functions.ts`) sends it with the browser's time and
-timezone to an OpenAI-compatible chat completions API (`fetch`, no SDK;
-`assistant.server.ts`: OpenRouter by default; `LLM_API_KEY` / `LLM_BASE_URL`
-/ `LLM_MODEL` from `readSettings()`, default model
-`anthropic/claude-haiku-5.5`) with two tools,
+timezone to the provider picked in Settings (`LLM_PROVIDER`;
+`assistant.server.ts`): **OpenAI-compatible** chat completions (`fetch`,
+OpenRouter by default, `LLM_BASE_URL`, default model
+`anthropic/claude-haiku-5.5`; on OpenRouter `usage: { include: true }` makes
+it report the cost) or **Anthropic** (the official `@anthropic-ai/sdk`,
+`client.beta.messages.create`, default model `claude-opus-5-5`, effort
+`low` on 5.x models, the server-side refusal fallback `fallbacks: "default"`
+on the models that take it; cost worked out from `ANTHROPIC_PRICES`, per
+model that ran). **`tool_choice` stays `auto`** (the newest Claude models
+reject a forced call, so the prompt asks for one) and **no `temperature`**
+(Anthropic's current API version rejects it). The tools, in one neutral
+shape (`TOOLS`),
 `create_task { title, description?, due?, remind_minutes_before? }` (local `YYYY-MM-DD[THH:mm]`,
 converted with `zonedTime`), `create_note { title?, body }` and
 `open_item { query, app?, folder? }`. The prompt makes a **list** (shopping,
@@ -409,14 +422,24 @@ list goes back with `created`; the first match opens at once (note/task via
 `requestOpen` + navigate, a folder is revealed, a link opens in a new tab;
 if the browser blocks that tab, since it's no longer right after the
 click, a toast offers "Open link"), any others are toasts with **Open**,
-and no match is a "Couldn't find" toast. Without an API key the field isn't rendered
+and no match is a "Couldn't find" toast.
+
+**History** (`AssistantHistoryDialog`, every app's ⋮ menu → "Assistant
+history…"): every request, failed ones too, is logged in `assistant_log`
+by `askAssistant` (`assistant-log.server.ts`; logging never breaks the
+request). The dialog lists the latest `HISTORY_LIMIT` (200) with what was
+said, the result, model, time taken, tokens and cost, and totals over all
+of them; "Clear history" empties it (what was created stays).
+
+Without an API key the field isn't rendered
 (`assistantEnabledQueryOptions`, prefetched by each app's loader) and
 nothing else changes.
 
 ### Settings (every app's ⋮ menu)
 
 `SettingsDialog` (`src/components/settings-dialog.tsx`) edits the
-`settings` table: Assistant (API key, base URL, model) and Phone reminders
+`settings` table: Assistant (provider select, API key, base URL (hidden for
+Anthropic), model; hints follow the provider) and Phone reminders
 (ntfy topic, server, token, the app's public URL), plus "Send test
 reminder". An empty field means "fall back to the env var / default"
 (env values show as placeholders). **Secrets (`secret: true` in `SETTINGS`)

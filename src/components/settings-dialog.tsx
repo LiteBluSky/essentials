@@ -1,4 +1,4 @@
-import { useForm } from '@tanstack/react-form'
+import { useForm, useStore } from '@tanstack/react-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BellRingIcon, XIcon } from 'lucide-react'
 import { useState } from 'react'
@@ -22,6 +22,14 @@ import {
   FieldSet,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   InputGroup,
   InputGroupAddon,
@@ -47,8 +55,8 @@ const GROUPS: Array<{
   {
     legend: 'Assistant',
     description:
-      'The “Tell me…” field. Needs an API key from openrouter.ai (or any OpenAI-compatible API). Only what you type in the field is sent.',
-    keys: ['LLM_API_KEY', 'LLM_BASE_URL', 'LLM_MODEL'],
+      'The “Tell me…” field. Needs an API key: from openrouter.ai (or any OpenAI-compatible API), or from Anthropic (console.anthropic.com). Only what you type in the field is sent.',
+    keys: ['LLM_PROVIDER', 'LLM_API_KEY', 'LLM_BASE_URL', 'LLM_MODEL'],
   },
   {
     legend: 'Phone reminders',
@@ -167,6 +175,21 @@ function SettingsForm({
     },
   })
 
+  // The provider picked (or saved, or from the env): it changes the hints
+  // and hides the base URL for Anthropic.
+  const picked = useStore(form.store, (state) => state.values.LLM_PROVIDER)
+  const provider =
+    picked ||
+    (view.LLM_PROVIDER.source === 'env' ? view.LLM_PROVIDER.value : '') ||
+    'openai'
+  const anthropic = provider === 'anthropic'
+  const hint = (key: SettingKey) =>
+    anthropic && key === 'LLM_MODEL'
+      ? 'claude-opus-5-5'
+      : anthropic && key === 'LLM_API_KEY'
+        ? 'sk-ant-…'
+        : SETTINGS[key].placeholder
+
   return (
     <form
       noValidate
@@ -190,6 +213,37 @@ function SettingsForm({
                   const meta = SETTINGS[key]
                   const current = view[key]
                   const id = `setting-${key}`
+                  if (key === 'LLM_BASE_URL' && anthropic) return null
+                  if ('options' in meta) {
+                    return (
+                      <Field>
+                        <FieldLabel htmlFor={id}>{meta.label}</FieldLabel>
+                        <Select
+                          items={meta.options}
+                          value={provider}
+                          onValueChange={(value) =>
+                            field.handleChange(value ?? '')
+                          }
+                        >
+                          <SelectTrigger id={id} className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              {meta.options.map((option) => (
+                                <SelectItem
+                                  key={option.value}
+                                  value={option.value}
+                                >
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    )
+                  }
                   if (!meta.secret) {
                     return (
                       <Field>
@@ -198,9 +252,7 @@ function SettingsForm({
                           id={id}
                           value={field.state.value}
                           placeholder={
-                            current.source === 'env'
-                              ? current.value
-                              : meta.placeholder
+                            current.source === 'env' ? current.value : hint(key)
                           }
                           onBlur={field.handleBlur}
                           onChange={(e) => field.handleChange(e.target.value)}
@@ -228,7 +280,7 @@ function SettingsForm({
                           placeholder={
                             saved
                               ? `•••• ${current.hint ?? ''} (saved, type to replace)`
-                              : meta.placeholder
+                              : hint(key)
                           }
                           onBlur={field.handleBlur}
                           onChange={(e) => {

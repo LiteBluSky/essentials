@@ -3,11 +3,13 @@ import {
   DownloadIcon,
   EllipsisVerticalIcon,
   MonitorDownIcon,
+  HistoryIcon,
   SettingsIcon,
   UploadIcon,
 } from 'lucide-react'
 import { useRef, useState } from 'react'
 
+import { AssistantHistoryDialog } from '@/components/assistant-history-dialog'
 import { SettingsDialog } from '@/components/settings-dialog'
 import { Button } from '@/components/ui/button'
 import {
@@ -69,6 +71,7 @@ export function ImportExportMenu({ tree }: { tree: Tree }) {
   const queryClient = useQueryClient()
   const inputRef = useRef<HTMLInputElement>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const app = useInstallApp()
 
   const install = async () => {
@@ -138,6 +141,10 @@ export function ImportExportMenu({ tree }: { tree: Tree }) {
               <SettingsIcon />
               Settings…
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
+              <HistoryIcon />
+              Assistant history…
+            </DropdownMenuItem>
           </DropdownMenuGroup>
           {app.state !== 'installed' && (
             <>
@@ -153,6 +160,10 @@ export function ImportExportMenu({ tree }: { tree: Tree }) {
         </DropdownMenuContent>
       </DropdownMenu>
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <AssistantHistoryDialog
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+      />
       <input
         ref={inputRef}
         type="file"

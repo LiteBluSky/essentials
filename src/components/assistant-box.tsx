@@ -23,6 +23,7 @@ import { requestOpen } from '@/lib/global-search'
 import {
   askAssistant,
   assistantEnabledQueryOptions,
+  assistantHistoryQueryOptions,
 } from '@/server/assistant.functions'
 
 function isTyping(target: EventTarget | null) {
@@ -97,6 +98,9 @@ function AssistantField({ enabled }: { enabled: boolean }) {
         })
       }
     },
+    // Every request (failed ones too) is in the history.
+    onSettled: () =>
+      queryClient.invalidateQueries(assistantHistoryQueryOptions),
     onError: (error) =>
       toast.add({
         title: "Couldn't do that",

@@ -6,6 +6,16 @@ import { z } from 'zod'
 // learns whether one is set (and its last 4 characters).
 
 export const SETTINGS = {
+  LLM_PROVIDER: {
+    label: 'Provider',
+    secret: false,
+    placeholder: '',
+    // A select; '' = the first (default) option.
+    options: [
+      { value: 'openai', label: 'OpenRouter / OpenAI-compatible' },
+      { value: 'anthropic', label: 'Anthropic' },
+    ],
+  },
   LLM_API_KEY: {
     label: 'API key',
     secret: true,

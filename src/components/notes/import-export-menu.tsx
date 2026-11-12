@@ -3,6 +3,7 @@ import {
   DownloadIcon,
   EllipsisVerticalIcon,
   MonitorDownIcon,
+  HistoryIcon,
   SettingsIcon,
   Trash2Icon,
   UploadIcon,
@@ -11,6 +12,7 @@ import { useRef, useState } from 'react'
 
 import { NotesBin } from './bin'
 
+import { AssistantHistoryDialog } from '@/components/assistant-history-dialog'
 import { SettingsDialog } from '@/components/settings-dialog'
 import { Button } from '@/components/ui/button'
 import {
@@ -73,6 +75,7 @@ export function ImportExportMenu({ tree }: { tree: Tree }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [binOpen, setBinOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const app = useInstallApp()
 
   const install = async () => {
@@ -149,6 +152,10 @@ export function ImportExportMenu({ tree }: { tree: Tree }) {
               <SettingsIcon />
               Settings…
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
+              <HistoryIcon />
+              Assistant history…
+            </DropdownMenuItem>
           </DropdownMenuGroup>
           {app.state !== 'installed' && (
             <>
@@ -164,6 +171,10 @@ export function ImportExportMenu({ tree }: { tree: Tree }) {
         </DropdownMenuContent>
       </DropdownMenu>
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <AssistantHistoryDialog
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+      />
       <NotesBin open={binOpen} onOpenChange={setBinOpen} />
       <input
         ref={inputRef}

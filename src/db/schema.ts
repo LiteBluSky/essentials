@@ -3,6 +3,7 @@ import {
   foreignKey,
   index,
   integer,
+  real,
   sqliteTable,
   text,
 } from 'drizzle-orm/sqlite-core'
@@ -248,6 +249,32 @@ export type BinnedNote = typeof notesBin.$inferSelect
 export type Task = typeof tasks.$inferSelect
 export type NewTask = typeof tasks.$inferInsert
 
+// ---- Assistant history ------------------------------------------------------
+
+// Every "Tell me…" request: what was said, what came of it, and what the LLM
+// call cost (tokens; dollars when known). Shown in the assistant history.
+export const assistantLog = sqliteTable(
+  'assistant_log',
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    text: text().notNull(),
+    provider: text().notNull().default(''),
+    model: text().notNull().default(''),
+    ok: integer({ mode: 'boolean' }).notNull(),
+    /** What happened, one line per item ("Task: …", "Opened: …"), or the
+     * error. */
+    result: text().notNull().default(''),
+    inputTokens: integer('input_tokens'),
+    outputTokens: integer('output_tokens'),
+    costUsd: real('cost_usd'),
+    durationMs: integer('duration_ms').notNull().default(0),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [index('assistant_log_created_idx').on(t.createdAt)],
+)
+
 // ---- Settings ---------------------------------------------------------------
 
 // App settings edited in the UI (Settings… in the ⋮ menu): the assistant's
@@ -262,3 +289,4 @@ export const settings = sqliteTable('settings', {
     .$defaultFn(() => new Date())
     .$onUpdate(() => new Date()),
 })
+export type AssistantLogEntry = typeof assistantLog.$inferSelect

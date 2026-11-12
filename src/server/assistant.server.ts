@@ -1,24 +1,42 @@
+import Anthropic from '@anthropic-ai/sdk'
 import { z } from 'zod'
 
 import type { AssistantInput } from '@/lib/assistant'
 import { MAX_REMIND_MINUTES } from '@/lib/tasks/schemas'
 import { readSettings } from './settings.server'
 
-// Server-only: the LLM call behind the assistant. Any OpenAI-compatible chat
-// completions API with tool calling (OpenRouter by default). Off unless
-// LLM_API_KEY is set (Settings…, or the env). It only reads the sentence and returns what to create;
-// assistant.functions.ts creates it.
+// Server-only: the LLM call behind the assistant. Two providers (Settings ›
+// Provider): any OpenAI-compatible chat completions API (OpenRouter by
+// default, plain fetch) or Anthropic's own API (the official SDK). Off
+// unless an API key is set. It only reads the sentence and returns what to
+// create / open plus what the call cost; assistant.functions.ts acts on it
+// and logs it.
+
+export type LlmProvider = 'openai' | 'anthropic'
 
 const OPENROUTER = 'https://openrouter.ai/api/v1'
-const DEFAULT_MODEL = 'anthropic/claude-haiku-5.5'
+const DEFAULT_MODEL: Record<LlmProvider, string> = {
+  openai: 'anthropic/claude-haiku-5.5',
+  anthropic: 'claude-opus-5-5',
+}
 
-async function llmConfig() {
+type LlmConfig = {
+  provider: LlmProvider
+  key: string
+  baseUrl: string
+  model: string
+}
+
+async function llmConfig(): Promise<LlmConfig | null> {
   const settings = await readSettings()
   if (!settings.LLM_API_KEY) return null
+  const provider: LlmProvider =
+    settings.LLM_PROVIDER === 'anthropic' ? 'anthropic' : 'openai'
   return {
+    provider,
     key: settings.LLM_API_KEY,
     baseUrl: (settings.LLM_BASE_URL || OPENROUTER).replace(/\/+$/, ''),
-    model: settings.LLM_MODEL || DEFAULT_MODEL,
+    model: settings.LLM_MODEL || DEFAULT_MODEL[provider],
   }
 }
 
@@ -26,90 +44,88 @@ export async function assistantConfigured() {
   return (await llmConfig()) !== null
 }
 
+/** The provider and model a request would use (for the history log). */
+export async function currentModel() {
+  const config = await llmConfig()
+  return config && { provider: config.provider, model: config.model }
+}
+
+// The tools, in a neutral shape: each provider wraps them its own way.
 const TOOLS = [
   {
-    type: 'function',
-    function: {
-      name: 'create_task',
-      description:
-        'Create a to-do task. Use for anything to do, buy, call or remember to do, and for anything with a day or time.',
-      parameters: {
-        type: 'object',
-        properties: {
-          title: {
-            type: 'string',
-            description:
-              'Short imperative title, e.g. "Call the dentist", without the date or time.',
-          },
-          description: {
-            type: 'string',
-            description: 'Extra details, only if the user gave any.',
-          },
-          due: {
-            type: 'string',
-            description:
-              "When it's due, in the user's local time: YYYY-MM-DDTHH:mm, or YYYY-MM-DD for a day without a time. Omit if no day or time was mentioned.",
-          },
-          remind_minutes_before: {
-            type: 'integer',
-            description:
-              'How many minutes before the due time to send the reminder, only if the user asked for an early reminder (e.g. "remind me 15 minutes before" = 15, "a day before" = 1440). Omit otherwise: the reminder then comes at the due time.',
-          },
+    name: 'create_task',
+    description:
+      'Create a to-do task. Use for anything to do, buy, call or remember to do, and for anything with a day or time.',
+    parameters: {
+      type: 'object',
+      properties: {
+        title: {
+          type: 'string',
+          description:
+            'Short imperative title, e.g. "Call the dentist", without the date or time.',
         },
-        required: ['title'],
-        additionalProperties: false,
+        description: {
+          type: 'string',
+          description: 'Extra details, only if the user gave any.',
+        },
+        due: {
+          type: 'string',
+          description:
+            "When it's due, in the user's local time: YYYY-MM-DDTHH:mm, or YYYY-MM-DD for a day without a time. Omit if no day or time was mentioned.",
+        },
+        remind_minutes_before: {
+          type: 'integer',
+          description:
+            'How many minutes before the due time to send the reminder, only if the user asked for an early reminder (e.g. "remind me 15 minutes before" = 15, "a day before" = 1440). Omit otherwise: the reminder then comes at the due time.',
+        },
       },
+      required: ['title'],
+      additionalProperties: false,
     },
   },
   {
-    type: 'function',
-    function: {
-      name: 'create_note',
-      description:
-        'Save a note: information to keep (facts, ideas, reference lists, codes, quotes). Not for things to do.',
-      parameters: {
-        type: 'object',
-        properties: {
-          title: { type: 'string', description: 'Short title. May be empty.' },
-          body: {
-            type: 'string',
-            description:
-              "The note in markdown: the user's words tidied up, not reworded or shortened.",
-          },
+    name: 'create_note',
+    description:
+      'Save a note: information to keep (facts, ideas, reference lists, codes, quotes). Not for things to do.',
+    parameters: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Short title. May be empty.' },
+        body: {
+          type: 'string',
+          description:
+            "The note in markdown: the user's words tidied up, not reworded or shortened.",
         },
-        required: ['body'],
-        additionalProperties: false,
       },
+      required: ['body'],
+      additionalProperties: false,
     },
   },
   {
-    type: 'function',
-    function: {
-      name: 'open_item',
-      description:
-        'Find and open something that already exists: a link (bookmark), note, task or folder the user refers to ("open my packing list", "show the dentist task", "go to the GitHub link"). Creates nothing.',
-      parameters: {
-        type: 'object',
-        properties: {
-          query: {
-            type: 'string',
-            description:
-              'A few distinctive words from its title (or URL), e.g. "dentist" or "github". All of them must appear in it, so keep it short.',
-          },
-          app: {
-            type: 'string',
-            enum: ['bookmarks', 'notes', 'tasks'],
-            description:
-              'Where to look, if the user said: a link/bookmark/site = bookmarks, a note/list = notes, a task/to-do/reminder = tasks. Omit if unsure.',
-          },
-          folder: {
-            type: 'boolean',
-            description: 'True if the user asked for a folder.',
-          },
+    name: 'open_item',
+    description:
+      'Find and open something that already exists: a link (bookmark), note, task or folder the user refers to ("open my packing list", "show the dentist task", "go to the GitHub link"). Creates nothing.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description:
+            'A few distinctive words from its title (or URL), e.g. "dentist" or "github". All of them must appear in it, so keep it short.',
         },
-        required: ['query'],
-        additionalProperties: false,
+        app: {
+          type: 'string',
+          enum: ['bookmarks', 'notes', 'tasks'],
+          description:
+            'Where to look, if the user said: a link/bookmark/site = bookmarks, a note/list = notes, a task/to-do/reminder = tasks. Omit if unsure.',
+        },
+        folder: {
+          type: 'boolean',
+          description: 'True if the user asked for a folder.',
+        },
       },
+      required: ['query'],
+      additionalProperties: false,
     },
   },
 ]
@@ -154,11 +170,27 @@ export type PlannedAction =
       folder: boolean
     }
 
+/** One tool call from the model. */
+type ToolCall = { name: string; args: unknown }
+
+/** What a model call cost and returned. */
+export type ModelUsage = {
+  provider: LlmProvider
+  model: string
+  inputTokens: number | null
+  outputTokens: number | null
+  /** US dollars; null when unknown (no price for the model / provider). */
+  costUsd: number | null
+}
+
+type ModelReply = ModelUsage & { calls: Array<ToolCall>; text: string }
+
 const completion = z.object({
   choices: z
     .array(
       z.object({
         message: z.object({
+          content: z.string().nullish(),
           tool_calls: z
             .array(
               z.object({
@@ -170,7 +202,179 @@ const completion = z.object({
       }),
     )
     .min(1),
+  model: z.string().nullish(),
+  usage: z
+    .object({
+      prompt_tokens: z.number().nullish(),
+      completion_tokens: z.number().nullish(),
+      // OpenRouter: what the request cost, in credits (= US dollars).
+      cost: z.number().nullish(),
+    })
+    .nullish(),
 })
+
+/** Any OpenAI-compatible chat completions API (OpenRouter by default). */
+async function callOpenAi(
+  config: LlmConfig,
+  system: string,
+  text: string,
+): Promise<ModelReply> {
+  const openRouter = new URL(config.baseUrl).hostname.endsWith('openrouter.ai')
+  const res = await fetch(`${config.baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${config.key}`,
+    },
+    body: JSON.stringify({
+      model: config.model,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: text },
+      ],
+      tools: TOOLS.map((tool) => ({ type: 'function', function: tool })),
+      // Not 'required': the newest Claude models reject a forced tool call.
+      // The prompt asks for one instead.
+      tool_choice: 'auto',
+      // OpenRouter reports the request's cost in `usage.cost`.
+      ...(openRouter && { usage: { include: true } }),
+    }),
+    signal: AbortSignal.timeout(60_000),
+  })
+  if (!res.ok) {
+    const detail = (await res.text()).slice(0, 300)
+    throw new Error(`The LLM answered ${res.status}: ${detail}`)
+  }
+  const body = completion.parse(await res.json())
+  const { message } = body.choices[0]
+  return {
+    provider: 'openai',
+    model: body.model || config.model,
+    inputTokens: body.usage?.prompt_tokens ?? null,
+    outputTokens: body.usage?.completion_tokens ?? null,
+    costUsd: body.usage?.cost ?? null,
+    text: message.content ?? '',
+    calls: (message.tool_calls ?? []).flatMap((call) => {
+      try {
+        return [
+          {
+            name: call.function.name,
+            args: JSON.parse(call.function.arguments || '{}') as unknown,
+          },
+        ]
+      } catch {
+        return []
+      }
+    }),
+  }
+}
+
+/** Anthropic's prices per million tokens (input, output), in US dollars.
+ * Unlisted models get no cost. */
+const ANTHROPIC_PRICES: Partial<Record<string, [number, number]>> = {
+  'claude-fable-5-2': [8, 40],
+  'claude-fable-5-1': [10, 50],
+  'claude-fable-5': [10, 50],
+  'claude-opus-5-5': [4, 20],
+  'claude-opus-5': [5, 25],
+  'claude-opus-4-8': [5, 25],
+  'claude-opus-4-7': [5, 25],
+  'claude-opus-4-6': [5, 25],
+  'claude-sonnet-5-5': [2, 10],
+  'claude-sonnet-5': [2, 10],
+  'claude-sonnet-4-6': [3, 15],
+  'claude-haiku-5-5': [0.1, 0.5],
+  'claude-haiku-4-5': [1, 5],
+}
+
+function anthropicCost(model: string, input: number, output: number) {
+  const price = ANTHROPIC_PRICES[model]
+  if (!price) return null
+  return (input * price[0] + output * price[1]) / 1_000_000
+}
+
+/** Models that take `output_config.effort`, and those that accept the
+ * server-side refusal fallback. */
+const TAKES_EFFORT = /^claude-(opus|sonnet|haiku|fable|mythos)-5/
+const TAKES_FALLBACK = /^claude-(fable-5-[12]|opus-5|sonnet-5-5)/
+
+/** Anthropic's own API (Messages), through the official SDK. */
+async function callAnthropic(
+  config: LlmConfig,
+  system: string,
+  text: string,
+): Promise<ModelReply> {
+  const client = new Anthropic({ apiKey: config.key, timeout: 60_000 })
+  const fallback = TAKES_FALLBACK.test(config.model)
+  const response = await client.beta.messages.create({
+    model: config.model,
+    max_tokens: 16000,
+    system,
+    messages: [{ role: 'user', content: text }],
+    // tool_choice stays auto (forcing a call is rejected by the newest
+    // models); the prompt asks for a tool call.
+    tools: TOOLS.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      input_schema: tool.parameters as Anthropic.Beta.BetaTool['input_schema'],
+    })),
+    // A quick parsing job: little thinking needed.
+    ...(TAKES_EFFORT.test(config.model) && {
+      output_config: { effort: 'low' as const },
+    }),
+    // If a safety classifier declines, another model answers instead.
+    ...(fallback && {
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default' as const,
+    }),
+  })
+  if (response.stop_reason === 'refusal') {
+    throw new Error('The model declined to answer that')
+  }
+
+  // Price each model that ran (a fallback model bills at its own rates).
+  const usage = response.usage
+  const hops = usage.iterations?.length
+    ? usage.iterations.map((hop) => ({
+        model: ('model' in hop ? hop.model : null) ?? config.model,
+        input:
+          hop.input_tokens +
+          hop.cache_creation_input_tokens +
+          hop.cache_read_input_tokens,
+        output: hop.output_tokens,
+      }))
+    : [
+        {
+          model: response.model,
+          input:
+            usage.input_tokens +
+            (usage.cache_creation_input_tokens ?? 0) +
+            (usage.cache_read_input_tokens ?? 0),
+          output: usage.output_tokens,
+        },
+      ]
+  const costs = hops.map((hop) =>
+    anthropicCost(hop.model, hop.input, hop.output),
+  )
+
+  return {
+    provider: 'anthropic',
+    model: response.model,
+    inputTokens: hops.reduce((n, hop) => n + hop.input, 0),
+    outputTokens: hops.reduce((n, hop) => n + hop.output, 0),
+    costUsd: costs.some((c) => c === null)
+      ? null
+      : costs.reduce<number>((n, c) => n + (c ?? 0), 0),
+    text: response.content
+      .flatMap((block) => (block.type === 'text' ? [block.text] : []))
+      .join('\n'),
+    calls: response.content.flatMap((block) =>
+      block.type === 'tool_use'
+        ? [{ name: block.name, args: block.input }]
+        : [],
+    ),
+  }
+}
 
 /** "Thursday, 12/11/2026, 14:05" in `timeZone`. */
 function localTime(now: Date, timeZone: string) {
@@ -186,19 +390,27 @@ function localTime(now: Date, timeZone: string) {
   }).format(now)
 }
 
-/** Asks the LLM what to create from the sentence. */
+export type Plan = {
+  actions: Array<PlannedAction>
+  usage: ModelUsage
+  /** The model's own words, if it answered without (or besides) tools. */
+  text: string
+}
+
+/** Asks the LLM what to create / open from the sentence. Throws only when
+ * the call itself fails; an answer without actions comes back empty. */
 export async function planActions({
   text,
   now,
   timeZone,
-}: AssistantInput): Promise<Array<PlannedAction>> {
+}: AssistantInput): Promise<Plan> {
   const config = await llmConfig()
   if (!config) {
     throw new Error('The assistant is off: add an API key in Settings')
   }
 
   const system = [
-    'You turn what the user says (often dictated, so forgive odd wording) into tasks and notes, or open things they already have, by calling the tools. Always call at least one tool; call them several times if they mention several separate things.',
+    'You turn what the user says (often dictated, so forgive odd wording) into tasks and notes, or open things they already have, by calling the tools. Always answer by calling at least one tool, never with text alone; call them several times if they mention several separate things.',
     'A task is one thing to do; a note is information to keep. "Remind me…" is always a task.',
     'A list of items (shopping, packing, groceries, ideas, things to bring or buy, several things under one topic) is ONE note, never several tasks: give it a short title and write the items as a markdown checklist, one "- [ ] item" per line. Separate unrelated actions ("call the dentist and pay the bill") are separate tasks.',
     'When they ask to open, show, find or go to something ("open…", "show me…", "where is…"), call open_item instead of creating anything.',
@@ -206,39 +418,14 @@ export async function planActions({
     "Keep titles short and in the user's language. Never invent details.",
   ].join('\n')
 
-  const res = await fetch(`${config.baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.key}`,
-    },
-    body: JSON.stringify({
-      model: config.model,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: text },
-      ],
-      tools: TOOLS,
-      tool_choice: 'required',
-      temperature: 0,
-    }),
-    signal: AbortSignal.timeout(30_000),
-  })
-  if (!res.ok) {
-    const detail = (await res.text()).slice(0, 300)
-    throw new Error(`The LLM answered ${res.status}: ${detail}`)
-  }
-  const { message } = completion.parse(await res.json()).choices[0]
+  const reply =
+    config.provider === 'anthropic'
+      ? await callAnthropic(config, system, text)
+      : await callOpenAi(config, system, text)
 
   const actions: Array<PlannedAction> = []
-  for (const call of message.tool_calls ?? []) {
-    let args: unknown
-    try {
-      args = JSON.parse(call.function.arguments || '{}')
-    } catch {
-      continue
-    }
-    if (call.function.name === 'create_task') {
+  for (const { name, args } of reply.calls) {
+    if (name === 'create_task') {
       const parsed = taskArgs.safeParse(args)
       if (parsed.success) {
         actions.push({
@@ -249,7 +436,7 @@ export async function planActions({
           remindMinutes: parsed.data.remind_minutes_before ?? 0,
         })
       }
-    } else if (call.function.name === 'open_item') {
+    } else if (name === 'open_item') {
       const parsed = openArgs.safeParse(args)
       if (parsed.success) {
         actions.push({
@@ -259,7 +446,7 @@ export async function planActions({
           folder: parsed.data.folder ?? false,
         })
       }
-    } else if (call.function.name === 'create_note') {
+    } else if (name === 'create_note') {
       const parsed = noteArgs.safeParse(args)
       if (parsed.success) {
         actions.push({
@@ -270,12 +457,8 @@ export async function planActions({
       }
     }
   }
-  if (!actions.length) {
-    throw new Error(
-      "Couldn't make a task or note of that, or find what to open",
-    )
-  }
-  return actions
+  const { calls: _calls, text: said, ...usage } = reply
+  return { actions, usage, text: said }
 }
 
 /** The instant of a local wall-clock time (`YYYY-MM-DD[THH:mm]`) in

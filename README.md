@@ -286,10 +286,19 @@ abc123"_, press Enter, and it's created in the **Unsorted** folder of Tasks
 or Notes, ready to file. A list (_"shopping list: milk, eggs, bread"_)
 becomes one note with a checklist. It also finds things: _"open my packing
 list"_, _"find the dentist task"_ or _"go to the GitHub link"_ opens the
-best match (links in a new tab). It needs an LLM key: get one at
-[openrouter.ai](https://openrouter.ai) and paste it into Settings → API key
-(any OpenAI-compatible API works: change the base URL and model). Only the
-sentence you type is sent to the provider.
+best match (links in a new tab). It needs an LLM key, set in Settings:
+
+- **OpenRouter** (the default provider): a key from
+  [openrouter.ai](https://openrouter.ai) reaches Claude, GPT, Gemini and
+  more (change the model). Any other OpenAI-compatible API works too:
+  change the base URL and model.
+- **Anthropic**: pick "Anthropic" as the provider and paste a key from
+  [console.anthropic.com](https://console.anthropic.com). The model
+  defaults to `claude-opus-5-5`; `claude-haiku-5-5` is much cheaper.
+
+Only the sentence you type is sent to the provider. ⋮ menu → **Assistant
+history…** lists every request with its result, tokens and cost
+(reported by OpenRouter, or worked out from Anthropic's prices).
 
 **Phone reminders** — when a task with a due date falls due, the server
 pushes it to your phone through [ntfy](https://ntfy.sh):
