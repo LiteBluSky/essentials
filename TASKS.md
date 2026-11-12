@@ -227,6 +227,7 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] Shared LLM layer (`llm.server.ts`): multi-turn tool calls for both
       providers
 - [x] Find / open: best partial match when no item has every word
+- [x] Chat keys: j/k through conversations, gg/G, d deletes (d d), ? help
 - [x] Lists become one checklist note; "open / find / show …" opens the best
       match (link, note, task or folder) via the global search
 - [x] Per-task reminder time (`remindMinutes`, migration 0007): at the

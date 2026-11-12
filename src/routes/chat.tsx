@@ -8,17 +8,19 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { format, isToday } from 'date-fns'
 import {
   ChevronDownIcon,
+  KeyboardIcon,
   MessageSquarePlusIcon,
   MessagesSquareIcon,
   SearchIcon,
   SettingsIcon,
   Trash2Icon,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { z } from 'zod'
 
 import { AppNav } from '@/components/app-nav'
 import { ChatMenu } from '@/components/chat/chat-menu'
+import { ShortcutsDialog } from '@/components/chat/shortcuts-dialog'
 import { ChatComposer, ChatThread } from '@/components/chat/chat-thread'
 import type { PendingMessage } from '@/components/chat/chat-thread'
 import { GlobalSearch } from '@/components/global-search'
@@ -115,7 +117,9 @@ function ChatPage() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [toDelete, setToDelete] = useState<ChatConversation | null>(null)
-  const dialogOpen = settingsOpen || searchOpen || toDelete !== null
+  const [helpOpen, setHelpOpen] = useState(false)
+  const dialogOpen = settingsOpen || searchOpen || helpOpen || toDelete !== null
+  const current = conversations.find((c) => c.id === conversationId)
 
   const openConversation = (id?: number) =>
     void navigate({ search: id === undefined ? {} : { c: id } })
@@ -177,30 +181,92 @@ function ChatPage() {
       }),
   })
 
-  // Shift+H / Shift+L switch apps, `z` searches everything, `a` starts a new
-  // chat (while not typing and no dialog is open).
+  // Keys (while not typing and no dialog is open; listed in
+  // chat/shortcuts-dialog.tsx): j/k (↓/↑) step through the conversations,
+  // gg/G latest/oldest, a new chat, d/Delete delete the open one (d again
+  // confirms), z search everything, Shift+H/L switch apps, ? help.
   const switchApp = useAppSwitch()
+  const lastG = useRef(0)
   useEffect(() => {
     if (dialogOpen) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
       if (isTyping(e.target)) return
-      if (e.key === 'H' || e.key === 'L') {
+      // Arrows scroll the conversation when it has focus (j/k still step).
+      if (
+        (e.key === 'ArrowDown' || e.key === 'ArrowUp') &&
+        e.target instanceof Element &&
+        e.target.closest('[data-slot=message-scroller-viewport]')
+      ) {
+        return
+      }
+      // Conversations are listed latest first; -1 = the new chat.
+      const index = conversations.findIndex((c) => c.id === conversationId)
+      const go = (i: number) => {
         e.preventDefault()
-        switchApp(e.key === 'H' ? -1 : 1)
-      } else if (e.key === 'z') {
-        e.preventDefault()
-        setSearchOpen(true)
-      } else if (e.key === 'a') {
-        e.preventDefault()
-        openConversation()
+        const target = conversations.at(i)
+        if (target && target.id !== conversationId) {
+          openConversation(target.id)
+        }
+      }
+      switch (e.key) {
+        case 'j':
+        case 'ArrowDown':
+          go(Math.min(index + 1, conversations.length - 1))
+          break
+        case 'k':
+        case 'ArrowUp':
+          if (index > 0) go(index - 1)
+          break
+        case 'g': {
+          const now = Date.now()
+          if (now - lastG.current < 500) {
+            lastG.current = 0
+            go(0)
+          } else lastG.current = now
+          break
+        }
+        case 'G':
+          if (conversations.length) go(conversations.length - 1)
+          break
+        case 'd':
+        case 'Delete':
+          if (current) {
+            e.preventDefault()
+            setToDelete(current)
+          }
+          break
+        case 'a':
+          e.preventDefault()
+          openConversation()
+          break
+        case 'z':
+          e.preventDefault()
+          setSearchOpen(true)
+          break
+        case '?':
+          e.preventDefault()
+          setHelpOpen(true)
+          break
+        case 'H':
+        case 'L':
+          e.preventDefault()
+          switchApp(e.key === 'H' ? -1 : 1)
+          break
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   })
 
-  const current = conversations.find((c) => c.id === conversationId)
+  // Keep the open conversation in view in the list as the keys move.
+  useEffect(() => {
+    if (conversationId === undefined) return
+    document
+      .querySelector(`[data-conversation-id="${conversationId}"]`)
+      ?.scrollIntoView({ block: 'nearest' })
+  }, [conversationId])
+
   const shown = conversationId === undefined ? [] : (messages.data ?? [])
   const empty = !shown.length && !pending
 
@@ -231,6 +297,15 @@ function ChatPage() {
               settingsOpen={settingsOpen}
               onSettingsOpenChange={setSettingsOpen}
             />
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Keyboard shortcuts"
+              title="Keyboard shortcuts (?)"
+              onClick={() => setHelpOpen(true)}
+            >
+              <KeyboardIcon />
+            </Button>
             <ThemeToggle />
           </ButtonGroup>
         </div>
@@ -359,6 +434,7 @@ function ChatPage() {
       )}
 
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
+      <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
       <AlertDialog
         open={toDelete !== null}
         onOpenChange={(open) => !open && setToDelete(null)}
@@ -389,7 +465,10 @@ function ConversationRow({
   onDelete: () => void
 }) {
   return (
-    <div className="group/row flex items-center gap-0.5">
+    <div
+      className="group/row flex items-center gap-0.5"
+      data-conversation-id={conversation.id}
+    >
       <Button
         variant={active ? 'secondary' : 'ghost'}
         aria-current={active ? 'page' : undefined}

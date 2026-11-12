@@ -471,8 +471,12 @@ navigate; links open directly). Every turn is logged (`source: 'chat'`,
 cost summed over its calls). Without an API key the page shows a
 "Add an API key" empty state with a Settings button. Its ⋮ menu
 (`chat-menu.tsx`) has Settings, Assistant history and Install. Keys (not
-while typing / a dialog is open): `s` focuses the message box (Enter sends,
-Shift+Enter new line, Esc leaves it), `a` new chat, `z` global search,
+while typing / a dialog is open; help: `?` or the header keyboard button,
+`components/chat/shortcuts-dialog.tsx`, keep it in sync): `j`/`k` (`↓`/`↑`)
+step through the conversations (opening each; arrows scroll the thread
+instead when it has focus), `gg`/`G` latest/oldest, `a` new chat, `d` /
+`Delete` delete the open one (`d` again confirms), `s` focuses the message
+box (Enter sends, Shift+Enter new line, Esc leaves it), `z` global search,
 `Shift+H` / `Shift+L` switch apps. Below 420px the navbar shows only the
 current app's name.
 
