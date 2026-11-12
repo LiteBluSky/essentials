@@ -202,7 +202,7 @@ function AssistantField({ enabled }: { enabled: boolean }) {
           rows={1}
           className="min-h-0"
           aria-label="Tell me a task, a reminder or a note"
-          placeholder="Tell me… “remind me to call the dentist Friday at 3”, “open my packing list”, “rename the dentist task to…”"
+          placeholder="Tell me…"
           enterKeyHint="send"
           value={text}
           disabled={ask.isPending}
