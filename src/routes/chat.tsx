@@ -68,6 +68,7 @@ import {
   deleteConversation,
   sendChatMessage,
 } from '@/server/chat.functions'
+import { ASSISTANT_NAME } from '@/lib/assistant'
 
 // The Chat app: talk to the assistant about anything stored in the other
 // apps. `?c=<id>` is the open conversation (none = a new one).
@@ -401,10 +402,13 @@ function ChatPage() {
                     <EmptyMedia variant="icon">
                       <MessagesSquareIcon />
                     </EmptyMedia>
-                    <EmptyTitle>Ask about anything you’ve saved</EmptyTitle>
+                    <EmptyTitle>
+                      Ask {ASSISTANT_NAME} about anything you’ve saved
+                    </EmptyTitle>
                     <EmptyDescription>
-                      It looks through your bookmarks, notes and tasks, and can
-                      add tasks and notes too.
+                      {ASSISTANT_NAME} looks through your bookmarks, notes,
+                      tasks and contacts, and can add, change and delete them
+                      too.
                     </EmptyDescription>
                   </EmptyHeader>
                   <EmptyContent className="flex-row flex-wrap justify-center">

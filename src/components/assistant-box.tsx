@@ -19,7 +19,7 @@ import {
 import { Kbd } from '@/components/ui/kbd'
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
-import { UNSORTED_FOLDER } from '@/lib/assistant'
+import { ASSISTANT_NAME, UNSORTED_FOLDER } from '@/lib/assistant'
 import type {
   AssistantFound,
   AssistantItem,
@@ -208,8 +208,8 @@ function AssistantField({ enabled }: { enabled: boolean }) {
           ref={ref}
           rows={1}
           className="min-h-0"
-          aria-label="Tell me a task, a reminder or a note"
-          placeholder="Tell me…"
+          aria-label={`Ask ${ASSISTANT_NAME}: a task, a reminder, a note or a question`}
+          placeholder={`Ask ${ASSISTANT_NAME}…`}
           enterKeyHint="send"
           value={text}
           disabled={ask.isPending}

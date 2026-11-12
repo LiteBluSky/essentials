@@ -477,6 +477,14 @@ row with a run.
 
 ### Assistant ("Tell me…", every app)
 
+The assistant is called **Jarvis** (`ASSISTANT_NAME` in
+`src/lib/assistant.ts`): the field's placeholder is "Ask Jarvis…", Chat's
+box, empty state, history and Settings use the name, and `APP_PROMPT`
+tells the model it is Jarvis and that "Jarvis, …" is the user addressing
+it (never part of what to create or search). Use the constant, never the
+literal name. ("Tell me" stays the internal name of the field's flow:
+`tellPrompt`, `source: 'tell'`.)
+
 `AssistantBox` (`src/components/assistant-box.tsx`) is a field right under
 each app's header (not focused on load: `s` or a tap goes in): type or
 dictate (phone keyboard mic) a sentence, Enter (Shift+Enter = newline). `askAssistant`

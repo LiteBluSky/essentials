@@ -2,7 +2,11 @@ import { z } from 'zod'
 
 import type { SearchApp, SearchResult } from '@/lib/global-search'
 
-// The assistant ("Tell me…" field on every app): a sentence goes to an LLM
+/** What the assistant is called (in the UI and its prompt); the user can
+ * address it by this name. */
+export const ASSISTANT_NAME = 'Jarvis'
+
+// The assistant ("Ask Jarvis…" field on every app): a sentence goes to an LLM
 // (OpenRouter or any OpenAI-compatible API, see assistant.server.ts), which
 // turns it into tasks and/or notes, or finds something to open (through the
 // global search). Everything it creates lands in the top-level "Unsorted"

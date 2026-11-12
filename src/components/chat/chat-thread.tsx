@@ -48,6 +48,7 @@ import { useUndoRun } from '@/hooks/use-undo-run'
 import { requestOpen } from '@/lib/global-search'
 import type { SearchApp } from '@/lib/global-search'
 import { ChatMarkdown } from './chat-markdown'
+import { ASSISTANT_NAME } from '@/lib/assistant'
 
 /** A message being sent (shown before the server has saved it). */
 export type PendingMessage = { text: string }
@@ -94,7 +95,9 @@ export function ChatThread({
                     <MarkerIcon>
                       <Spinner />
                     </MarkerIcon>
-                    <MarkerContent>Looking it up…</MarkerContent>
+                    <MarkerContent>
+                      {ASSISTANT_NAME} is looking it up…
+                    </MarkerContent>
                   </Marker>
                 </MessageScrollerItem>
               </>
@@ -354,8 +357,8 @@ export function ChatComposer({
           ref={ref}
           rows={1}
           className="max-h-48 min-h-10 overflow-y-auto"
-          aria-label="Message"
-          placeholder="Ask about your bookmarks, notes, tasks and contacts… (@ links to one)"
+          aria-label={`Message ${ASSISTANT_NAME}`}
+          placeholder={`Ask ${ASSISTANT_NAME} anything… (@ links to an item)`}
           enterKeyHint="send"
           value={text}
           onChange={(e) => setText(e.target.value)}

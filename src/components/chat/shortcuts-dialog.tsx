@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ASSISTANT_NAME } from '@/lib/assistant'
 
 // Each entry: alternative key combos (joined with "or"), each a list of keys
 // pressed together or in sequence.
@@ -40,7 +41,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
   {
     title: 'Anywhere',
     shortcuts: [
-      { keys: [['s']], action: 'Write a message' },
+      { keys: [['s']], action: `Message ${ASSISTANT_NAME}` },
       { keys: [['z']], action: 'Search everything (all apps)' },
       {
         keys: [['@']],

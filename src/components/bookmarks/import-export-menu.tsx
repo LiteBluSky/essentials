@@ -35,6 +35,7 @@ import {
   importBookmarks,
   bookmarksTreeQueryOptions,
 } from '@/server/bookmarks.functions'
+import { ASSISTANT_NAME } from '@/lib/assistant'
 
 function plural(n: number, word: string) {
   return `${n} ${word}${n === 1 ? '' : 's'}`
@@ -163,7 +164,7 @@ export function ImportExportMenu({ tree }: { tree: Tree }) {
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
               <HistoryIcon />
-              Assistant history…
+              {ASSISTANT_NAME} history…
             </DropdownMenuItem>
           </DropdownMenuGroup>
           {app.state !== 'installed' && (

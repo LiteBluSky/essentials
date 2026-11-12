@@ -46,6 +46,7 @@ import {
   testReminder,
   updateSettings,
 } from '@/server/settings.functions'
+import { ASSISTANT_NAME } from '@/lib/assistant'
 
 const GROUPS: Array<{
   legend: string
@@ -53,9 +54,8 @@ const GROUPS: Array<{
   keys: Array<SettingKey>
 }> = [
   {
-    legend: 'Assistant',
-    description:
-      'The “Tell me…” field. Needs an API key: from openrouter.ai (or any OpenAI-compatible API), or from Anthropic (console.anthropic.com). Only what you type in the field is sent.',
+    legend: `${ASSISTANT_NAME} (AI assistant)`,
+    description: `The “Ask ${ASSISTANT_NAME}…” field and Chat. Needs an API key: from openrouter.ai (or any OpenAI-compatible API), or from Anthropic (console.anthropic.com). Only what you ask it, and what it looks up to answer, is sent.`,
     keys: ['LLM_PROVIDER', 'LLM_API_KEY', 'LLM_BASE_URL', 'LLM_MODEL'],
   },
   {

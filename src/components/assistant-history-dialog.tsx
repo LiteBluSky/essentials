@@ -42,6 +42,7 @@ import {
   assistantHistoryQueryOptions,
   clearAssistantHistory,
 } from '@/server/assistant.functions'
+import { ASSISTANT_NAME } from '@/lib/assistant'
 
 /** "$0.0031", "$1.24"; "—" when unknown. */
 export function formatCost(usd: number | null) {
@@ -92,11 +93,11 @@ export function AssistantHistoryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>Assistant history</DialogTitle>
+          <DialogTitle>{ASSISTANT_NAME} history</DialogTitle>
           <DialogDescription>
             {totals && totals.requests > 0
               ? `${totals.requests} request${totals.requests === 1 ? '' : 's'} · ${formatCost(totals.costUsd)} in total · ${formatTokens(totals.inputTokens)} in / ${formatTokens(totals.outputTokens)} out tokens${totals.unpriced ? ` · ${totals.unpriced} without a known cost` : ''}`
-              : 'What you asked the “Tell me…” field, and what it cost.'}
+              : `What you asked ${ASSISTANT_NAME}, and what it cost.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -113,7 +114,7 @@ export function AssistantHistoryDialog({
             <EmptyHeader>
               <EmptyTitle>Nothing yet</EmptyTitle>
               <EmptyDescription>
-                Requests to the “Tell me…” field show up here.
+                Requests to {ASSISTANT_NAME} show up here.
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
@@ -203,8 +204,8 @@ export function AssistantHistoryDialog({
                   <AlertDialogHeader>
                     <AlertDialogTitle>Clear the history?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Every logged request and its cost is deleted. What the
-                      assistant created stays.
+                      Every logged request and its cost is deleted. What{' '}
+                      {ASSISTANT_NAME} created stays.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

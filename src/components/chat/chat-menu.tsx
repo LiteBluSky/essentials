@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { toast } from '@/components/ui/toast'
 import { useInstallApp } from '@/hooks/use-install-app'
+import { ASSISTANT_NAME } from '@/lib/assistant'
 
 // The Chat app's ⋮ menu: settings, the assistant history (chat turns and
 // their cost are in it too) and installing the app.
@@ -66,7 +67,7 @@ export function ChatMenu({
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setHistoryOpen(true)}>
               <HistoryIcon />
-              Assistant history…
+              {ASSISTANT_NAME} history…
             </DropdownMenuItem>
           </DropdownMenuGroup>
           {app.state !== 'installed' && (

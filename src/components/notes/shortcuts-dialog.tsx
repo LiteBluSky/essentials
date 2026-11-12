@@ -17,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { MOD_LABEL, SHORTCUTS } from '@/lib/shortcuts'
+import { ASSISTANT_NAME } from '@/lib/assistant'
 
 // Each entry: alternative key combos (joined with "or"), each a list of keys
 // pressed together or in sequence.
@@ -36,7 +37,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       },
       {
         keys: [['s']],
-        action: 'Tell me… (new task or note; Esc goes back)',
+        action: `Ask ${ASSISTANT_NAME}… (tasks, notes, questions; Esc goes back)`,
       },
       { keys: [mod(SHORTCUTS.newFolder.label)], action: 'New folder' },
       { keys: [['1'], ['…'], ['4']], action: 'Open recent note 1–4' },
