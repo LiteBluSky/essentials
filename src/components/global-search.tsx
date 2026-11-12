@@ -144,7 +144,8 @@ export function GlobalSearch({
             </CommandEmpty>
             {APPS.map((app) => {
               const key = app.path.slice(1) as SearchApp
-              const entries = groups[key]
+              // Apps with nothing to search (Chat) have no group.
+              const entries = Object.hasOwn(groups, key) ? groups[key] : []
               if (!entries.length) return null
               return (
                 <CommandGroup key={key} heading={app.name}>
