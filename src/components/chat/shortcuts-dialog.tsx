@@ -42,6 +42,10 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
     shortcuts: [
       { keys: [['s']], action: 'Write a message' },
       { keys: [['z']], action: 'Search everything (all apps)' },
+      {
+        keys: [['@']],
+        action: 'In the message box: link to a bookmark, note, task or contact',
+      },
       { keys: [['Shift', 'H']], action: 'Previous app' },
       { keys: [['Shift', 'L']], action: 'Next app' },
       { keys: [['?']], action: 'Show keyboard shortcuts' },

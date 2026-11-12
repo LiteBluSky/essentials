@@ -15,6 +15,8 @@ import {
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
+import { ReferenceAutocomplete } from '@/components/reference-autocomplete'
+import { ReferenceText } from '@/components/reference'
 import { Bubble, BubbleContent } from '@/components/ui/bubble'
 import { Button } from '@/components/ui/button'
 import {
@@ -44,6 +46,7 @@ import { messageActions } from '@/lib/chat'
 import type { ChatMessageView } from '@/lib/chat'
 import { useUndoRun } from '@/hooks/use-undo-run'
 import { requestOpen } from '@/lib/global-search'
+import type { SearchApp } from '@/lib/global-search'
 import { ChatMarkdown } from './chat-markdown'
 
 /** A message being sent (shown before the server has saved it). */
@@ -80,7 +83,7 @@ export function ChatThread({
                     <MessageContent>
                       <Bubble>
                         <BubbleContent className="whitespace-pre-wrap">
-                          {pending.text}
+                          <ReferenceText>{pending.text}</ReferenceText>
                         </BubbleContent>
                       </Bubble>
                     </MessageContent>
@@ -111,7 +114,7 @@ function ChatBubble({ message }: { message: ChatMessageView }) {
         <MessageContent>
           <Bubble>
             <BubbleContent className="whitespace-pre-wrap">
-              {message.content}
+              <ReferenceText>{message.content}</ReferenceText>
             </BubbleContent>
           </Bubble>
         </MessageContent>
@@ -181,6 +184,7 @@ const APP_ITEM: Record<ChangeSummary['app'], string> = {
   bookmarks: 'bookmark',
   notes: 'note',
   tasks: 'task',
+  contacts: 'contact',
 }
 
 function ChangedMarker({ change }: { change: ChangeSummary }) {
@@ -226,11 +230,7 @@ function ChangedMarker({ change }: { change: ChangeSummary }) {
 
 function useOpen() {
   const navigate = useNavigate()
-  return (target: {
-    app: AssistantItem['app'] | 'bookmarks'
-    id: number
-    kind?: 'folder' | 'item'
-  }) => {
+  return (target: { app: SearchApp; id: number; kind?: 'folder' | 'item' }) => {
     requestOpen({ app: target.app, kind: target.kind ?? 'item', id: target.id })
     void navigate({ to: `/${target.app}` })
   }
@@ -355,7 +355,7 @@ export function ChatComposer({
           rows={1}
           className="max-h-48 min-h-10 overflow-y-auto"
           aria-label="Message"
-          placeholder="Ask about your bookmarks, notes and tasks…"
+          placeholder="Ask about your bookmarks, notes, tasks and contacts… (@ links to one)"
           enterKeyHint="send"
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -372,6 +372,7 @@ export function ChatComposer({
             }
           }}
         />
+        <ReferenceAutocomplete target={ref} />
         <InputGroupAddon align="block-end" className="p-2">
           {!text && <Kbd className="max-sm:hidden">s</Kbd>}
           <InputGroupButton

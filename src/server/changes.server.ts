@@ -4,6 +4,8 @@ import { db } from '@/db'
 import {
   assistantChanges,
   folders as bookmarkFolders,
+  contactFolders,
+  contacts,
   links,
   linksBin,
   noteFolders,
@@ -21,13 +23,13 @@ import type { ChangeSummary } from '@/lib/assistant'
 // back: a created thing is deleted, an edit restored, a deletion re-inserted
 // with its original ids (and the Bin copies it made removed).
 
-export type App = 'bookmarks' | 'notes' | 'tasks'
+export type App = 'bookmarks' | 'notes' | 'tasks' | 'contacts'
 
 // The tables per app. They share the columns used here (id, folderId /
-// parentId), so one table type stands in for all three.
+// parentId), so one table type stands in for all of them.
 type ItemTable = typeof notes
 type FolderTable = typeof noteFolders
-const ITEMS = { bookmarks: links, notes, tasks } as unknown as Record<
+const ITEMS = { bookmarks: links, notes, tasks, contacts } as unknown as Record<
   App,
   ItemTable
 >
@@ -35,6 +37,7 @@ const FOLDERS = {
   bookmarks: bookmarkFolders,
   notes: noteFolders,
   tasks: taskFolders,
+  contacts: contactFolders,
 } as unknown as Record<App, FolderTable>
 const BINS = { bookmarks: linksBin, notes: notesBin } as unknown as Partial<
   Record<App, typeof notesBin>
@@ -59,9 +62,15 @@ export async function getFolder(app: App, id: number): Promise<Row | null> {
   return (await db.select().from(table).where(eq(table.id, id))).at(0) ?? null
 }
 
-/** An item's name for messages: its title, else the start of a note. */
+/** An item's name for messages: its title (a contact's name), else the
+ * start of a note. */
 export function itemLabel(row: Row) {
-  const title = typeof row.title === 'string' ? row.title : ''
+  const title =
+    typeof row.title === 'string'
+      ? row.title
+      : typeof row.name === 'string'
+        ? row.name
+        : ''
   if (title) return title
   const body = typeof row.body === 'string' ? row.body : ''
   return body.trim().split('\n')[0].slice(0, 60) || 'Untitled'

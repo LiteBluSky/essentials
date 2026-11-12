@@ -63,7 +63,7 @@ export const ACTION_TOOLS: Array<ToolDef> = [
   {
     name: 'open_item',
     description:
-      'Find and open something that already exists: a link (bookmark), note, task or folder the user refers to ("open my packing list", "show the dentist task", "go to the GitHub link"). Creates nothing.',
+      'Find and open something that already exists: a link (bookmark), note, task, contact or folder the user refers to ("open my packing list", "show the dentist task", "go to the GitHub link"). Creates nothing.',
     parameters: {
       type: 'object',
       properties: {
@@ -74,9 +74,9 @@ export const ACTION_TOOLS: Array<ToolDef> = [
         },
         app: {
           type: 'string',
-          enum: ['bookmarks', 'notes', 'tasks'],
+          enum: ['bookmarks', 'notes', 'tasks', 'contacts'],
           description:
-            'Where to look, if the user said: a link/bookmark/site = bookmarks, a note/list = notes, a task/to-do/reminder = tasks. Omit if unsure.',
+            'Where to look, if the user said: a link/bookmark/site = bookmarks, a note/list = notes, a task/to-do/reminder = tasks, a person/contact/phone number = contacts. Omit if unsure.',
         },
         folder: {
           type: 'boolean',
@@ -105,7 +105,7 @@ const taskArgs = z.object({
 })
 const openArgs = z.object({
   query: z.string().trim().min(1).max(200),
-  app: z.enum(['bookmarks', 'notes', 'tasks']).optional(),
+  app: z.enum(['bookmarks', 'notes', 'tasks', 'contacts']).optional(),
   folder: z.boolean().optional(),
 })
 const noteArgs = z.object({
@@ -125,7 +125,7 @@ export type PlannedAction =
   | {
       kind: 'open'
       query: string
-      app?: 'bookmarks' | 'notes' | 'tasks'
+      app?: 'bookmarks' | 'notes' | 'tasks' | 'contacts'
       folder: boolean
     }
 

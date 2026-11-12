@@ -10,7 +10,15 @@ export const SEARCH_LIMIT = 20
 
 export const searchInput = z.object({ query: z.string().trim().max(200) })
 
-export type SearchApp = 'bookmarks' | 'notes' | 'tasks'
+/** A reference to resolve (see `lib/references.ts`). */
+export const referenceInput = z.object({
+  app: z.enum(['bookmarks', 'notes', 'tasks', 'contacts']),
+  id: z.number().int().positive().nullable(),
+  name: z.string().max(500),
+})
+export type ReferenceInput = z.infer<typeof referenceInput>
+
+export type SearchApp = 'bookmarks' | 'notes' | 'tasks' | 'contacts'
 
 export type SearchResult = {
   kind: 'folder' | 'item'

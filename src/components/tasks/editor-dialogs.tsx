@@ -6,6 +6,7 @@ import {
   Trash2Icon,
 } from 'lucide-react'
 
+import { ReferenceText } from '@/components/reference'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -216,7 +217,9 @@ function TaskView({
       </DialogHeader>
 
       {task.description.trim() ? (
-        <p className="break-words whitespace-pre-wrap">{task.description}</p>
+        <p className="break-words whitespace-pre-wrap">
+          <ReferenceText>{task.description}</ReferenceText>
+        </p>
       ) : (
         <p className="text-muted-foreground">
           No description. Press <Kbd>e</Kbd> to add one.

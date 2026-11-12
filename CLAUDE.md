@@ -1,7 +1,7 @@
 # Essentials
 
 A personal, local-only set of small apps in one: **Bookmarks** (links),
-**Notes** (markdown) and **Tasks** (to-dos), each organised into folders and subfolders and shown as
+**Notes** (markdown), **Tasks** (to-dos) and **Contacts** (people), each organised into folders and subfolders and shown as
 a file tree, plus an optional **Chat** (ask an LLM about all of it), with a
 navbar to switch between them. The display name is
 configurable (`VITE_APP_NAME`, default "Essentials", read via `APP_NAME` in
@@ -67,7 +67,7 @@ Each app is self-contained and namespaced; only the shell is shared.
 - **Registry**: `src/lib/apps.ts` (`APPS`: path, name, lucide icon) drives
   the navbar (`src/components/app-nav.tsx`) and app switching
   (`src/hooks/use-app-switch.ts`). `/` redirects to the first app.
-- **Per app** (`<app>` = `bookmarks`, `notes`, `tasks`; Chat is the
+- **Per app** (`<app>` = `bookmarks`, `notes`, `tasks`, `contacts`; Chat is the
   exception: no folders or tree, see its section): route `src/routes/<app>.tsx`,
   UI in `src/components/<app>/`, hooks in `src/hooks/<app>/`, pure helpers
   and Zod schemas in `src/lib/<app>/`, server code in
@@ -118,18 +118,26 @@ One SQLite file holds every app. Bookmark tables keep their original names.
   the due time, the default; null = no reminder), `remindedAt?` (set once
   the reminder was pushed; cleared when `dueAt` or `remindMinutes`
   changes), timestamps. Without `dueAt`, `createdAt` drives the
-  colour and calendar day.
+  colour and calendar day. A completed task is deleted for good
+  `COMPLETED_TTL_DAYS` (7) after its `completedAt` (`purgeCompleted`,
+  lazily whenever the tree loads); open tasks are never removed.
 - `assistant_changes` — every change the assistant made, grouped by
   `runId` (one Tell me request / chat turn): `app`, `target` (`item` |
   `folder`), `op` (`create` | `update` | `delete`), `itemId`, `label`,
   `before` (JSON: the row before an update; every row a delete removed,
   folders parents-first), `binIds` (Bin rows a delete made), `undoneAt`.
   `assistant_log.runId` and `chat_messages.runId` point at it.
+- `contact_folders` (same shape) / `contacts` — `id`, `name`, `phone`,
+  `email`, `address`, `knownFrom` (where the owner knows them from),
+  `description` (free-text context; every optional field is `''` when
+  unset), `folderId`, `position`, timestamps.
 - `chat_conversations` (`title` = start of the first message, timestamps) /
   `chat_messages` — `conversationId`, `role` (`user` | `assistant`),
   `content` (markdown), `actions` (JSON: what the turn created / found),
   `error` (a failed turn; content is the error), `createdAt`. Deleting a
-  conversation deletes its messages explicitly.
+  conversation deletes its messages explicitly. A conversation idle for
+  `CHAT_TTL_DAYS` (7; by `updatedAt`, i.e. its last turn) is deleted with
+  its messages (`purgeOldConversations`, lazily whenever the list loads).
 - `assistant_log` — one row per "Tell me…" request or chat turn (`source`
   `tell` | `chat`): `text`, `provider`,
   `model`, `ok`, `result` (one line per item done, or the error),
@@ -147,7 +155,7 @@ One SQLite file holds every app. Bookmark tables keep their original names.
   (top level if that's gone), keeping its dates (and note views); a link
   comes back without its favourite. The ⋮ menu's "Bin" opens it
   (`src/components/<app>/bin.tsx` → shared `components/bin-dialog.tsx`;
-  query key `['<app>', 'bin']`). Tasks has no bin.
+  query key `['<app>', 'bin']`). Tasks and Contacts have no bin.
 - `position` orders siblings within the same parent (folders and items are
   ordered separately; folders render before items, like a file explorer).
 - `notes.server.ts` imports `noteFolders as folders`, so its queries read
@@ -350,7 +358,8 @@ createdAt`. **Upcoming** (`UpcomingTasks` in `up-next.tsx`,
   (`t`) × folders / one flat list (`v`), with matching button groups next
   to the search for touch screens. The open view hides folders whose tasks
   are all done (but keeps never-used empty ones); the done view shows only
-  folders with completed tasks (`filterStatus`). The flat list is oldest
+  folders with completed tasks (`filterStatus`) — at most a week's worth,
+  since older completed tasks are purged. The flat list is oldest
   first (completed: latest first). Drag and drop only in open + folders.
   Move up/down steps past hidden (completed) siblings (`shown` in
   `tree-dnd.tsx`).
@@ -400,6 +409,36 @@ tasks: [{ title, description?, createdAt?, completedAt?, dueAt?,
 remindMinutes? }] }` (ISO
   dates, kept so ages survive; past due dates aren't reminded again),
   appended like the other apps.
+
+### References (`@`, every app)
+
+Any text can point at an item: `@bookmark(Name#12)`, `@note(…)`,
+`@task(…)`, `@contact(…)` (`src/lib/references.ts`: `REFERENCE_TYPES`,
+`splitReferences`, `formatReference`, `plainReferences`). The number is the
+item id; without it (typed by hand) the name is looked up. **Typing**:
+`ReferenceAutocomplete` (`components/reference-autocomplete.tsx`), rendered
+next to a field and given its ref, is on every free-text field (note text,
+task / bookmark descriptions, contact context, Tell me, the chat box):
+`@` lists the types (filtered as you type; not after a word character, so
+emails don't trigger it), picking one inserts `@contact(` and then searches
+that app as you type with the global search (same `['search', q]` query),
+and picking an item inserts `@contact(Name#id) ` (inserted with
+`execCommand`, so undo works). Its keys (↑/↓, Enter / Tab, Esc) are native
+listeners on the field, so they win over the field's own `onKeyDown` and a
+dialog's Esc while the list is open; Esc keeps that `@` closed. The list
+sits under the caret (measured with a hidden mirror), or above it with no
+room below. **Showing**: a clickable chip (`ReferenceChip` /
+`ReferenceText` in `components/reference.tsx`; markdown via the
+`remarkReferences` plugin in the notes preview and chat answers; plain text
+in task descriptions, contact context, the user's chat messages and Tell me
+answer toasts). Labels, snippets and the PDF show `@Name`. **Clicking**
+(`useOpenReference`): `resolveReference` (`search.functions.ts` →
+`findReference`) finds the item by id, else by name (exact first), then it
+opens like a global search pick; a bookmark opens its site (the tab is
+opened during the click, then pointed at the URL). Gone: a toast. The
+**assistant** is told the syntax (`APP_PROMPT`) and to relate items with
+references; `search`, `read_item` and every create return a ready `ref`
+string to copy.
 
 ### Assistant: tools, edits and Undo (Tell me and Chat)
 
@@ -490,9 +529,28 @@ Without an API key the field isn't rendered
 (`assistantEnabledQueryOptions`, prefetched by each app's loader) and
 nothing else changes.
 
+### Contacts (`/contacts`)
+
+People, kept as small as the other apps: name (required), phone, email,
+address, **Known from** and **Context** (plain text), in folders like
+everything else. Clicking a contact / `o` / Enter opens its details
+(`ContactView` in `editor-dialogs.tsx`, read live from the tree query):
+folder path, name, "Known from …", then the phone (`tel:`), email
+(`mailto:`) and address (a Google Maps search, new tab) as tappable rows
+with a copy button each, then the context; `e` edits, `d` deletes. The form
+is Name (focused), Phone, Email, Known from, Folder, Address, Context;
+saving an edit goes back to the details. The row shows the name with
+"known from" (else phone / email) muted; its menu has open, edit/move,
+copy phone / email, move up/down, delete. No favourites and no bin (a
+delete is final). Import/export: `{ format: 1, folders: [{ name, folders,
+contacts }], contacts: [{ name, phone?, email?, address?, knownFrom?,
+description? }] }`, appended like the other apps. The assistant can
+search, read, create (`create_contact`, into Unsorted), edit and delete
+contacts, with Undo.
+
 ### Chat (`/chat`)
 
-The fourth navbar app (`APPS`), for asking about anything stored. One
+The fifth navbar app (`APPS`), for asking about anything stored. One
 conversation per `?c=<id>` (none = new); the list on the left (a dropdown
 below `md`), latest first, with a hover delete (confirm, `d` `d`). The
 thread uses shadcn's `message`, `bubble`, `marker` and `message-scroller`
@@ -516,8 +574,12 @@ step through the conversations (opening each; arrows scroll the thread
 instead when it has focus), `gg`/`G` latest/oldest, `a` new chat, `d` /
 `Delete` delete the open one (`d` again confirms), `s` focuses the message
 box (Enter sends, Shift+Enter new line, Esc leaves it), `z` global search,
-`Shift+H` / `Shift+L` switch apps. Below 420px the navbar shows only the
-current app's name.
+`Shift+H` / `Shift+L` switch apps.
+
+**Navbar** (`components/app-nav.tsx`, every app): scrolls sideways (no
+scrollbar shown) when the apps don't fit, keeping the current one in view;
+below `sm` (640px) it shows only the icons (names stay as `title` and for
+screen readers).
 
 ### Settings (every app's ⋮ menu)
 
@@ -573,10 +635,16 @@ can't read the secrets back.
   (hovered, else focused), `t` open/completed view, `v` folders/list,
   `i` calendar, `d` or `Delete` delete, `1`–`9` Up next, `q` clears the
   search and the date filter.
+- Contacts tree (`src/hooks/contacts/use-tree-keyboard.ts`): the bookmarks
+  motions without favourites (`f`, `1`–`9`): `o`/Enter shows the contact,
+  `a` new contact, `r` edit, `d` delete, `x`/`p` cut and paste
+  (`src/hooks/contacts/use-cut-contact.ts`).
 - Delete confirmations (every app): `d` presses Delete, so `d` `d`
   deletes (`useConfirmKey` in `src/hooks/use-confirm-key.ts`; repeats of a
   held key are ignored).
 - `z` opens the global search on every app (`useGlobalSearch`).
+- `@` in a free-text field opens the reference suggestions (see
+  References); listed in every app's shortcuts help.
 - `s` focuses the "Tell me…" field (when shown); `Esc` in it blurs it so the
   tree keys work again.
 - `?` (or the header keyboard button) opens the app's shortcuts help

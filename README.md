@@ -1,7 +1,8 @@
 # Essentials
 
 A handful of small personal apps in one: **Bookmarks** (links), **Notes**
-(markdown) and **Tasks** (a to-do list with due dates and phone reminders), each organised into folders and subfolders and shown as a file
+(markdown), **Tasks** (a to-do list with due dates and phone reminders) and
+**Contacts** (people: phone, email, address, where you know them from), each organised into folders and subfolders and shown as a file
 tree. Optionally, a **"Tell me…"** field on every app turns a typed or
 dictated sentence into a task or note, and a **Chat** app answers questions
 about everything you've saved. Switch between them with the navbar at the top, or `Shift+H` /

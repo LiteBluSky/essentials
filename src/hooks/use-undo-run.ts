@@ -8,6 +8,7 @@ const AFFECTED = [
   ['bookmarks'],
   ['notes'],
   ['tasks'],
+  ['contacts'],
   ['chat'],
   ['assistant', 'history'],
 ]

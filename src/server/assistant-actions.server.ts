@@ -15,7 +15,7 @@ import { ensureTopFolder as ensureTaskFolder, insertTask } from './tasks.server'
 // Server-only: carrying out what the LLM asked for (Tell me and Chat alike).
 // New tasks / notes go to the top-level "Unsorted" folder of their app.
 
-const ALL_APPS: Array<SearchApp> = ['tasks', 'notes', 'bookmarks']
+const ALL_APPS: Array<SearchApp> = ['tasks', 'notes', 'bookmarks', 'contacts']
 
 /** The best match for `query` (via the global search): in `app` if given,
  * an item unless a folder was asked for, whose name has every word first

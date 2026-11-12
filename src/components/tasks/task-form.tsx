@@ -2,8 +2,9 @@ import { useForm } from '@tanstack/react-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { XIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
+import { ReferenceAutocomplete } from '@/components/reference-autocomplete'
 import { Button } from '@/components/ui/button'
 import { DialogClose, DialogFooter } from '@/components/ui/dialog'
 import {
@@ -60,6 +61,7 @@ export function TaskForm({
   /** Called with the saved task's id. */
   onDone: (id: number) => void
 }) {
+  const descriptionRef = useRef<HTMLTextAreaElement>(null)
   const queryClient = useQueryClient()
   // Due: a day (none = not due) and an optional time (else 09:00).
   const [dueDay, setDueDay] = useState<Date | null>(
@@ -226,10 +228,11 @@ export function TaskForm({
               <Field data-invalid={isInvalid}>
                 <FieldLabel htmlFor={field.name}>Description</FieldLabel>
                 <Textarea
+                  ref={descriptionRef}
                   id={field.name}
                   name={field.name}
                   rows={3}
-                  placeholder="Optional details"
+                  placeholder="Optional details (@ links to anything)"
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
@@ -241,6 +244,7 @@ export function TaskForm({
                   }}
                   aria-invalid={isInvalid}
                 />
+                <ReferenceAutocomplete target={descriptionRef} />
                 {isInvalid && <FieldError errors={field.state.meta.errors} />}
               </Field>
             )

@@ -240,7 +240,36 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] Settings dialog (every app's ⋮ menu): LLM + ntfy settings stored in
       the DB (`settings` table, migration 0006), env as fallback; secrets
       write-only
+- [x] Completed tasks are deleted automatically 7 days after completion
+      (`COMPLETED_TTL_DAYS`, purged when the tree loads); open tasks stay
+- [x] Chats are deleted automatically 7 days after their last message
+      (`CHAT_TTL_DAYS`, purged when the conversation list loads)
 - [ ] Verify on the phone: dictation into the field, ntfy reminder arrives
+
+## 19. Contacts app
+
+- [x] `contact_folders` / `contacts` tables (migration 0011): name, phone,
+      email, address, known from, context
+- [x] `/contacts` page like Bookmarks (tree, DnD, cut/paste, keys, search,
+      import/export), no favourites or bin; details view with tap to
+      call / email / map and copy buttons
+- [x] In the global search, the assistant (search, read, create, edit,
+      delete, Undo) and the offline pages (`sw.js` cache v5)
+- [x] Navbar scrolls sideways when the apps don't fit; icons only on phones
+- [ ] Verify in a real browser (phone width: navbar, details view, tel:)
+
+## 20. References (`@`)
+
+- [x] `@type(Name#id)` syntax for bookmarks, notes, tasks and contacts;
+      hand-typed `@type(Name)` resolves by name
+- [x] `@` autocomplete on every free-text field: types, then a live search
+      of that app (↑/↓, Enter / Tab, Esc)
+- [x] Shown as clickable chips (notes preview, chat, task description,
+      contact context, Tell me answers); click opens the item
+- [x] The assistant reads, follows and writes references (`ref` in tool
+      results)
+- [ ] Verify in a real browser (caret placement in the note editor, Esc in
+      a dialog, chat box near the bottom)
 
 ## History of the notes app (before the merge)
 

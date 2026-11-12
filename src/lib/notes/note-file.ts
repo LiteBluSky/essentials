@@ -19,6 +19,7 @@ import type {
 } from 'pdfmake/interfaces'
 
 import type { Note } from '@/db/schema'
+import { plainReferences } from '@/lib/references'
 import { noteLabel } from './tree'
 
 // Downloading a note as a file: `.md` (the title as a heading, then the body)
@@ -322,7 +323,7 @@ export function notePdfDefinition(
   note: Note,
   path: Array<string>,
 ): TDocumentDefinitions {
-  const tree = fromMarkdown(note.body, {
+  const tree = fromMarkdown(plainReferences(note.body), {
     extensions: [gfm()],
     mdastExtensions: [gfmFromMarkdown()],
   })

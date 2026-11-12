@@ -15,6 +15,7 @@ import {
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, RefObject } from 'react'
 
+import { ReferenceAutocomplete } from '@/components/reference-autocomplete'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { DialogClose, DialogFooter } from '@/components/ui/dialog'
@@ -395,6 +396,7 @@ export function NoteForm({
                   onKeyDown={onBodyKeyDown}
                   aria-invalid={isInvalid}
                 />
+                <ReferenceAutocomplete target={bodyRef} />
                 <FieldDescription className="max-sm:hidden" aria-live="polite">
                   {formatAt === null ? (
                     <>

@@ -1,4 +1,4 @@
-import { asc, eq, inArray, isNull, max, sql } from 'drizzle-orm'
+import { asc, eq, inArray, isNull, lt, max, sql } from 'drizzle-orm'
 
 import { db } from '@/db'
 import { taskFolders as folders, tasks } from '@/db/schema'
@@ -11,7 +11,7 @@ import type {
   TaskInput,
   TasksFile,
 } from '@/lib/tasks/schemas'
-import { reorderIds } from '@/lib/tasks/tree'
+import { completedCutoff, reorderIds } from '@/lib/tasks/tree'
 
 // Server-only DB helpers. Only import from *.functions.ts.
 
@@ -19,7 +19,13 @@ import { reorderIds } from '@/lib/tasks/tree'
 const byFolderName = sql`${folders.name} collate nocase`
 const byTaskTitle = sql`${tasks.title} collate nocase`
 
+// Completed tasks only stay `COMPLETED_TTL_DAYS`; open ones are kept.
+async function purgeCompleted() {
+  await db.delete(tasks).where(lt(tasks.completedAt, completedCutoff()))
+}
+
 export async function loadTree() {
+  await purgeCompleted()
   const [allFolders, allTasks] = await Promise.all([
     db.select().from(folders).orderBy(asc(folders.position), byFolderName),
     db.select().from(tasks).orderBy(asc(tasks.position), byTaskTitle),

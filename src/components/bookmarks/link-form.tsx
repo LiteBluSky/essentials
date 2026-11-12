@@ -1,6 +1,8 @@
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useRef } from 'react'
 
+import { ReferenceAutocomplete } from '@/components/reference-autocomplete'
 import { Button } from '@/components/ui/button'
 import { DialogClose, DialogFooter } from '@/components/ui/dialog'
 import {
@@ -44,6 +46,7 @@ export function LinkForm({
   onDone: () => void
 }) {
   const queryClient = useQueryClient()
+  const descriptionRef = useRef<HTMLTextAreaElement>(null)
   const save = useMutation({
     mutationFn: async (value: LinkInput) => {
       if (link) await updateLink({ data: { id: link.id, ...value } })
@@ -162,6 +165,7 @@ export function LinkForm({
               <Field data-invalid={isInvalid}>
                 <FieldLabel htmlFor={field.name}>Notes</FieldLabel>
                 <Textarea
+                  ref={descriptionRef}
                   id={field.name}
                   name={field.name}
                   rows={2}
@@ -170,6 +174,7 @@ export function LinkForm({
                   onChange={(e) => field.handleChange(e.target.value)}
                   aria-invalid={isInvalid}
                 />
+                <ReferenceAutocomplete target={descriptionRef} />
                 {isInvalid && <FieldError errors={field.state.meta.errors} />}
               </Field>
             )

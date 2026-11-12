@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BookmarksRouteImport } from './routes/bookmarks'
 import { Route as ChatRouteImport } from './routes/chat'
+import { Route as ContactsRouteImport } from './routes/contacts'
 import { Route as ManifestDotwebmanifestRouteImport } from './routes/manifest[.]webmanifest'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as TasksRouteImport } from './routes/tasks'
@@ -30,6 +31,11 @@ const BookmarksRoute = BookmarksRouteImport.update({
 const ChatRoute = ChatRouteImport.update({
   id: '/chat',
   path: '/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactsRoute = ContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ManifestDotwebmanifestRoute = ManifestDotwebmanifestRouteImport.update({
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bookmarks': typeof BookmarksRoute
   '/chat': typeof ChatRoute
+  '/contacts': typeof ContactsRoute
   '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
   '/notes': typeof NotesRoute
   '/tasks': typeof TasksRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bookmarks': typeof BookmarksRoute
   '/chat': typeof ChatRoute
+  '/contacts': typeof ContactsRoute
   '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
   '/notes': typeof NotesRoute
   '/tasks': typeof TasksRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/bookmarks': typeof BookmarksRoute
   '/chat': typeof ChatRoute
+  '/contacts': typeof ContactsRoute
   '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
   '/notes': typeof NotesRoute
   '/tasks': typeof TasksRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/bookmarks'
     | '/chat'
+    | '/contacts'
     | '/manifest.webmanifest'
     | '/notes'
     | '/tasks'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/'
     | '/bookmarks'
     | '/chat'
+    | '/contacts'
     | '/manifest.webmanifest'
     | '/notes'
     | '/tasks'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/bookmarks'
     | '/chat'
+    | '/contacts'
     | '/manifest.webmanifest'
     | '/notes'
     | '/tasks'
@@ -115,6 +127,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BookmarksRoute: typeof BookmarksRoute
   ChatRoute: typeof ChatRoute
+  ContactsRoute: typeof ContactsRoute
   ManifestDotwebmanifestRoute: typeof ManifestDotwebmanifestRoute
   NotesRoute: typeof NotesRoute
   TasksRoute: typeof TasksRoute
@@ -142,6 +155,13 @@ declare module '@tanstack/react-router' {
       path: '/chat'
       fullPath: '/chat'
       preLoaderRoute: typeof ChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contacts': {
+      id: '/contacts'
+      path: '/contacts'
+      fullPath: '/contacts'
+      preLoaderRoute: typeof ContactsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/manifest.webmanifest': {
@@ -179,6 +199,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BookmarksRoute: BookmarksRoute,
   ChatRoute: ChatRoute,
+  ContactsRoute: ContactsRoute,
   ManifestDotwebmanifestRoute: ManifestDotwebmanifestRoute,
   NotesRoute: NotesRoute,
   TasksRoute: TasksRoute,

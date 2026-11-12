@@ -8,6 +8,8 @@ import { format } from 'date-fns'
 import { SendHorizontalIcon, SparklesIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
+import { ReferenceText } from '@/components/reference'
+import { ReferenceAutocomplete } from '@/components/reference-autocomplete'
 import {
   InputGroup,
   InputGroupAddon,
@@ -90,9 +92,11 @@ function AssistantField({ enabled }: { enabled: boolean }) {
       // Edits / deletions: one toast saying what changed, with Undo.
       if (changed.length) {
         toast.add({
-          title:
-            answer ||
-            `${changed.length} change${changed.length === 1 ? '' : 's'} made`,
+          title: answer ? (
+            <ReferenceText>{answer}</ReferenceText>
+          ) : (
+            `${changed.length} change${changed.length === 1 ? '' : 's'} made`
+          ),
           description: changeLines(changed),
           type: 'success',
           timeout: 10_000,
@@ -105,7 +109,10 @@ function AssistantField({ enabled }: { enabled: boolean }) {
         })
       } else if (!created.length && !found.length && answer) {
         // A question answered: just say it.
-        toast.add({ title: answer.slice(0, 300), timeout: 10_000 })
+        toast.add({
+          title: <ReferenceText>{answer.slice(0, 300)}</ReferenceText>,
+          timeout: 10_000,
+        })
       }
       // The first thing found opens straight away; any others are offered.
       found.forEach((entry, i) => showFound(entry, i === 0))
@@ -220,6 +227,7 @@ function AssistantField({ enabled }: { enabled: boolean }) {
             }
           }}
         />
+        <ReferenceAutocomplete target={ref} />
         <InputGroupAddon align="inline-end">
           {!text && !ask.isPending && <Kbd className="max-sm:hidden">s</Kbd>}
           <InputGroupButton
@@ -248,7 +256,12 @@ function changeLines(changed: Array<ChangeSummary>) {
     : lines.join('\n')
 }
 
-const APP_LABEL = { bookmarks: 'Bookmarks', notes: 'Notes', tasks: 'Tasks' }
+const APP_LABEL = {
+  bookmarks: 'Bookmarks',
+  notes: 'Notes',
+  tasks: 'Tasks',
+  contacts: 'Contacts',
+}
 
 function itemTitle(item: AssistantItem) {
   const title =

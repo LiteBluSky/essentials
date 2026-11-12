@@ -255,6 +255,15 @@ export function remindLabel(minutes: number | null) {
 /** A due date given as a day only lands at this time (local). */
 export const DEFAULT_DUE_HOUR = 9
 
+/** Completed tasks are deleted this many days after they were completed
+ * (lazily, whenever the tree loads). Open tasks are never removed. */
+export const COMPLETED_TTL_DAYS = 7
+
+/** Anything completed before this is past keeping. */
+export function completedCutoff(now = Date.now()) {
+  return new Date(now - COMPLETED_TTL_DAYS * DAY_MS)
+}
+
 /** How many days ahead "Upcoming" looks (today included). */
 export const UPCOMING_DAYS = 7
 

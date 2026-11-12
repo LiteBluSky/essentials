@@ -237,6 +237,68 @@ export const tasksRelations = relations(tasks, ({ one }) => ({
   }),
 }))
 
+// ---- Contacts -------------------------------------------------------------
+
+// Same shape as the bookmark folders.
+export const contactFolders = sqliteTable(
+  'contact_folders',
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    name: text().notNull(),
+    parentId: integer('parent_id'),
+    position: integer().notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [
+    foreignKey({ columns: [t.parentId], foreignColumns: [t.id] }).onDelete(
+      'cascade',
+    ),
+    index('contact_folders_parent_idx').on(t.parentId),
+  ],
+)
+
+// A person: name plus optional phone, email, address, where the owner knows
+// them from (`knownFrom`) and free-text context (`description`); '' = none.
+// Lives in a folder, or at root level when folderId = null.
+export const contacts = sqliteTable(
+  'contacts',
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    name: text().notNull(),
+    phone: text().notNull().default(''),
+    email: text().notNull().default(''),
+    address: text().notNull().default(''),
+    knownFrom: text('known_from').notNull().default(''),
+    description: text().notNull().default(''),
+    folderId: integer('folder_id').references(() => contactFolders.id, {
+      onDelete: 'cascade',
+    }),
+    position: integer().notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [index('contacts_folder_idx').on(t.folderId)],
+)
+
+export const contactFoldersRelations = relations(
+  contactFolders,
+  ({ one, many }) => ({
+    parent: one(contactFolders, {
+      fields: [contactFolders.parentId],
+      references: [contactFolders.id],
+      relationName: 'contact_folder_parent',
+    }),
+    children: many(contactFolders, { relationName: 'contact_folder_parent' }),
+    contacts: many(contacts),
+  }),
+)
+
+export const contactsRelations = relations(contacts, ({ one }) => ({
+  folder: one(contactFolders, {
+    fields: [contacts.folderId],
+    references: [contactFolders.id],
+  }),
+}))
+
 // Every app's folders share a shape, so one type serves them all.
 export type Folder = typeof folders.$inferSelect
 export type NewFolder = typeof folders.$inferInsert
@@ -248,6 +310,8 @@ export type NewNote = typeof notes.$inferInsert
 export type BinnedNote = typeof notesBin.$inferSelect
 export type Task = typeof tasks.$inferSelect
 export type NewTask = typeof tasks.$inferInsert
+export type Contact = typeof contacts.$inferSelect
+export type NewContact = typeof contacts.$inferInsert
 
 // ---- Assistant history ------------------------------------------------------
 
@@ -288,7 +352,9 @@ export const assistantChanges = sqliteTable(
   {
     id: integer().primaryKey({ autoIncrement: true }),
     runId: text('run_id').notNull(),
-    app: text({ enum: ['bookmarks', 'notes', 'tasks'] }).notNull(),
+    app: text({
+      enum: ['bookmarks', 'notes', 'tasks', 'contacts'],
+    }).notNull(),
     target: text({ enum: ['item', 'folder'] }).notNull(),
     op: text({ enum: ['create', 'update', 'delete'] }).notNull(),
     itemId: integer('item_id').notNull(),

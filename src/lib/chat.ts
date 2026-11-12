@@ -6,6 +6,15 @@ import type { AssistantResult } from '@/lib/assistant'
 // The Chat app: ask about anything stored (bookmarks, notes, tasks), and have
 // it create tasks / notes or open items. See chat.server.ts.
 
+/** Conversations are deleted this many days after their last message
+ * (lazily, whenever the list loads). */
+export const CHAT_TTL_DAYS = 7
+
+/** A conversation last active before this is past keeping. */
+export function chatCutoff(now = Date.now()) {
+  return new Date(now - CHAT_TTL_DAYS * 24 * 60 * 60 * 1000)
+}
+
 export const chatInput = z.object({
   /** null = start a new conversation. */
   conversationId: z.number().int().positive().nullable(),

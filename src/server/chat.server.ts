@@ -1,7 +1,8 @@
-import { asc, desc, eq } from 'drizzle-orm'
+import { asc, desc, eq, inArray, lt } from 'drizzle-orm'
 
 import { db } from '@/db'
 import { chatConversations, chatMessages } from '@/db/schema'
+import { chatCutoff } from '@/lib/chat'
 import type { ChatInput, ChatTurnResult } from '@/lib/chat'
 import { runAgent } from './agent.server'
 import { APP_PROMPT } from './prompts.server'
@@ -45,7 +46,24 @@ export async function loadMessages(conversationId: number) {
   }))
 }
 
+// Conversations idle for `CHAT_TTL_DAYS` go, messages first (no cascades).
+async function purgeOldConversations() {
+  const old = await db
+    .select({ id: chatConversations.id })
+    .from(chatConversations)
+    .where(lt(chatConversations.updatedAt, chatCutoff()))
+  if (old.length === 0) return
+  const ids = old.map((c) => c.id)
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(chatMessages)
+      .where(inArray(chatMessages.conversationId, ids))
+    await tx.delete(chatConversations).where(inArray(chatConversations.id, ids))
+  })
+}
+
 export async function listConversations() {
+  await purgeOldConversations()
   return db
     .select()
     .from(chatConversations)

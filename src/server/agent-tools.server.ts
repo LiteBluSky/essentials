@@ -4,6 +4,8 @@ import { z } from 'zod'
 import { db } from '@/db'
 import {
   folders as bookmarkFolders,
+  contactFolders,
+  contacts,
   links,
   noteFolders,
   notes,
@@ -13,12 +15,15 @@ import {
 import { UNSORTED_FOLDER } from '@/lib/assistant'
 import type { AssistantResult, ChangeSummary } from '@/lib/assistant'
 import { linkInput } from '@/lib/bookmarks/schemas'
+import { contactInput } from '@/lib/contacts/schemas'
+import { REFERENCE_TYPES, formatReference } from '@/lib/references'
 import { noteInput } from '@/lib/notes/schemas'
 import { MAX_REMIND_MINUTES, taskInput } from '@/lib/tasks/schemas'
 import { DEFAULT_DUE_HOUR, remindLabel } from '@/lib/tasks/tree'
 import { ACTION_TOOLS, toAction } from './assistant.server'
 import { runAction } from './assistant-actions.server'
 import * as bookmarksDb from './bookmarks.server'
+import * as contactsDb from './contacts.server'
 import {
   deleteFolderRecorded,
   deleteItemRecorded,
@@ -43,7 +48,7 @@ import * as tasksDb from './tasks.server'
 /** Caps on what a tool hands back, so a long note can't flood the model. */
 const MAX_BODY_CHARS = 20_000
 
-const APPS = ['bookmarks', 'notes', 'tasks'] as const
+const APPS = ['bookmarks', 'notes', 'tasks', 'contacts'] as const
 const appArg = z.enum(APPS)
 const id = z.number().int().positive()
 
@@ -51,7 +56,7 @@ export const LOOKUP_TOOLS: Array<ToolDef> = [
   {
     name: 'search',
     description:
-      "Search the user's bookmarks (links), notes and tasks, and their folders. Every word must appear in the title, URL, description, note text or task description, so use one or two distinctive words and try other words or synonyms if nothing comes back. An empty query lists the most recently edited. Returns ids to use with the other tools.",
+      "Search the user's bookmarks (links), notes, tasks and contacts, and their folders. Every word must appear in the title, URL, description, note text, task description or a contact's name / phone / email / address / known from / context, so use one or two distinctive words and try other words or synonyms if nothing comes back. An empty query lists the most recently edited. Returns ids to use with the other tools.",
     parameters: {
       type: 'object',
       properties: {
@@ -59,7 +64,7 @@ export const LOOKUP_TOOLS: Array<ToolDef> = [
         app: {
           type: 'string',
           enum: APPS,
-          description: 'Only look in this app. Omit to search all three.',
+          description: 'Only look in this app. Omit to search all of them.',
         },
       },
       required: ['query'],
@@ -69,7 +74,7 @@ export const LOOKUP_TOOLS: Array<ToolDef> = [
   {
     name: 'read_item',
     description:
-      'Read one bookmark, note or task in full (note text, task description and dates, link URL and description), by its id.',
+      'Read one bookmark, note, task or contact in full (note text, task description and dates, link URL and description, contact details), by its id.',
     parameters: {
       type: 'object',
       properties: {
@@ -121,7 +126,7 @@ export const EDIT_TOOLS: Array<ToolDef> = [
   {
     name: 'update_item',
     description:
-      'Change an existing bookmark, note or task: give only the fields to change. Tasks: title, description, due, remind_minutes_before, done. Notes: title, text. Bookmarks: title, url, description, favorite. Any of them: folder_id to move it (null = top level).',
+      'Change an existing bookmark, note, task or contact: give only the fields to change. Tasks: title, description, due, remind_minutes_before, done. Notes: title, text. Bookmarks: title, url, description, favorite. Contacts: title (their name), phone, email, address, known_from, description (context). Any of them: folder_id to move it (null = top level).',
     parameters: {
       type: 'object',
       properties: {
@@ -134,7 +139,15 @@ export const EDIT_TOOLS: Array<ToolDef> = [
         },
         description: {
           type: 'string',
-          description: "A task's or bookmark's description ('' clears it).",
+          description:
+            "A task's or bookmark's description, or a contact's context ('' clears it).",
+        },
+        phone: { type: 'string', description: "A contact's phone number." },
+        email: { type: 'string', description: "A contact's email address." },
+        address: { type: 'string', description: "A contact's address." },
+        known_from: {
+          type: 'string',
+          description: 'Where the user knows the contact from.',
         },
         url: { type: 'string', description: "A bookmark's URL." },
         due: {
@@ -168,7 +181,7 @@ export const EDIT_TOOLS: Array<ToolDef> = [
   {
     name: 'delete_item',
     description:
-      'Delete a bookmark, note or task. Only when the user asked to delete it.',
+      'Delete a bookmark, note, task or contact. Only when the user asked to delete it.',
     parameters: {
       type: 'object',
       properties: {
@@ -240,6 +253,31 @@ export const EDIT_TOOLS: Array<ToolDef> = [
       additionalProperties: false,
     },
   },
+  {
+    name: 'create_contact',
+    description:
+      'Save a person as a contact. It goes to the "Unsorted" folder unless folder_id is given. Only fill in what the user said.',
+    parameters: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        phone: { type: 'string' },
+        email: { type: 'string' },
+        address: { type: 'string' },
+        known_from: {
+          type: 'string',
+          description: 'Where the user knows them from (work, school…).',
+        },
+        description: {
+          type: 'string',
+          description: 'Anything else worth remembering about them.',
+        },
+        folder_id: { type: ['integer', 'null'] },
+      },
+      required: ['name'],
+      additionalProperties: false,
+    },
+  },
 ]
 
 /** Every tool, for the Chat and Tell me loops. */
@@ -277,6 +315,10 @@ const updateArgs = z.object({
     .optional(),
   done: z.boolean().optional(),
   favorite: z.boolean().optional(),
+  phone: z.string().optional(),
+  email: z.string().optional(),
+  address: z.string().optional(),
+  known_from: z.string().optional(),
   folder_id: id.nullable().optional(),
 })
 const createFolderArgs = z.object({
@@ -297,10 +339,21 @@ const bookmarkArgs = z.object({
   folder_id: id.nullable().optional(),
 })
 
+const contactArgs = z.object({
+  name: z.string().min(1),
+  phone: z.string().optional(),
+  email: z.string().optional(),
+  address: z.string().optional(),
+  known_from: z.string().optional(),
+  description: z.string().optional(),
+  folder_id: id.nullable().optional(),
+})
+
 const FOLDER_TABLES = {
   bookmarks: bookmarkFolders,
   notes: noteFolders,
   tasks: taskFolders,
+  contacts: contactFolders,
 }
 
 /** Every folder of an app with its path ("A / B"). */
@@ -376,6 +429,24 @@ async function readItem(app: App, itemId: number, timeZone: string) {
       done: local(task.completedAt, timeZone),
     }
   }
+  if (app === 'contacts') {
+    const contact = (
+      await db.select().from(contacts).where(eq(contacts.id, itemId))
+    ).at(0)
+    if (!contact) return { error: 'No contact with that id' }
+    return {
+      app,
+      id: itemId,
+      name: contact.name,
+      phone: contact.phone,
+      email: contact.email,
+      address: contact.address,
+      known_from: contact.knownFrom,
+      context: contact.description,
+      folder: path(contact.folderId),
+      folder_id: contact.folderId,
+    }
+  }
   const link = (await db.select().from(links).where(eq(links.id, itemId))).at(0)
   if (!link) return { error: 'No bookmark with that id' }
   return {
@@ -436,12 +507,21 @@ export type RunContext = {
   result: AssistantResult
 }
 
+/** The `@type(Name#id)` reference to an item, for the model to write into
+ * text it creates or edits. */
+function refFor(app: App, label: string, itemId: number) {
+  const type = REFERENCE_TYPES.find((t) => t.app === app)!.type
+  return formatReference(type, label, itemId)
+}
+
 function changed(
   ctx: RunContext,
   summary: ChangeSummary,
-): { changed: ChangeSummary } {
+): { changed: ChangeSummary; ref?: string } {
   ctx.result.changed.push(summary)
-  return { changed: summary }
+  return summary.target === 'item' && summary.op !== 'delete'
+    ? { changed: summary, ref: refFor(summary.app, summary.label, summary.id) }
+    : { changed: summary }
 }
 
 async function updateItem(
@@ -456,7 +536,7 @@ async function updateItem(
       ? (before.folderId as number | null)
       : args.folder_id
   const details: Array<string> = []
-  if (args.title !== undefined && args.title !== before.title)
+  if (args.title !== undefined && args.title !== (before.title ?? before.name))
     details.push('renamed')
   if (folderId !== before.folderId) {
     const { path } = await folderList(app)
@@ -492,6 +572,27 @@ async function updateItem(
       await tasksDb.setCompleted({ id: itemId, done: args.done })
       details.push(args.done ? 'completed' : 'reopened')
     }
+  } else if (app === 'contacts') {
+    const contact = before as unknown as typeof contacts.$inferSelect
+    const input = contactInput.parse({
+      name: args.title ?? contact.name,
+      phone: args.phone ?? contact.phone,
+      email: args.email ?? contact.email,
+      address: args.address ?? contact.address,
+      knownFrom: args.known_from ?? contact.knownFrom,
+      description: args.description ?? contact.description,
+      folderId,
+    })
+    for (const [key, label] of [
+      ['phone', 'phone'],
+      ['email', 'email'],
+      ['address', 'address'],
+      ['known_from', 'known from'],
+      ['description', 'context'],
+    ] as const) {
+      if (args[key] !== undefined) details.push(`${label} changed`)
+    }
+    await contactsDb.editContact(itemId, input)
   } else if (app === 'notes') {
     const note = before as unknown as typeof notes.$inferSelect
     const input = noteInput.parse({
@@ -540,11 +641,13 @@ const REMOVE_ITEM: Record<App, (id: number) => Promise<void>> = {
   bookmarks: bookmarksDb.removeLink,
   notes: notesDb.removeNote,
   tasks: tasksDb.removeTask,
+  contacts: contactsDb.removeContact,
 }
 const REMOVE_FOLDER: Record<App, (id: number) => Promise<void>> = {
   bookmarks: bookmarksDb.removeFolder,
   notes: notesDb.removeFolder,
   tasks: tasksDb.removeFolder,
+  contacts: contactsDb.removeFolder,
 }
 const INSERT_FOLDER: Record<
   App,
@@ -553,6 +656,7 @@ const INSERT_FOLDER: Record<
   bookmarks: bookmarksDb.insertFolder,
   notes: notesDb.insertFolder,
   tasks: tasksDb.insertFolder,
+  contacts: contactsDb.insertFolder,
 }
 const EDIT_FOLDER: Record<
   App,
@@ -564,6 +668,7 @@ const EDIT_FOLDER: Record<
   bookmarks: bookmarksDb.editFolder,
   notes: notesDb.editFolder,
   tasks: tasksDb.editFolder,
+  contacts: contactsDb.editFolder,
 }
 
 /** Runs one tool call; returns what goes back to the model (JSON). */
@@ -579,13 +684,22 @@ export async function runTool(
       if (!parsed.success) return bad
       const found = await search(parsed.data.query)
       const apps = parsed.data.app ? [parsed.data.app] : APPS
-      return Object.fromEntries(apps.map((app) => [app, found[app]]))
+      return Object.fromEntries(
+        apps.map((app) => [
+          app,
+          found[app].map((r) =>
+            r.kind === 'item' ? { ...r, ref: refFor(app, r.label, r.id) } : r,
+          ),
+        ]),
+      )
     }
     case 'read_item': {
       const parsed = appIdArgs.safeParse(args)
-      return parsed.success
-        ? readItem(parsed.data.app, parsed.data.id, ctx.timeZone)
-        : bad
+      if (!parsed.success) return bad
+      const { app, id: itemId } = parsed.data
+      const item = await readItem(app, itemId, ctx.timeZone)
+      const row = 'error' in item ? null : await getItem(app, itemId)
+      return row ? { ...item, ref: refFor(app, itemLabel(row), itemId) } : item
     }
     case 'list_tasks': {
       const parsed = listArgs.safeParse(args ?? {})
@@ -704,6 +818,32 @@ export async function runTool(
     }
   }
 
+  if (name === 'create_contact') {
+    const parsed = contactArgs.safeParse(args)
+    if (!parsed.success) return bad
+    const input = contactInput.safeParse({
+      name: parsed.data.name,
+      phone: parsed.data.phone ?? '',
+      email: parsed.data.email ?? '',
+      address: parsed.data.address ?? '',
+      knownFrom: parsed.data.known_from ?? '',
+      description: parsed.data.description ?? '',
+      folderId:
+        parsed.data.folder_id ??
+        (await contactsDb.ensureTopFolder(UNSORTED_FOLDER)),
+    })
+    if (!input.success) return { error: input.error.issues[0].message }
+    const { id: contactId } = await contactsDb.insertContact(input.data)
+    const summary = {
+      app: 'contacts' as const,
+      target: 'item' as const,
+      id: contactId,
+      label: input.data.name,
+    }
+    await recordCreate(ctx.runId, summary)
+    return changed(ctx, { ...summary, op: 'create' })
+  }
+
   // create_task / create_note / open_item (the Tell me tools).
   const action = toAction({ id: '', name, args })
   if (!action) return { error: `Unknown tool or bad arguments: ${name}` }
@@ -726,7 +866,10 @@ export async function runTool(
     id: done.id,
     label: done.title.split('\n')[0].slice(0, 80),
   })
-  return { created: { app: done.app, id: done.id, title: done.title } }
+  return {
+    created: { app: done.app, id: done.id, title: done.title },
+    ref: refFor(done.app, done.title.split('\n')[0].slice(0, 80), done.id),
+  }
 }
 
 /** The bookmarks' top-level "Unsorted" folder, created if needed. */

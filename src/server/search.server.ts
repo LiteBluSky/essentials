@@ -1,10 +1,12 @@
-import { and, desc, or, sql } from 'drizzle-orm'
+import { and, desc, eq, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
 
 import { db } from '@/db'
 import {
   folders as bookmarkFolders,
+  contactFolders,
+  contacts,
   links,
   noteFolders,
   notes,
@@ -12,7 +14,11 @@ import {
   tasks,
 } from '@/db/schema'
 import { SEARCH_LIMIT } from '@/lib/global-search'
-import type { SearchResult, SearchResults } from '@/lib/global-search'
+import type {
+  ReferenceInput,
+  SearchResult,
+  SearchResults,
+} from '@/lib/global-search'
 import { noteLabel } from '@/lib/notes/tree'
 
 // Server-only DB helpers for the global search (shared by every app). Only
@@ -43,7 +49,10 @@ function ranking(name: Column, updatedAt: Column, words: Array<string>) {
 }
 
 type FolderTable =
-  typeof bookmarkFolders | typeof noteFolders | typeof taskFolders
+  | typeof bookmarkFolders
+  | typeof noteFolders
+  | typeof taskFolders
+  | typeof contactFolders
 
 // Each folder's path ("A / B"), from every folder of the app (a small table).
 async function folderPaths(table: FolderTable) {
@@ -179,14 +188,93 @@ async function searchTasks(words: Array<string>) {
   ]
 }
 
+async function searchContacts(words: Array<string>) {
+  const path = await folderPaths(contactFolders)
+  const [folders, items] = await Promise.all([
+    searchFolders(contactFolders, words, path),
+    db
+      .select({
+        id: contacts.id,
+        name: contacts.name,
+        folderId: contacts.folderId,
+      })
+      .from(contacts)
+      .where(
+        words.length
+          ? matchesAll(
+              [
+                contacts.name,
+                contacts.phone,
+                contacts.email,
+                contacts.address,
+                contacts.knownFrom,
+                contacts.description,
+              ],
+              words,
+            )
+          : undefined,
+      )
+      .orderBy(...ranking(contacts.name, contacts.updatedAt, words))
+      .limit(SEARCH_LIMIT),
+  ])
+  return [
+    ...folders,
+    ...items.map((c): SearchResult => ({
+      kind: 'item',
+      id: c.id,
+      label: c.name,
+      path: path(c.folderId),
+    })),
+  ]
+}
+
 /** Up to SEARCH_LIMIT folders and items per app matching every word of
- * `query` (in a name, URL, description or note body). */
+ * `query` (in a name, URL, description, note body or contact detail). */
 export async function search(query: string): Promise<SearchResults> {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean)
-  const [bookmarks, notesFound, tasksFound] = await Promise.all([
+  const [bookmarks, notesFound, tasksFound, contactsFound] = await Promise.all([
     searchBookmarks(words),
     searchNotes(words),
     searchTasks(words),
+    searchContacts(words),
   ])
-  return { bookmarks, notes: notesFound, tasks: tasksFound }
+  return {
+    bookmarks,
+    notes: notesFound,
+    tasks: tasksFound,
+    contacts: contactsFound,
+  }
+}
+
+const ITEM_TABLES = { bookmarks: links, notes, tasks, contacts }
+
+/** The item a reference points at: by id if it still exists, else the item
+ * of that app whose name matches best (exact name first). Bookmarks come
+ * with their URL. */
+export async function findReference({
+  app,
+  id,
+  name,
+}: ReferenceInput): Promise<{ id: number; url?: string } | null> {
+  let found: number | null = null
+  if (id !== null) {
+    const table = ITEM_TABLES[app]
+    const row = (
+      await db.select({ id: table.id }).from(table).where(eq(table.id, id))
+    ).at(0)
+    if (row) found = row.id
+  }
+  if (found === null && name.trim()) {
+    const items = (await search(name))[app].filter((r) => r.kind === 'item')
+    const exact = items.find(
+      (r) => r.label.toLowerCase() === name.trim().toLowerCase(),
+    )
+    found = (exact ?? items.at(0))?.id ?? null
+  }
+  if (found === null) return null
+  if (app !== 'bookmarks') return { id: found }
+  const link = (
+    await db.select({ url: links.url }).from(links).where(eq(links.id, found))
+  ).at(0)
+  return link ? { id: found, url: link.url } : null
 }

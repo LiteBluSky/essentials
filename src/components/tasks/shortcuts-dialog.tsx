@@ -31,6 +31,10 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       { keys: [mod(SHORTCUTS.search.label), ['/']], action: 'Search this app' },
       { keys: [['z']], action: 'Search everything (all apps)' },
       {
+        keys: [['@']],
+        action: 'In a text box: link to a bookmark, note, task or contact',
+      },
+      {
         keys: [['s']],
         action: 'Tell me… (new task or note; Esc goes back)',
       },

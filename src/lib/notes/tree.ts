@@ -1,5 +1,6 @@
 import type { Folder, Note } from '@/db/schema'
 import { EXPORT_FORMAT } from '@/lib/notes/schemas'
+import { plainReferences } from '@/lib/references'
 import type { ExportFolder, ExportNote, NotesFile } from '@/lib/notes/schemas'
 
 export type FolderNode = {
@@ -117,7 +118,7 @@ export function quickNotes(notes: Array<Note>) {
 
 // Plain text of the first lines of a markdown body, for lists and tooltips.
 export function noteSnippet(body: string, max = 140) {
-  const text = body
+  const text = plainReferences(body)
     .split('\n')
     .map((line) =>
       line
