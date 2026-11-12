@@ -20,7 +20,10 @@ export function AppNav() {
             render={<Link to={path} />}
           >
             <Icon data-icon="inline-start" />
-            {name}
+            {/* Narrow phones: only the current app keeps its name. */}
+            <span className={active ? undefined : 'max-[420px]:sr-only'}>
+              {name}
+            </span>
           </Button>
         )
       })}

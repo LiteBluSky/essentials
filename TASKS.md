@@ -221,6 +221,12 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       tool call or temperature (rejected by the newest Claude models)
 - [x] Assistant history (`assistant_log`, migration 0008): every request
       with its result, tokens and cost, in a dialog from the ⋮ menu
+- [x] Chat app (`/chat`, navbar): saved conversations (migration 0009),
+      look-up tools (search, read_item, list_tasks) + create / open, shadcn
+      message / bubble / marker / message-scroller; turns logged with cost
+- [x] Shared LLM layer (`llm.server.ts`): multi-turn tool calls for both
+      providers
+- [x] Find / open: best partial match when no item has every word
 - [x] Lists become one checklist note; "open / find / show …" opens the best
       match (link, note, task or folder) via the global search
 - [x] Per-task reminder time (`remindMinutes`, migration 0007): at the

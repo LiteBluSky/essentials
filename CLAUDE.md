@@ -2,7 +2,8 @@
 
 A personal, local-only set of small apps in one: **Bookmarks** (links),
 **Notes** (markdown) and **Tasks** (to-dos), each organised into folders and subfolders and shown as
-a file tree, with a navbar to switch between them. The display name is
+a file tree, plus an optional **Chat** (ask an LLM about all of it), with a
+navbar to switch between them. The display name is
 configurable (`VITE_APP_NAME`, default "Essentials", read via `APP_NAME` in
 `src/lib/config.ts`) — never hardcode the product name in UI, titles or
 storage keys (app names like "Bookmarks"/"Notes" are fine). It runs on the
@@ -66,7 +67,8 @@ Each app is self-contained and namespaced; only the shell is shared.
 - **Registry**: `src/lib/apps.ts` (`APPS`: path, name, lucide icon) drives
   the navbar (`src/components/app-nav.tsx`) and app switching
   (`src/hooks/use-app-switch.ts`). `/` redirects to the first app.
-- **Per app** (`<app>` = `bookmarks`, `notes`, `tasks`): route `src/routes/<app>.tsx`,
+- **Per app** (`<app>` = `bookmarks`, `notes`, `tasks`; Chat is the
+  exception: no folders or tree, see its section): route `src/routes/<app>.tsx`,
   UI in `src/components/<app>/`, hooks in `src/hooks/<app>/`, pure helpers
   and Zod schemas in `src/lib/<app>/`, server code in
   `src/server/<app>.functions.ts` + `<app>.server.ts`, its own tables, its
@@ -78,7 +80,8 @@ Each app is self-contained and namespaced; only the shell is shared.
   search (`components/global-search.tsx`, `hooks/use-global-search.ts`,
   `lib/global-search.ts`, `server/search.*.ts`), the assistant
   (`components/assistant-box.tsx`, `lib/assistant.ts`,
-  `server/assistant.*.ts`), settings (`components/settings-dialog.tsx`,
+  `server/assistant*.ts`, `server/llm.server.ts`), settings
+  (`components/settings-dialog.tsx`,
   `lib/settings.ts`, `server/settings.*.ts`), `ui/`.
 - Apps don't import from each other. The tree code (keyboard hook, DnD,
   folder form/select) is duplicated per app on purpose for now (see
@@ -114,7 +117,13 @@ One SQLite file holds every app. Bookmark tables keep their original names.
   the reminder was pushed; cleared when `dueAt` or `remindMinutes`
   changes), timestamps. Without `dueAt`, `createdAt` drives the
   colour and calendar day.
-- `assistant_log` — one row per "Tell me…" request: `text`, `provider`,
+- `chat_conversations` (`title` = start of the first message, timestamps) /
+  `chat_messages` — `conversationId`, `role` (`user` | `assistant`),
+  `content` (markdown), `actions` (JSON: what the turn created / found),
+  `error` (a failed turn; content is the error), `createdAt`. Deleting a
+  conversation deletes its messages explicitly.
+- `assistant_log` — one row per "Tell me…" request or chat turn (`source`
+  `tell` | `chat`): `text`, `provider`,
   `model`, `ok`, `result` (one line per item done, or the error),
   `inputTokens` / `outputTokens`, `costUsd` (null when unknown),
   `durationMs`, `createdAt`. Kept until cleared from the history dialog.
@@ -391,7 +400,9 @@ each app's header (not focused on load: `s` or a tap goes in): type or
 dictate (phone keyboard mic) a sentence, Enter (Shift+Enter = newline). `askAssistant`
 (`src/server/assistant.functions.ts`) sends it with the browser's time and
 timezone to the provider picked in Settings (`LLM_PROVIDER`;
-`assistant.server.ts`): **OpenAI-compatible** chat completions (`fetch`,
+`llm.server.ts`, shared with Chat: neutral `Turn`s / `ToolDef`s converted
+per provider, `callModel` returns tool calls, text, tokens and cost):
+**OpenAI-compatible** chat completions (`fetch`,
 OpenRouter by default, `LLM_BASE_URL`, default model
 `anthropic/claude-haiku-5.5`; on OpenRouter `usage: { include: true }` makes
 it report the cost) or **Anthropic** (the official `@anthropic-ai/sdk`,
@@ -401,7 +412,8 @@ on the models that take it; cost worked out from `ANTHROPIC_PRICES`, per
 model that ran). **`tool_choice` stays `auto`** (the newest Claude models
 reject a forced call, so the prompt asks for one) and **no `temperature`**
 (Anthropic's current API version rejects it). The tools, in one neutral
-shape (`TOOLS`),
+shape (`ACTION_TOOLS` in `assistant.server.ts`; carried out by
+`assistant-actions.server.ts`, also used by Chat),
 `create_task { title, description?, due?, remind_minutes_before? }` (local `YYYY-MM-DD[THH:mm]`,
 converted with `zonedTime`), `create_note { title?, body }` and
 `open_item { query, app?, folder? }`. The prompt makes a **list** (shopping,
@@ -417,7 +429,9 @@ the global search).
 the GitHub link"): `open_item` runs the global search (`search()` from
 `search.server.ts`) and `findOne` picks the best match: in the named app
 if any, an item unless a folder was asked for, a name containing every
-word first, then the search's order (latest edited). The result's `found`
+word first, then the search's order (latest edited). If nothing has
+every word ("crm toool"), `partialMatch` searches word by word and takes
+the name with the most of them (then items, then the shortest name). The result's `found`
 list goes back with `created`; the first match opens at once (note/task via
 `requestOpen` + navigate, a folder is revealed, a link opens in a new tab;
 if the browser blocks that tab, since it's no longer right after the
@@ -434,6 +448,33 @@ of them; "Clear history" empties it (what was created stays).
 Without an API key the field isn't rendered
 (`assistantEnabledQueryOptions`, prefetched by each app's loader) and
 nothing else changes.
+
+### Chat (`/chat`)
+
+The fourth navbar app (`APPS`), for asking about anything stored. One
+conversation per `?c=<id>` (none = new); the list on the left (a dropdown
+below `md`), latest first, with a hover delete (confirm, `d` `d`). The
+thread uses shadcn's `message`, `bubble`, `marker` and `message-scroller`
+(`components/chat/chat-thread.tsx`); answers render as markdown
+(`chat-markdown.tsx`, `.markdown` styles). A turn
+(`sendChatMessage` → `sendMessage` in `chat.server.ts`) saves the user's
+message, then runs a tool loop (at most `MAX_STEPS` = 8 model calls) with
+the last 30 messages as context: **look-ups** `search` (the global
+search), `read_item` (a bookmark / note / task in full, note bodies capped
+at 20k chars) and `list_tasks` (status + local due-day range), plus the
+Tell me `ACTION_TOOLS` (create task / note in Unsorted, `open_item`). It
+can't edit, move, complete or delete. Within the loop Anthropic's content
+blocks go back unchanged (`Turn.raw`); saved earlier turns are plain text.
+The answer (or the error, as an `error` message) is saved with its
+`actions`, shown as markers with **Open** buttons (`requestOpen` +
+navigate; links open directly). Every turn is logged (`source: 'chat'`,
+cost summed over its calls). Without an API key the page shows a
+"Add an API key" empty state with a Settings button. Its ⋮ menu
+(`chat-menu.tsx`) has Settings, Assistant history and Install. Keys (not
+while typing / a dialog is open): `s` focuses the message box (Enter sends,
+Shift+Enter new line, Esc leaves it), `a` new chat, `z` global search,
+`Shift+H` / `Shift+L` switch apps. Below 420px the navbar shows only the
+current app's name.
 
 ### Settings (every app's ⋮ menu)
 

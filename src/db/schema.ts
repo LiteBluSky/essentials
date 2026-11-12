@@ -258,6 +258,8 @@ export const assistantLog = sqliteTable(
   {
     id: integer().primaryKey({ autoIncrement: true }),
     text: text().notNull(),
+    /** Where it came from: 'tell' (the Tell me field) or 'chat'. */
+    source: text().notNull().default('tell'),
     provider: text().notNull().default(''),
     model: text().notNull().default(''),
     ok: integer({ mode: 'boolean' }).notNull(),
@@ -275,6 +277,38 @@ export const assistantLog = sqliteTable(
   (t) => [index('assistant_log_created_idx').on(t.createdAt)],
 )
 
+// ---- Chat -------------------------------------------------------------------
+
+// The Chat app's saved conversations. The title is the start of the first
+// message; updatedAt orders the list (latest first).
+export const chatConversations = sqliteTable('chat_conversations', {
+  id: integer().primaryKey({ autoIncrement: true }),
+  title: text().notNull(),
+  ...timestamps,
+})
+
+// A conversation's messages in order. An assistant message keeps what it
+// did (`actions`: JSON of the tasks / notes created and items found) so the
+// chat can show them with Open buttons; `error` marks a failed turn (its
+// content is the error).
+export const chatMessages = sqliteTable(
+  'chat_messages',
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    conversationId: integer('conversation_id')
+      .notNull()
+      .references(() => chatConversations.id, { onDelete: 'cascade' }),
+    role: text({ enum: ['user', 'assistant'] }).notNull(),
+    content: text().notNull(),
+    actions: text(),
+    error: integer({ mode: 'boolean' }).notNull().default(false),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [index('chat_messages_conversation_idx').on(t.conversationId)],
+)
+
 // ---- Settings ---------------------------------------------------------------
 
 // App settings edited in the UI (Settings… in the ⋮ menu): the assistant's
@@ -290,3 +324,5 @@ export const settings = sqliteTable('settings', {
     .$onUpdate(() => new Date()),
 })
 export type AssistantLogEntry = typeof assistantLog.$inferSelect
+export type ChatConversation = typeof chatConversations.$inferSelect
+export type ChatMessage = typeof chatMessages.$inferSelect

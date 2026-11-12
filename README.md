@@ -3,7 +3,8 @@
 A handful of small personal apps in one: **Bookmarks** (links), **Notes**
 (markdown) and **Tasks** (a to-do list with due dates and phone reminders), each organised into folders and subfolders and shown as a file
 tree. Optionally, a **"Tell me…"** field on every app turns a typed or
-dictated sentence into a task or note. Switch between them with the navbar at the top, or `Shift+H` /
+dictated sentence into a task or note, and a **Chat** app answers questions
+about everything you've saved. Switch between them with the navbar at the top, or `Shift+H` /
 `Shift+L`. No accounts, no sync. It runs on your own machine or home server
 and serves on **http://localhost:8008**.
 
@@ -296,8 +297,15 @@ best match (links in a new tab). It needs an LLM key, set in Settings:
   [console.anthropic.com](https://console.anthropic.com). The model
   defaults to `claude-opus-5-5`; `claude-haiku-5-5` is much cheaper.
 
-Only the sentence you type is sent to the provider. ⋮ menu → **Assistant
-history…** lists every request with its result, tokens and cost
+**Chat** (the fourth app in the navbar) — ask about anything you've saved:
+_"what's due this week?"_, _"what did I write about the CRM?"_, _"which
+links do I have about invoices?"_. It looks things up in your bookmarks,
+notes and tasks before answering, and can add tasks and notes or open
+items, but never edits or deletes. Conversations are saved; delete them
+from the list.
+
+Only what you type (and, in Chat, the items it looks up to answer) is sent
+to the provider. ⋮ menu → **Assistant history…** lists every request with its result, tokens and cost
 (reported by OpenRouter, or worked out from Anthropic's prices).
 
 **Phone reminders** — when a task with a due date falls due, the server

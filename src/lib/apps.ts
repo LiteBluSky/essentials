@@ -1,4 +1,9 @@
-import { BookmarkIcon, ListChecksIcon, NotebookPenIcon } from 'lucide-react'
+import {
+  BookmarkIcon,
+  ListChecksIcon,
+  MessagesSquareIcon,
+  NotebookPenIcon,
+} from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 // The apps bundled into this one, in navbar order. Adding an app: give it a
@@ -8,6 +13,7 @@ export const APPS = [
   { path: '/bookmarks', name: 'Bookmarks', icon: BookmarkIcon },
   { path: '/notes', name: 'Notes', icon: NotebookPenIcon },
   { path: '/tasks', name: 'Tasks', icon: ListChecksIcon },
+  { path: '/chat', name: 'Chat', icon: MessagesSquareIcon },
 ] as const satisfies ReadonlyArray<{
   path: string
   name: string
