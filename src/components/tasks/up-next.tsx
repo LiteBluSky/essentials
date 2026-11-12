@@ -1,6 +1,8 @@
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import type { Task } from '@/db/schema'
+import { UP_NEXT_KEYS, upNextDayLabel } from '@/lib/tasks/tree'
+import type { UpNext as UpNextList } from '@/lib/tasks/tree'
 import type { OpenEditor } from './editor'
 import { TaskAge, TaskCheck, TaskMenu, TaskTitle } from './task-tree'
 
@@ -10,23 +12,23 @@ type ListProps = {
   onComplete: (taskId: number) => void
 }
 
-// "Up next" above the search: the oldest open tasks, oldest first (keys
-// 1-9), like the bookmark favourites. Newer tasks wait until these are done.
-export function UpNext(props: ListProps) {
-  return <QuickList id="up-next" title="Up next" numbered {...props} />
-}
-
-// "Upcoming": open tasks that are overdue or due within the week, soonest
-// first, with when they're due. Only after hydration (browser's timezone).
-export function UpcomingTasks(props: ListProps) {
-  return <QuickList id="upcoming" title="Upcoming" {...props} />
-}
-
-// "Today": the tasks on today, wherever they're filed (open and done), minus
-// the due ones (in Upcoming). Only after hydration: "today" is the browser's
-// date.
-export function TodayTasks(props: ListProps) {
-  return <QuickList id="today" title="Today" {...props} />
+// "Up next" above the search: one day's open tasks (`upNext`), today's or
+// else the next day that has any; the first 9 have keys 1-9. Only after
+// hydration: the day is the browser's.
+export function UpNext({
+  next,
+  ...props
+}: Omit<ListProps, 'tasks'> & { next: UpNextList | null }) {
+  if (!next) return null
+  return (
+    <QuickList
+      id="up-next"
+      title={`Up next · ${upNextDayLabel(next.day)}`}
+      numbered
+      tasks={next.tasks}
+      {...props}
+    />
+  )
 }
 
 function QuickList({
@@ -58,7 +60,7 @@ function QuickList({
                 onEdit({ kind: 'task', mode: 'view', taskId: task.id })
               }
             >
-              {numbered && <Kbd>{i + 1}</Kbd>}
+              {numbered && i < UP_NEXT_KEYS && <Kbd>{i + 1}</Kbd>}
               <TaskTitle task={task} />
               <TaskAge task={task} className="ml-auto" />
             </Button>

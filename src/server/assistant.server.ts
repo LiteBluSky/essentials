@@ -37,6 +37,11 @@ export const ACTION_TOOLS: Array<ToolDef> = [
           description:
             'How many minutes before the due time to send the reminder, only if the user asked for an early reminder (e.g. "remind me 15 minutes before" = 15, "a day before" = 1440). Omit otherwise: the reminder then comes at the due time.',
         },
+        folder_id: {
+          type: 'integer',
+          description:
+            'The folder to file it in: an id from list_folders for this app. Omit to put it in "Unsorted".',
+        },
       },
       required: ['title'],
       additionalProperties: false,
@@ -54,6 +59,11 @@ export const ACTION_TOOLS: Array<ToolDef> = [
           type: 'string',
           description:
             "The note in markdown: the user's words tidied up, not reworded or shortened.",
+        },
+        folder_id: {
+          type: 'integer',
+          description:
+            'The folder to file it in: an id from list_folders for this app. Omit to put it in "Unsorted".',
         },
       },
       required: ['body'],
@@ -102,6 +112,7 @@ const taskArgs = z.object({
     .min(0)
     .max(MAX_REMIND_MINUTES)
     .optional(),
+  folder_id: z.number().int().positive().optional(),
 })
 const openArgs = z.object({
   query: z.string().trim().min(1).max(200),
@@ -111,6 +122,7 @@ const openArgs = z.object({
 const noteArgs = z.object({
   title: z.string().trim().max(255).optional(),
   body: z.string().trim().min(1).max(500_000),
+  folder_id: z.number().int().positive().optional(),
 })
 
 export type PlannedAction =
@@ -120,8 +132,10 @@ export type PlannedAction =
       description: string
       due?: string
       remindMinutes: number
+      /** Where to file it; undefined = "Unsorted". */
+      folderId?: number
     }
-  | { kind: 'note'; title: string; body: string }
+  | { kind: 'note'; title: string; body: string; folderId?: number }
   | {
       kind: 'open'
       query: string
@@ -140,13 +154,19 @@ export function toAction({ name, args }: ToolCall): PlannedAction | null {
           description: parsed.data.description?.trim() ?? '',
           due: parsed.data.due,
           remindMinutes: parsed.data.remind_minutes_before ?? 0,
+          folderId: parsed.data.folder_id,
         }
       : null
   }
   if (name === 'create_note') {
     const parsed = noteArgs.safeParse(args)
     return parsed.success
-      ? { kind: 'note', title: parsed.data.title ?? '', body: parsed.data.body }
+      ? {
+          kind: 'note',
+          title: parsed.data.title ?? '',
+          body: parsed.data.body,
+          folderId: parsed.data.folder_id,
+        }
       : null
   }
   if (name === 'open_item') {

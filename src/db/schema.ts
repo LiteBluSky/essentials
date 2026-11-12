@@ -424,3 +424,24 @@ export type AssistantLogEntry = typeof assistantLog.$inferSelect
 export type ChatConversation = typeof chatConversations.$inferSelect
 export type ChatMessage = typeof chatMessages.$inferSelect
 export type AssistantChange = typeof assistantChanges.$inferSelect
+
+// ---- Calendar -------------------------------------------------------------
+
+// A coloured strip over one day or a range of days (`startDay`..`endDay`,
+// inclusive, local `YYYY-MM-DD`: no times, no timezone). The title is
+// optional ('' = none); `color` is a key of `CALENDAR_COLORS`. No folders,
+// no reminders.
+export const calendarEvents = sqliteTable(
+  'calendar_events',
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    title: text().notNull().default(''),
+    color: text().notNull(),
+    startDay: text('start_day').notNull(),
+    endDay: text('end_day').notNull(),
+    ...timestamps,
+  },
+  (t) => [index('calendar_events_start_idx').on(t.startDay)],
+)
+
+export type CalendarEvent = typeof calendarEvents.$inferSelect

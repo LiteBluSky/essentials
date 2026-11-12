@@ -7,6 +7,7 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { useEffect } from 'react'
 
+import { AppSwitcher } from '@/components/app-switcher'
 import { Toaster } from '@/components/ui/toast'
 import { registerServiceWorker } from '@/hooks/use-install-app'
 import { APP_NAME } from '@/lib/config'
@@ -64,7 +65,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body>
-        <Toaster>{children}</Toaster>
+        <Toaster>
+          {children}
+          <AppSwitcher />
+        </Toaster>
         <TanStackDevtools
           config={{
             position: 'bottom-right',

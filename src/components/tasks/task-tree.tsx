@@ -32,7 +32,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { Task } from '@/db/schema'
-import { useHydrated } from '@/hooks/tasks/use-hydrated'
+import { useHydrated } from '@/hooks/use-hydrated'
 import { ageLabel, dueLabel, taskTone } from '@/lib/tasks/tree'
 import type { FolderNode, TaskTone, Tree } from '@/lib/tasks/tree'
 import { cn } from '@/lib/utils'

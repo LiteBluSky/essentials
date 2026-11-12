@@ -247,6 +247,11 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] Dictation button (browser Web Speech API) in Ask Jarvis and the chat
       box; hidden where unsupported
 - [ ] Verify on the phone: dictation into the field, ntfy reminder arrives
+- [x] Tasks: drop the Upcoming and Today lists; "Up next" shows one day's
+      open tasks (today + anything left over, else the next day with any)
+- [x] Overdue open tasks are pushed again every 10 minutes until completed
+- [x] The assistant files what it creates: an existing folder that fits
+      first, else a new one for a clear topic, Unsorted only as a fallback
 
 ## 19. Contacts app
 
@@ -259,6 +264,25 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       delete, Undo) and the offline pages (`sw.js` cache v5)
 - [x] Navbar scrolls sideways when the apps don't fit; icons only on phones
 - [ ] Verify in a real browser (phone width: navbar, details view, tel:)
+
+## 22. App switcher
+
+- [x] `f` on every app: command palette of the apps (same component as
+      `z`), type or move to pick, 1–6 jumps; Bookmarks' favourite moves to `F`
+
+## 21. Calendar app
+
+- [x] `calendar_events` table (migration 0012): optional name, one of 15
+      colours, first and last day (no times, no reminders)
+- [x] `/calendar` page, full width: shadcn Calendar month grid with strips
+      in lanes spanning their days; tasks with a due date shown on their day
+- [x] Drag over days / click a day / Enter…Enter / `a` to add; click a
+      strip to edit (name, colour, days) or delete; keys and help dialog
+- [x] Navbar entry, offline page (`sw.js` cache v6)
+- [x] `o` on a day opens Tasks filtered to that day (`/tasks?day=`)
+- [x] Strip dialog: h/j/k/l through the colours and in the range picker
+- [ ] Verify in a real browser (drag, strips across weeks, phone width)
+- [ ] Optional: strips in the global search and the assistant's tools
 
 ## 20. References (`@`)
 

@@ -155,15 +155,42 @@ function byCreated(a: Task, b: Task) {
   return a.createdAt.getTime() - b.createdAt.getTime() || a.id - b.id
 }
 
-/** How many tasks "Up next" lists (keys 1-9). */
-export const UP_NEXT_COUNT = 9
+/** "Up next" numbers its first tasks for keys 1-9. */
+export const UP_NEXT_KEYS = 9
 
-/** The oldest open tasks, oldest first: they've waited longest. */
-export function upNext(tasks: Array<Task>) {
-  return tasks
+export type UpNext = {
+  /** The local day listed (`YYYY-MM-DD`): today, or the next day with any. */
+  day: string
+  tasks: Array<Task>
+}
+
+/**
+ * One day's open tasks: today's (with anything still open from earlier days,
+ * i.e. overdue or undated and left over), else the next day that has any, so
+ * there's always something to do next. Never mixes future days. Earliest
+ * first. Browser only (timezone).
+ */
+export function upNext(tasks: Array<Task>, now = new Date()): UpNext | null {
+  const today = todayName(now)
+  const open = tasks
     .filter((t) => t.completedAt === null)
-    .sort(byCreated)
-    .slice(0, UP_NEXT_COUNT)
+    .sort((a, b) => taskDay(a).getTime() - taskDay(b).getTime() || a.id - b.id)
+  const due = open.filter((t) => todayName(taskDay(t)) <= today)
+  if (due.length) return { day: today, tasks: due }
+  const first = open.at(0)
+  if (!first) return null
+  const day = todayName(taskDay(first))
+  return { day, tasks: open.filter((t) => todayName(taskDay(t)) === day) }
+}
+
+/** "today", "tomorrow", "Fri 14 Nov": the day "Up next" lists. */
+export function upNextDayLabel(day: string, now = new Date()) {
+  const [y, m, d] = day.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  const days = differenceInCalendarDays(date, now)
+  if (days === 0) return 'today'
+  if (days === 1) return 'tomorrow'
+  return format(date, days < 7 ? 'EEEE' : 'EEE d MMM')
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -262,35 +289,6 @@ export const COMPLETED_TTL_DAYS = 7
 /** Anything completed before this is past keeping. */
 export function completedCutoff(now = Date.now()) {
   return new Date(now - COMPLETED_TTL_DAYS * DAY_MS)
-}
-
-/** How many days ahead "Upcoming" looks (today included). */
-export const UPCOMING_DAYS = 7
-
-/** Open tasks that are overdue or due within `UPCOMING_DAYS`, soonest
- * first. Browser only (timezone). */
-export function upcomingTasks(tasks: Array<Task>, now = new Date()) {
-  return tasks
-    .filter(
-      (t): t is Task & { dueAt: Date } =>
-        t.completedAt === null &&
-        t.dueAt !== null &&
-        differenceInCalendarDays(t.dueAt, now) < UPCOMING_DAYS,
-    )
-    .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime() || a.id - b.id)
-}
-
-/** The tasks on today (see `taskDay`), open or done, in the order they were
- * added — except open ones with a due date, which "Upcoming" lists. Depends
- * on the timezone: browser only. */
-export function todayTasks(tasks: Array<Task>, now = new Date()) {
-  const today = todayName(now)
-  return tasks
-    .filter(
-      (t) =>
-        todayName(taskDay(t)) === today && !(t.dueAt && t.completedAt === null),
-    )
-    .sort(byCreated)
 }
 
 /** The local date as `YYYY-MM-DD`: names the "Today" folder and unnamed

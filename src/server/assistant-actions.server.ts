@@ -13,7 +13,8 @@ import { search } from './search.server'
 import { ensureTopFolder as ensureTaskFolder, insertTask } from './tasks.server'
 
 // Server-only: carrying out what the LLM asked for (Tell me and Chat alike).
-// New tasks / notes go to the top-level "Unsorted" folder of their app.
+// New tasks / notes go to the folder the model picked (checked by the
+// caller), else the top-level "Unsorted" folder of their app.
 
 const ALL_APPS: Array<SearchApp> = ['tasks', 'notes', 'bookmarks', 'contacts']
 
@@ -84,7 +85,8 @@ export async function runAction(
     const dueAt = action.due
       ? zonedTime(action.due, timeZone, DEFAULT_DUE_HOUR)
       : null
-    const folderId = await ensureTaskFolder(UNSORTED_FOLDER)
+    const folderId =
+      action.folderId ?? (await ensureTaskFolder(UNSORTED_FOLDER))
     const { id } = await insertTask({
       title: action.title,
       description: action.description,
@@ -96,7 +98,7 @@ export async function runAction(
     result.created.push(item)
     return item
   }
-  const folderId = await ensureNoteFolder(UNSORTED_FOLDER)
+  const folderId = action.folderId ?? (await ensureNoteFolder(UNSORTED_FOLDER))
   const { id } = await insertNote({
     title: action.title,
     body: action.body,

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BookmarksRouteImport } from './routes/bookmarks'
+import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as ContactsRouteImport } from './routes/contacts'
 import { Route as ManifestDotwebmanifestRouteImport } from './routes/manifest[.]webmanifest'
@@ -26,6 +27,11 @@ const IndexRoute = IndexRouteImport.update({
 const BookmarksRoute = BookmarksRouteImport.update({
   id: '/bookmarks',
   path: '/bookmarks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatRoute = ChatRouteImport.update({
@@ -62,6 +68,7 @@ const ApiRemindersRoute = ApiRemindersRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bookmarks': typeof BookmarksRoute
+  '/calendar': typeof CalendarRoute
   '/chat': typeof ChatRoute
   '/contacts': typeof ContactsRoute
   '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
@@ -72,6 +79,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/bookmarks': typeof BookmarksRoute
+  '/calendar': typeof CalendarRoute
   '/chat': typeof ChatRoute
   '/contacts': typeof ContactsRoute
   '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
@@ -83,6 +91,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/bookmarks': typeof BookmarksRoute
+  '/calendar': typeof CalendarRoute
   '/chat': typeof ChatRoute
   '/contacts': typeof ContactsRoute
   '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
@@ -95,6 +104,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/bookmarks'
+    | '/calendar'
     | '/chat'
     | '/contacts'
     | '/manifest.webmanifest'
@@ -105,6 +115,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/bookmarks'
+    | '/calendar'
     | '/chat'
     | '/contacts'
     | '/manifest.webmanifest'
@@ -115,6 +126,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/bookmarks'
+    | '/calendar'
     | '/chat'
     | '/contacts'
     | '/manifest.webmanifest'
@@ -126,6 +138,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BookmarksRoute: typeof BookmarksRoute
+  CalendarRoute: typeof CalendarRoute
   ChatRoute: typeof ChatRoute
   ContactsRoute: typeof ContactsRoute
   ManifestDotwebmanifestRoute: typeof ManifestDotwebmanifestRoute
@@ -148,6 +161,13 @@ declare module '@tanstack/react-router' {
       path: '/bookmarks'
       fullPath: '/bookmarks'
       preLoaderRoute: typeof BookmarksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chat': {
@@ -198,6 +218,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BookmarksRoute: BookmarksRoute,
+  CalendarRoute: CalendarRoute,
   ChatRoute: ChatRoute,
   ContactsRoute: ContactsRoute,
   ManifestDotwebmanifestRoute: ManifestDotwebmanifestRoute,

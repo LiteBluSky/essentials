@@ -15,7 +15,7 @@ import type { RefObject } from 'react'
 //   a      new link in the hovered (or focused) folder
 //   d      delete the hovered row (or the focused one), after confirming
 //   x      cut the focused link   p  paste it here   Esc  cancel the cut
-//   f      add/remove the hovered (or focused) link as a favourite
+//   F      add/remove the hovered (or focused) link as a favourite
 //   1-9    open that favourite in a new tab
 //   /      focus search       q  clear the search
 //   ?      show keyboard shortcuts
@@ -289,7 +289,7 @@ export function useTreeKeyboard({
           )
           return
         }
-        case 'f': {
+        case 'F': {
           const target = pointed()
           if (target?.dataset.kind !== 'link') return
           handled()

@@ -47,7 +47,7 @@ function isTyping(target: EventTarget | null) {
 /**
  * The "Tell me…" field at the top of every app: type (or dictate: the mic
  * button, or the phone keyboard's) a task, reminder or note, Enter, and the assistant
- * files it under "Unsorted" in Tasks / Notes. Only shown when the server has
+ * files it in a fitting folder (else "Unsorted") in Tasks / Notes. Only shown when the server has
  * an LLM key. Not focused on its own: `s` (while `enabled`: no dialog
  * open) or a tap goes in, Esc hands the keys back to the tree.
  */
@@ -317,7 +317,7 @@ function itemTitle(item: AssistantItem) {
 }
 
 function itemDetail(item: AssistantItem) {
-  const where = `${item.app === 'tasks' ? 'Tasks' : 'Notes'} › ${UNSORTED_FOLDER}`
+  const where = `${item.app === 'tasks' ? 'Tasks' : 'Notes'} › ${item.folder ?? UNSORTED_FOLDER}`
   return item.app === 'tasks' && item.dueAt
     ? `Due ${format(item.dueAt, 'EEE d MMM HH:mm')} · ${where}`
     : where

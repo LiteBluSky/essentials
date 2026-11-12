@@ -9,8 +9,8 @@ export const ASSISTANT_NAME = 'Jarvis'
 // The assistant ("Ask Jarvis…" field on every app): a sentence goes to an LLM
 // (OpenRouter or any OpenAI-compatible API, see assistant.server.ts), which
 // turns it into tasks and/or notes, or finds something to open (through the
-// global search). Everything it creates lands in the top-level "Unsorted"
-// folder of its app, to be filed by hand.
+// global search). What it creates is filed in a fitting folder (existing
+// first, else a new one); the top-level "Unsorted" folder when none fits.
 
 export const UNSORTED_FOLDER = 'Unsorted'
 
@@ -23,9 +23,13 @@ export const assistantInput = z.object({
 export type AssistantInput = z.infer<typeof assistantInput>
 
 /** What was created. */
-export type AssistantItem =
+export type AssistantItem = (
   | { app: 'tasks'; id: number; title: string; dueAt: Date | null }
   | { app: 'notes'; id: number; title: string }
+) & {
+  /** The folder path it was filed in; unset = "Unsorted". */
+  folder?: string
+}
 
 /** Something asked for ("open my packing list") and the best match, if any. */
 export type AssistantFound = {

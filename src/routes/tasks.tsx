@@ -1,5 +1,5 @@
 import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
   CalendarDaysIcon,
   CalendarIcon,
@@ -17,7 +17,8 @@ import {
   XIcon,
 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { z } from 'zod'
 
 import { CalendarDialog } from '@/components/tasks/calendar-dialog'
 import type { EditorState } from '@/components/tasks/editor'
@@ -26,7 +27,7 @@ import { ImportExportMenu } from '@/components/tasks/import-export-menu'
 import { ShortcutsDialog } from '@/components/tasks/shortcuts-dialog'
 import { TaskList, TaskTree } from '@/components/tasks/task-tree'
 import { TreeDndProvider } from '@/components/tasks/tree-dnd'
-import { TodayTasks, UpNext, UpcomingTasks } from '@/components/tasks/up-next'
+import { UpNext } from '@/components/tasks/up-next'
 import { AppNav } from '@/components/app-nav'
 import { AssistantBox } from '@/components/assistant-box'
 import { GlobalSearch } from '@/components/global-search'
@@ -50,7 +51,7 @@ import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { Separator } from '@/components/ui/separator'
 import { useCompleteTask } from '@/hooks/tasks/use-complete-task'
 import { useCutTask } from '@/hooks/tasks/use-cut-task'
-import { useHydrated } from '@/hooks/tasks/use-hydrated'
+import { useHydrated } from '@/hooks/use-hydrated'
 import { useTaskView } from '@/hooks/tasks/use-task-view'
 import { useTreeKeyboard } from '@/hooks/tasks/use-tree-keyboard'
 import { useAppSwitch } from '@/hooks/use-app-switch'
@@ -69,14 +70,21 @@ import {
   flatTasks,
   folderPath,
   todayName,
-  todayTasks,
+  UP_NEXT_KEYS,
   upNext,
-  upcomingTasks,
 } from '@/lib/tasks/tree'
 import { assistantEnabledQueryOptions } from '@/server/assistant.functions'
 import { tasksTreeQueryOptions } from '@/server/tasks.functions'
 
 export const Route = createFileRoute('/tasks')({
+  // `?day=YYYY-MM-DD` (from the Calendar's `o`): open filtered to that day.
+  validateSearch: z.object({
+    day: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional()
+      .catch(undefined),
+  }),
   loader: ({ context }) =>
     Promise.all([
       context.queryClient.ensureQueryData(tasksTreeQueryOptions),
@@ -100,7 +108,16 @@ function Home() {
   )
 
   // A day picked in the calendar (`YYYY-MM-DD`): only tasks dated that day.
-  const [day, setDay] = useState<string | null>(null)
+  // Also given as `?day=` (Calendar app), then dropped from the URL so the
+  // chip / `q` clears it as usual.
+  const search = Route.useSearch()
+  const navigateTasks = useNavigate({ from: '/tasks' })
+  const [day, setDay] = useState<string | null>(search.day ?? null)
+  useEffect(() => {
+    if (!search.day) return
+    setDay(search.day)
+    void navigateTasks({ search: {}, replace: true })
+  }, [search.day, navigateTasks])
   const dated = useMemo(
     () => (day ? filterDay(shown, day) : shown),
     [shown, day],
@@ -114,15 +131,10 @@ function Home() {
     () => (view.layout === 'list' ? flatTasks(visible, view.status) : []),
     [visible, view],
   )
-  const next = useMemo(() => upNext(data.tasks), [data.tasks])
-  // Dated today in the browser's timezone, so only once hydrated.
+  // Dated in the browser's timezone, so only once hydrated.
   const hydrated = useHydrated()
-  const today = useMemo(
-    () => (hydrated ? todayTasks(data.tasks) : []),
-    [hydrated, data.tasks],
-  )
-  const upcoming = useMemo(
-    () => (hydrated ? upcomingTasks(data.tasks) : []),
+  const next = useMemo(
+    () => (hydrated ? upNext(data.tasks) : null),
     [hydrated, data.tasks],
   )
   const complete = useCompleteTask()
@@ -235,7 +247,7 @@ function Home() {
     onPaste: clipboard.paste,
     onCancelCut: clipboard.cancel,
     onOpenUpNext: (index) => {
-      const task = next.at(index)
+      const task = index < UP_NEXT_KEYS ? next?.tasks.at(index) : undefined
       if (task) openEditor({ kind: 'task', mode: 'view', taskId: task.id })
     },
     onCalendar: () => setCalendarOpen(true),
@@ -323,13 +335,7 @@ function Home() {
         enabled={false}
         onExpand={(id) => setOpen(id, true)}
       >
-        <UpcomingTasks
-          tasks={upcoming}
-          onEdit={openEditor}
-          onComplete={complete}
-        />
-        <TodayTasks tasks={today} onEdit={openEditor} onComplete={complete} />
-        <UpNext tasks={next} onEdit={openEditor} onComplete={complete} />
+        <UpNext next={next} onEdit={openEditor} onComplete={complete} />
       </TreeDndProvider>
 
       <div className="flex flex-wrap gap-2">

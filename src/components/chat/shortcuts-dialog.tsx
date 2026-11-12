@@ -43,6 +43,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
     shortcuts: [
       { keys: [['s']], action: `Message ${ASSISTANT_NAME}` },
       { keys: [['z']], action: 'Search everything (all apps)' },
+      { keys: [['f']], action: 'Switch app (type its name, or pick it)' },
       {
         keys: [['@']],
         action: 'In the message box: link to a bookmark, note, task or contact',

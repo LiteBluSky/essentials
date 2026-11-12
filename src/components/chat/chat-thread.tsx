@@ -256,6 +256,7 @@ function CreatedMarker({ item }: { item: AssistantItem }) {
         {item.app === 'tasks' && item.dueAt
           ? ` · due ${format(item.dueAt, 'EEE d MMM HH:mm')}`
           : ''}
+        {item.folder ? ` · in ${item.folder}` : ''}
       </MarkerContent>
       <Button size="xs" variant="outline" onClick={() => open(item)}>
         Open

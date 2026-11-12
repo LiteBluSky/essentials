@@ -2,7 +2,8 @@
 
 A personal, local-only set of small apps in one: **Bookmarks** (links),
 **Notes** (markdown), **Tasks** (to-dos) and **Contacts** (people), each organised into folders and subfolders and shown as
-a file tree, plus an optional **Chat** (ask an LLM about all of it), with a
+a file tree, plus a **Calendar** (coloured strips over days, and the tasks
+due) and an optional **Chat** (ask an LLM about all of it), with a
 navbar to switch between them. The display name is
 configurable (`VITE_APP_NAME`, default "Essentials", read via `APP_NAME` in
 `src/lib/config.ts`) — never hardcode the product name in UI, titles or
@@ -67,8 +68,8 @@ Each app is self-contained and namespaced; only the shell is shared.
 - **Registry**: `src/lib/apps.ts` (`APPS`: path, name, lucide icon) drives
   the navbar (`src/components/app-nav.tsx`) and app switching
   (`src/hooks/use-app-switch.ts`). `/` redirects to the first app.
-- **Per app** (`<app>` = `bookmarks`, `notes`, `tasks`, `contacts`; Chat is the
-  exception: no folders or tree, see its section): route `src/routes/<app>.tsx`,
+- **Per app** (`<app>` = `bookmarks`, `notes`, `tasks`, `contacts`; Chat and
+  Calendar are the exceptions: no folders or tree, see their sections): route `src/routes/<app>.tsx`,
   UI in `src/components/<app>/`, hooks in `src/hooks/<app>/`, pure helpers
   and Zod schemas in `src/lib/<app>/`, server code in
   `src/server/<app>.functions.ts` + `<app>.server.ts`, its own tables, its
@@ -76,7 +77,8 @@ Each app is self-contained and namespaced; only the shell is shared.
   localStorage keys (`<app>:…`, e.g. `useExpandedFolders('<app>')`).
 - **Shared**: `lib/config.ts`, `lib/theme.ts`, `lib/shortcuts.ts`
   (`search`, `newFolder`), `hooks/use-expanded-folders.ts`,
-  `hooks/use-install-app.ts`, `components/theme-toggle.tsx`, the global
+  `hooks/use-install-app.ts`, `hooks/use-hydrated.ts`,
+  `components/theme-toggle.tsx`, the global
   search (`components/global-search.tsx`, `hooks/use-global-search.ts`,
   `lib/global-search.ts`, `server/search.*.ts`), the assistant
   (`components/assistant-box.tsx`, `lib/assistant.ts`,
@@ -139,6 +141,10 @@ One SQLite file holds every app. Bookmark tables keep their original names.
   conversation deletes its messages explicitly. A conversation idle for
   `CHAT_TTL_DAYS` (7; by `updatedAt`, i.e. its last turn) is deleted with
   its messages (`purgeOldConversations`, lazily whenever the list loads).
+- `calendar_events` — the Calendar's strips: `title` (`''` = none),
+  `color` (a key of `CALENDAR_COLORS` in `src/lib/calendar/colors.ts`),
+  `startDay` / `endDay` (inclusive local days as `YYYY-MM-DD` text: no
+  times, no timezone), timestamps. No folders, no reminders, no bin.
 - `assistant_log` — one row per "Tell me…" request or chat turn (`source`
   `tell` | `chat`): `text`, `provider`,
   `model`, `ok`, `result` (one line per item done, or the error),
@@ -273,7 +279,7 @@ edit/move, copy URL, favourite, move up/down, delete.
 
 **Favourites**: at most 9 (`MAX_FAVORITES`, enforced server-side in
 `setFavorite`). Listed above the search (`favorites-list.tsx`), each row
-with the same hover menu as in the tree (`LinkMenu`); toggled from the link's row menu or `f`
+with the same hover menu as in the tree (`LinkMenu`); toggled from the link's row menu or `F`
 (`src/hooks/bookmarks/use-favorite.ts`, optimistic).
 
 **Import/export** (`src/components/bookmarks/import-export-menu.tsx`): JSON
@@ -342,11 +348,7 @@ A to-do list. The row menu has open, complete/reopen, edit/move, move up/down
 
 - **No dated folders**: a task with no folder picked goes to the top level;
   folders need a name. A task's calendar day is `taskDay` = `dueAt ??
-createdAt`. **Upcoming** (`UpcomingTasks` in `up-next.tsx`,
-  `upcomingTasks`) lists open tasks overdue or due within 7 days, soonest
-  first; **Today** (`todayTasks`) the tasks whose day is today (open and
-  done, wherever they're filed) except open due ones (in Upcoming). Both
-  above Up next, shown after hydration only.
+createdAt`.
 - **Colours** (`taskTone` in `src/lib/tasks/tree.ts`, tokens `--warning` /
   `--success` in `styles.css` next to `--destructive`): green when done.
   With a due date: red once past it, yellow on its day. Without: red after
@@ -376,9 +378,12 @@ createdAt`. **Upcoming** (`UpcomingTasks` in `up-next.tsx`,
 - **Reminders** (`src/server/reminders.server.ts`): once an open task's
   reminder time (`dueAt − remindMinutes`, compared in SQL in seconds)
   passes, it's pushed to `NTFY_URL`/`NTFY_TOPIC` (ntfy app on the phone)
-  once and `remindedAt` set; reminders more than a day late are skipped.
-  The body reads "Due in 15 min · <folder>" (or "Due now"), then the
-  description. The form's **Remind** select (shown once a due day is
+  and `remindedAt` set (the last push); early reminders more than a day
+  late are skipped. It's pushed again when it falls due, then every
+  `NAG_MINUTES` (10) while it's overdue and still open — dismissing the
+  notification doesn't stop it, completing the task does (no reminder =
+  no nagging). The body reads "Due in 15 min · <folder>" ("Due now",
+  "Overdue by 40 min"), then the description. The form's **Remind** select (shown once a due day is
   picked; `REMIND_OPTIONS` in `src/lib/tasks/tree.ts`): at the due time,
   5/15/30 min, 1/2 hours or 1 day before, or no reminder.
   The Nitro plugin `src/server/reminders.plugin.ts` (registered in
@@ -398,8 +403,12 @@ createdAt`. **Upcoming** (`UpcomingTasks` in `up-next.tsx`,
   new-task form due that day (`EditorState.date`). It opens on the filtered day, else today. Like the
   global search, it acts once fully closed and doesn't return focus then
   (`returnFocus`, reset when it next opens), so the form keeps focus.
-- **Up next** (`up-next.tsx`, `upNext`): the 9 oldest open tasks, oldest
-  first, keys `1`–`9`; newer ones aren't listed until those are done.
+- **Up next** (`up-next.tsx`, `upNext`; the only list above the search):
+  one day's open tasks, earliest first, titled with the day ("Up next ·
+  today"). Today's, including anything still open from earlier days
+  (overdue, or undated and left over); if none, the next day that has any
+  (tomorrow, Friday…) — never several future days mixed. The first 9 have
+  keys `1`–`9`. After hydration only (the browser's day).
 - Clicking a task / `o` / Enter opens its details (`TaskView` in
   `editor-dialogs.tsx`): path, title, description, due/created/completed dates;
   `c` completes, `e` edits, `d` deletes. The form is Task (focused),
@@ -453,8 +462,10 @@ Both run the same **tool loop** (`runAgent` in `agent.server.ts`, at most
 (`agent-tools.server.ts`): **look-ups** `search` (the global search),
 `read_item` (a bookmark / note / task in full, note text capped at 20k
 chars), `list_tasks` (status + local due-day range), `list_folders`;
-**create / open** (`ACTION_TOOLS`: `create_task`, `create_note` into
-Unsorted, `open_item`), `create_bookmark` (Unsorted unless `folder_id`);
+**create / open** (`ACTION_TOOLS`: `create_task`, `create_note`,
+`open_item`), `create_bookmark`, `create_contact` (each create takes an
+optional `folder_id`, checked against that app's folders by `badFolder`;
+none = Unsorted);
 **edits** `update_item` (only the fields given: tasks title / description
 / due / remind / done, notes title / text, bookmarks title / url /
 description / favourite, any `folder_id` to move), `delete_item`,
@@ -530,10 +541,17 @@ shape (`ACTION_TOOLS` in `assistant.server.ts`; carried out by
 converted with `zonedTime`), `create_note { title?, body }` and
 `open_item { query, app?, folder? }`. The prompt makes a **list** (shopping,
 packing…) **one note** with a `- [ ] item` checklist, never several tasks;
-separate unrelated actions stay separate tasks. Every created item
-goes into the top-level **Unsorted** folder of its app (`UNSORTED_FOLDER`,
-found case-insensitively or created: `ensureTopFolder` in each app's
-server file); no folder guessing. It now runs the tool loop above
+separate unrelated actions stay separate tasks. **Filing** (`APP_PROMPT`):
+before creating, the model calls `list_folders` for the app and passes a
+`folder_id`: the folder the user named, else an existing folder that fits
+the topic (even roughly; the most specific subfolder), else — only for a
+clear, lasting topic — a new short, general folder it creates first
+(`create_folder`, in the style of the existing names, never per item).
+With nothing fitting it leaves `folder_id` out and the item goes into the
+top-level **Unsorted** folder of its app (`UNSORTED_FOLDER`, found
+case-insensitively or created: `ensureTopFolder` in each app's server
+file). The created item carries its `folder` path for the toast / chat
+marker. It now runs the tool loop above
 (`tellPrompt` in `assistant.server.ts`), so it can also edit, delete and
 answer quick questions. Edits show one toast listing the changes with
 **Undo**; an answer with nothing done shows as a toast. On success the field clears, the trees
@@ -580,7 +598,7 @@ copy phone / email, move up/down, delete. No favourites and no bin (a
 delete is final). Import/export: `{ format: 1, folders: [{ name, folders,
 contacts }], contacts: [{ name, phone?, email?, address?, knownFrom?,
 description? }] }`, appended like the other apps. The assistant can
-search, read, create (`create_contact`, into Unsorted), edit and delete
+search, read, create (`create_contact`, filed like the rest), edit and delete
 contacts, with Undo.
 
 ### Chat (`/chat`)
@@ -610,6 +628,45 @@ instead when it has focus), `gg`/`G` latest/oldest, `a` new chat, `d` /
 `Delete` delete the open one (`d` again confirms), `s` focuses the message
 box (Enter sends, Shift+Enter new line, Esc leaves it), `z` global search,
 `Shift+H` / `Shift+L` switch apps.
+
+### Calendar (`/calendar`)
+
+A month view of coloured **strips**, each over one day or a range of days
+— no times or durations, no reminders: just "something's on then". Fills
+the whole page (not centred like the other apps). The grid is shadcn's
+`Calendar` (react-day-picker v10) stretched out (`month-grid.tsx`): weeks
+start on Monday, always 6 weeks (`fixedWeeks`), the caption hidden (the
+month and its prev / Today / next buttons are in the header). Custom
+`Day` cells hold the strips and `DayButton` is the day number (DayPicker
+keeps its keyboard focus handling). **Lanes** (`layoutWeeks` in
+`src/lib/calendar/layout.ts`, pure): per week, strips sorted by start
+(longer first, events before tasks) get the first free lane; every day of
+the week gets as many lanes as that week needs, so a strip is drawn once
+per week, in its first day there, `span × 100%` wide over the next cells
+(grid lines are inset shadows so the cells stay exactly equal), and the
+days it covers keep an empty lane. A strip cut by the week edge is squared
+off on that side.
+
+- **Adding**: drag over days (pointer events on the cells; the day under
+  the pointer is found with `elementFromPoint`, so it works for touch too)
+  or click one day; with the keyboard, Enter / Space on a day starts a
+  range, moving extends it, Enter again adds it (Esc cancels); `a` adds on
+  the focused day (or the range). Either way the dialog
+  (`event-dialog.tsx`) opens: Name (optional), Colour (15 swatches,
+  shadcn `ToggleGroup`; a new strip starts with the colour last used,
+  `calendar:color` in localStorage) and Days (a range `Calendar`). Only the
+  days are required. Clicking a strip edits it (change any of it,
+  Delete confirms, `d` `d`).
+- **Tasks** with a due date show as neutral outlined strips on their due
+  day (open: ○, done: ✓ struck through), only after hydration (the
+  browser's day); clicking one opens it in Tasks (`requestOpen` +
+  navigate). Undated tasks aren't shown. The server reads them straight
+  from the `tasks` table (`calendar.server.ts`), like the global search.
+- One query (`calendarQueryOptions`, key `['calendar', 'data']`): every
+  strip plus the dated tasks. The whole grid renders after hydration.
+- Not (yet) in the global search, `@` references or the assistant's
+  tools, and no `AssistantBox` (the grid gets the room). Its ⋮ menu
+  (`calendar-menu.tsx`) has Settings, Assistant history and Install.
 
 **Navbar** (`components/app-nav.tsx`, every app): one icon button per
 app (`APPS`), the current one highlighted (`secondary`, `aria-current`),
@@ -645,7 +702,7 @@ can't read the secrets back.
 - Bookmarks tree, vim-style (`src/hooks/bookmarks/use-tree-keyboard.ts`): `j/k` down/up, `h`
   collapse / go to parent, `l` expand / into first child, `gg`/`G` first/last, `n`/`N` next/previous visible link (wraps),
   `o`/`Enter` open or toggle, `a` new link in the hovered/focused folder
-  (or the hovered link's folder), `f` add/remove favourite (hovered row, else
+  (or the hovered link's folder), `F` add/remove favourite (hovered row, else
   focused), `1`–`9` open that favourite in a new tab, `r` edit, `d` delete (hovered row, else
   focused; confirms first), `/` search, `q` clear the search. Arrow keys
   mirror hjkl. `x` cuts a link, `p` pastes it into the focused folder /
@@ -671,13 +728,31 @@ can't read the secrets back.
   `i` calendar, `d` or `Delete` delete, `1`–`9` Up next, `q` clears the
   search and the date filter.
 - Contacts tree (`src/hooks/contacts/use-tree-keyboard.ts`): the bookmarks
-  motions without favourites (`f`, `1`–`9`): `o`/Enter shows the contact,
+  motions without favourites (`F`, `1`–`9`): `o`/Enter shows the contact,
   `a` new contact, `r` edit, `d` delete, `x`/`p` cut and paste
   (`src/hooks/contacts/use-cut-contact.ts`).
+- Calendar (`src/routes/calendar.tsx`; help in
+  `components/calendar/shortcuts-dialog.tsx`): `h`/`l` day, `k`/`j` week
+  (arrows too), `m`/`M` (PageDown/PageUp) month — sent to DayPicker as
+  the keys it already handles — `t` today, Enter/Space start / finish a
+  range, `a` new strip, `o` that day's tasks (navigates to
+  `/tasks?day=YYYY-MM-DD`; Tasks' `validateSearch` takes it into its
+  day filter and drops it from the URL, so the chip / `q` clear it), Esc
+  cancels the range, `z`, `f`, `?`, `Shift+H/L`. In the strip dialog,
+  `h`/`l` (`k`/`j`) step through the colours (8 a row) and pick them, and
+  the range picker takes `h`/`j`/`k`/`l` and `m`/`M` too (`sendDayKey` in
+  `components/calendar/day-keys.ts`, shared with the month grid);
+  Ctrl+Enter saves from anywhere in it (caught in capture on the form).
 - Delete confirmations (every app): `d` presses Delete, so `d` `d`
   deletes (`useConfirmKey` in `src/hooks/use-confirm-key.ts`; repeats of a
   held key are ignored).
 - `z` opens the global search on every app (`useGlobalSearch`).
+- `f` opens the **app switcher** on every app (`components/app-switcher.tsx`,
+  mounted once in `__root.tsx` with its own listener; off while typing or
+  while any dialog / menu / listbox is open): the same Dialog + Command as
+  the global search, listing `APPS` with the next app highlighted; type to
+  filter, ↑/↓ (Ctrl+J/K) and Enter, or press the app's number (1–6).
+  That's why Bookmarks' favourite key is `F`.
 - `@` in a free-text field opens the reference suggestions (see
   References); listed in every app's shortcuts help.
 - `s` focuses the "Tell me…" field (when shown); `Esc` in it blurs it so the

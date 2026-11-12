@@ -1,29 +1,41 @@
-import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm'
+import { and, eq, isNotNull, isNull, lt, or, sql } from 'drizzle-orm'
 
 import { db } from '@/db'
 import { taskFolders, tasks } from '@/db/schema'
 import { leadLabel } from '@/lib/tasks/tree'
 import { readSettings } from './settings.server'
 
-// Phone reminders: when an open task falls due, it's pushed once through
-// ntfy (https://ntfy.sh, or a self-hosted server) to the topic the phone's
-// ntfy app subscribes to, `remindMinutes` before it's due (0 = at the due
-// time, null = never), then marked `remindedAt`. Off unless NTFY_TOPIC is
+// Phone reminders: an open task is pushed through ntfy (https://ntfy.sh, or
+// a self-hosted server) to the topic the phone's ntfy app subscribes to,
+// `remindMinutes` before it's due (0 = at the due time, null = never), again
+// when it falls due, then every `NAG_MINUTES` while it's overdue and still
+// open (dismissing the notification isn't doing it); `remindedAt` is the
+// last push. Off unless NTFY_TOPIC is
 // set (Settings…, or the env). Run every minute by the Nitro plugin (reminders.plugin.ts) through
 // the /api/reminders route. Only import from server code.
 
-/** Reminders more than this late are never pushed (e.g. after downtime). */
+/** An overdue open task is pushed again this often until it's done. */
+export const NAG_MINUTES = 10
+
+/** Early reminders more than this late are never pushed (e.g. after
+ * downtime); once due, the overdue ones take over. */
 const MAX_LATE_MS = 24 * 60 * 60 * 1000
 
 /** When a task's reminder is due, in seconds (as stored). */
 const remindAt = sql`${tasks.dueAt} - ${tasks.remindMinutes} * 60`
 
-/** "Due in 15 min", "Due in 1 day", "Due now". */
+/** "Due in 15 min", "Due now", "Overdue by 40 min" / "3 hours" / "2 days". */
 function dueIn(dueAt: Date | null, now: Date) {
-  const minutes = dueAt
-    ? Math.ceil((dueAt.getTime() - now.getTime()) / 60_000)
-    : 0
-  return minutes > 0 ? `Due in ${leadLabel(minutes)}` : 'Due now'
+  const minutes = dueAt ? (dueAt.getTime() - now.getTime()) / 60_000 : 0
+  if (minutes > 0) return `Due in ${leadLabel(Math.ceil(minutes))}`
+  const late = Math.floor(-minutes)
+  if (late < 1) return 'Due now'
+  const plural = (n: number, unit: string) =>
+    `${n} ${unit}${n === 1 ? '' : 's'}`
+  if (late < 60) return `Overdue by ${late} min`
+  if (late < 24 * 60)
+    return `Overdue by ${plural(Math.floor(late / 60), 'hour')}`
+  return `Overdue by ${plural(Math.floor(late / (24 * 60)), 'day')}`
 }
 
 async function ntfyConfig() {
@@ -63,11 +75,14 @@ export async function push({ title, message, tags = 'alarm_clock' }: Push) {
   }
 }
 
-/** Pushes every open task whose reminder time (dueAt − remindMinutes) has
- * come and that wasn't pushed yet; returns how many went out. */
+/** Pushes every open task whose early reminder (dueAt − remindMinutes) has
+ * come and wasn't pushed yet, that just fell due, or that's overdue and
+ * wasn't pushed for `NAG_MINUTES`; returns how many went out. */
 export async function sendDueReminders(now = new Date()) {
   if (!(await ntfyConfig())) return 0
   let sent = 0
+  // Timestamps are stored in seconds.
+  const nowS = Math.floor(now.getTime() / 1000)
   const due = await db
     .select({
       id: tasks.id,
@@ -81,12 +96,26 @@ export async function sendDueReminders(now = new Date()) {
     .where(
       and(
         isNull(tasks.completedAt),
-        isNull(tasks.remindedAt),
         isNotNull(tasks.dueAt),
         isNotNull(tasks.remindMinutes),
-        // Timestamps are stored in seconds.
-        sql`${remindAt} <= ${Math.floor(now.getTime() / 1000)}`,
-        sql`${remindAt} > ${Math.floor((now.getTime() - MAX_LATE_MS) / 1000)}`,
+        or(
+          // The early reminder, before it's due.
+          and(
+            isNull(tasks.remindedAt),
+            sql`${tasks.dueAt} > ${nowS}`,
+            sql`${remindAt} <= ${nowS}`,
+            sql`${remindAt} > ${nowS - MAX_LATE_MS / 1000}`,
+          ),
+          // Due: once at the due time, then every NAG_MINUTES until done.
+          and(
+            sql`${tasks.dueAt} <= ${nowS}`,
+            or(
+              isNull(tasks.remindedAt),
+              lt(tasks.remindedAt, tasks.dueAt),
+              sql`${tasks.remindedAt} <= ${nowS - NAG_MINUTES * 60}`,
+            ),
+          ),
+        ),
       ),
     )
   for (const task of due) {

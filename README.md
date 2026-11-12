@@ -1,8 +1,9 @@
 # Essentials
 
 A handful of small personal apps in one: **Bookmarks** (links), **Notes**
-(markdown), **Tasks** (a to-do list with due dates and phone reminders) and
-**Contacts** (people: phone, email, address, where you know them from), each organised into folders and subfolders and shown as a file
+(markdown), **Tasks** (a to-do list with due dates and phone reminders), a
+**Calendar** (coloured strips over days or date ranges, with the tasks due) and
+**Contacts** (people: phone, email, address, where you know them from); all but the Calendar are organised into folders and subfolders and shown as a file
 tree. Optionally, a **"Tell me…"** field on every app turns a typed or
 dictated sentence into a task or note, and a **Chat** app answers questions
 about everything you've saved. Switch between them with the navbar at the top, or `Shift+H` /
@@ -284,8 +285,10 @@ variables of the same names (`.env.local`, or a `.env` next to
 **"Tell me…"** — a field at the top of every app (press `s` or tap it).
 Type (or tap the phone keyboard's mic and talk) something like
 _"remind me to call the dentist Friday at 3"_ or _"note: cabin wifi is
-abc123"_, press Enter, and it's created in the **Unsorted** folder of Tasks
-or Notes, ready to file. A list (_"shopping list: milk, eggs, bread"_)
+abc123"_, press Enter, and it's created and filed: into the folder you
+name, else an existing folder that fits (a dentist appointment into
+"Health"), else a new folder when the topic clearly deserves one, and only
+into **Unsorted** when nothing fits. A list (_"shopping list: milk, eggs, bread"_)
 becomes one note with a checklist. It also finds things: _"open my packing
 list"_, _"find the dentist task"_ or _"go to the GitHub link"_ opens the
 best match (links in a new tab). It needs an LLM key, set in Settings:
@@ -327,8 +330,9 @@ pushes it to your phone through [ntfy](https://ntfy.sh):
 
 Each task picks when it reminds you (the **Remind** field, under Due): at
 the due time (the default), 5 / 15 / 30 minutes, 1 / 2 hours or a day
-before, or not at all. It's pushed once (changing the due date or the
-reminder re-arms it); the server checks every minute, so it must be
+before, or not at all. It's pushed then, again when it falls due, and
+every 10 minutes after that until the task is completed (changing the due
+date or the reminder re-arms it); the server checks every minute, so it must be
 running. Works over plain http on the
 LAN: the push goes server → ntfy → phone.
 

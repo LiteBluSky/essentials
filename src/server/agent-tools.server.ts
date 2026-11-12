@@ -240,7 +240,7 @@ export const EDIT_TOOLS: Array<ToolDef> = [
   {
     name: 'create_bookmark',
     description:
-      'Save a link (bookmark). It goes to the "Unsorted" folder unless folder_id is given.',
+      'Save a link (bookmark), into folder_id (from list_folders for bookmarks), else the "Unsorted" folder.',
     parameters: {
       type: 'object',
       properties: {
@@ -256,7 +256,7 @@ export const EDIT_TOOLS: Array<ToolDef> = [
   {
     name: 'create_contact',
     description:
-      'Save a person as a contact. It goes to the "Unsorted" folder unless folder_id is given. Only fill in what the user said.',
+      'Save a person as a contact, into folder_id (from list_folders for contacts), else the "Unsorted" folder. Only fill in what the user said.',
     parameters: {
       type: 'object',
       properties: {
@@ -795,6 +795,8 @@ export async function runTool(
     case 'create_bookmark': {
       const parsed = bookmarkArgs.safeParse(args)
       if (!parsed.success) return bad
+      const wrongFolder = await badFolder('bookmarks', parsed.data.folder_id)
+      if (wrongFolder) return wrongFolder
       const folderId =
         parsed.data.folder_id ?? (await ensureBookmarksUnsorted())
       const input = linkInput.parse({
@@ -821,6 +823,8 @@ export async function runTool(
   if (name === 'create_contact') {
     const parsed = contactArgs.safeParse(args)
     if (!parsed.success) return bad
+    const wrongFolder = await badFolder('contacts', parsed.data.folder_id)
+    if (wrongFolder) return wrongFolder
     const input = contactInput.safeParse({
       name: parsed.data.name,
       phone: parsed.data.phone ?? '',
@@ -847,7 +851,15 @@ export async function runTool(
   // create_task / create_note / open_item (the Tell me tools).
   const action = toAction({ id: '', name, args })
   if (!action) return { error: `Unknown tool or bad arguments: ${name}` }
+  let folder: string | undefined
+  if (action.kind !== 'open' && action.folderId !== undefined) {
+    const app = action.kind === 'task' ? 'tasks' : 'notes'
+    const wrong = await badFolder(app, action.folderId)
+    if (wrong) return wrong
+    folder = (await folderList(app)).path(action.folderId)
+  }
   const done = await runAction(action, ctx.timeZone, ctx.result)
+  if (!('query' in done)) done.folder = folder
   if ('query' in done) {
     return done.match
       ? {
@@ -870,6 +882,18 @@ export async function runTool(
     created: { app: done.app, id: done.id, title: done.title },
     ref: refFor(done.app, done.title.split('\n')[0].slice(0, 80), done.id),
   }
+}
+
+/** An error if `folderId` isn't one of `app`'s folders (the model may mix
+ * up apps or invent an id); undefined / null are fine. */
+async function badFolder(app: App, folderId: number | null | undefined) {
+  if (folderId == null) return null
+  const { rows } = await folderList(app)
+  return rows.some((f) => f.id === folderId)
+    ? null
+    : {
+        error: `No ${app} folder with id ${folderId}: call list_folders for ${app}`,
+      }
 }
 
 /** The bookmarks' top-level "Unsorted" folder, created if needed. */

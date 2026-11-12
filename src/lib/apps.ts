@@ -1,5 +1,6 @@
 import {
   BookmarkIcon,
+  CalendarDaysIcon,
   ContactRoundIcon,
   ListChecksIcon,
   MessagesSquareIcon,
@@ -14,6 +15,7 @@ export const APPS = [
   { path: '/bookmarks', name: 'Bookmarks', icon: BookmarkIcon },
   { path: '/notes', name: 'Notes', icon: NotebookPenIcon },
   { path: '/tasks', name: 'Tasks', icon: ListChecksIcon },
+  { path: '/calendar', name: 'Calendar', icon: CalendarDaysIcon },
   { path: '/contacts', name: 'Contacts', icon: ContactRoundIcon },
   { path: '/chat', name: 'Chat', icon: MessagesSquareIcon },
 ] as const satisfies ReadonlyArray<{
