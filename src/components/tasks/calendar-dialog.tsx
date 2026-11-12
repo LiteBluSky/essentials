@@ -77,10 +77,10 @@ export function CalendarKeysHint({
 /**
  * The month at a glance (`i` or the header button): a dot per task on the
  * day it's due (or was created, without a due date), coloured like the
- * task, and the selected day's tasks listed below (a click opens one). The
- * same keys as the form's date picker move the selection (a click selects
- * too); Enter (or the button) shows that day's tasks in the list, `a` (or
- * the button) starts a new task due that day.
+ * task. The same keys as the form's
+ * date picker move the selection (a click selects too); Enter (or the
+ * button) shows that day's tasks in the list, `a` (or the button) starts a
+ * new task due that day.
  */
 export function CalendarDialog({
   open,
@@ -88,7 +88,6 @@ export function CalendarDialog({
   tasks,
   selected,
   onNewTask,
-  onOpenTask,
   onShowDay,
 }: {
   open: boolean
@@ -98,8 +97,6 @@ export function CalendarDialog({
   selected?: Date
   /** New task due this day (opened once this dialog has closed). */
   onNewTask: (date: Date) => void
-  /** Open a task's details (once this dialog has closed). */
-  onOpenTask: (id: number) => void
   /** Filter the list to this day's tasks. */
   onShowDay: (date: Date) => void
 }) {
@@ -111,23 +108,15 @@ export function CalendarDialog({
       if (list) list.push(task)
       else map.set(key, [task])
     }
-    for (const list of map.values()) {
-      list.sort((a, b) => taskDay(a).getTime() - taskDay(b).getTime())
-    }
     return map
   }, [tasks])
 
-  // A new task / a task's details open once this dialog is gone, and this
-  // dialog doesn't hand focus back to what opened it (the other dialog has
-  // it by then). The flag is only reset once it has opened again: Base UI
-  // may restore focus after onOpenChangeComplete.
-  const picked = useRef<Picked | null>(null)
+  // A new task is opened once this dialog is gone, and this dialog doesn't
+  // hand focus back to what opened it (the form has it by then). The flag is
+  // only reset once it has opened again: Base UI may restore focus after
+  // onOpenChangeComplete.
+  const picked = useRef<Date | null>(null)
   const returnFocus = useRef(true)
-  const pick = (next: Picked) => {
-    picked.current = next
-    returnFocus.current = false
-    onOpenChange(false)
-  }
 
   return (
     <Dialog
@@ -135,13 +124,11 @@ export function CalendarDialog({
       onOpenChange={onOpenChange}
       onOpenChangeComplete={(isOpen) => {
         if (isOpen) returnFocus.current = true
-        const next = picked.current
-        if (isOpen || !next) return
+        const date = picked.current
+        if (isOpen || !date) return
         picked.current = null
         // After the popup has unmounted and any focus handling is done.
-        setTimeout(() =>
-          next.kind === 'new' ? onNewTask(next.date) : onOpenTask(next.id),
-        )
+        setTimeout(() => onNewTask(date))
       }}
     >
       <DialogContent
@@ -152,8 +139,11 @@ export function CalendarDialog({
           <CalendarBody
             byDay={byDay}
             initial={selected}
-            onNewTask={(date) => pick({ kind: 'new', date })}
-            onOpenTask={(id) => pick({ kind: 'open', id })}
+            onNewTask={(date) => {
+              picked.current = date
+              returnFocus.current = false
+              onOpenChange(false)
+            }}
             onShowDay={(date) => {
               onShowDay(date)
               onOpenChange(false)
@@ -165,20 +155,16 @@ export function CalendarDialog({
   )
 }
 
-type Picked = { kind: 'new'; date: Date } | { kind: 'open'; id: number }
-
 // Mounted per opening, so it starts on `initial` (or today) each time.
 function CalendarBody({
   byDay,
   initial,
   onNewTask,
-  onOpenTask,
   onShowDay,
 }: {
   byDay: ReadonlyMap<string, Array<Task>>
   initial?: Date
   onNewTask: (date: Date) => void
-  onOpenTask: (id: number) => void
   onShowDay: (date: Date) => void
 }) {
   const [date, setDate] = useState(() => initial ?? new Date())
@@ -226,40 +212,6 @@ function CalendarBody({
           className="[--cell-size:--spacing(11)]"
         />
       </div>
-      {dayTasks.length > 0 && (
-        <ul className="flex max-h-48 flex-col overflow-y-auto">
-          {dayTasks.map((task) => (
-            <li key={task.id}>
-              <Button
-                variant="ghost"
-                className="w-full justify-start"
-                onClick={() => onOpenTask(task.id)}
-              >
-                <span
-                  aria-hidden
-                  className={cn(
-                    'size-2 shrink-0 rounded-full',
-                    DOT_TONE[taskTone(task)],
-                  )}
-                />
-                <span
-                  className={cn(
-                    'truncate',
-                    task.completedAt && 'text-muted-foreground line-through',
-                  )}
-                >
-                  {task.title}
-                </span>
-                {task.dueAt && (
-                  <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-                    {format(task.dueAt, 'HH:mm')}
-                  </span>
-                )}
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
       <CalendarKeysHint action="show its tasks" actionKey="Enter" />
       <DialogFooter>
         <Button variant="outline" onClick={() => onShowDay(date)}>

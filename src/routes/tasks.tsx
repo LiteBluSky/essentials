@@ -532,9 +532,6 @@ function Home() {
         tasks={data.tasks}
         selected={day ? parseISO(day) : undefined}
         onNewTask={(date) => newTask(null, date)}
-        onOpenTask={(id) =>
-          openEditor({ kind: 'task', mode: 'view', taskId: id })
-        }
         onShowDay={(date) => setDay(todayName(date))}
       />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />

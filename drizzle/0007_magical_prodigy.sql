@@ -1,0 +1,1 @@
+ALTER TABLE `tasks` ADD `remind_minutes` integer DEFAULT 0;

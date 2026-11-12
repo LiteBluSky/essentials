@@ -166,16 +166,21 @@ export async function editTask(id: number, input: TaskInput) {
   await assertFolderExists(folderId)
   const existing = (
     await db
-      .select({ folderId: tasks.folderId, dueAt: tasks.dueAt })
+      .select({
+        folderId: tasks.folderId,
+        dueAt: tasks.dueAt,
+        remindMinutes: tasks.remindMinutes,
+      })
       .from(tasks)
       .where(eq(tasks.id, id))
   ).at(0)
   if (!existing) throw new Error('Task not found')
 
   const moved = existing.folderId !== folderId
-  // A new due date re-arms its reminder.
+  // A new due date or reminder time re-arms the reminder.
   const rescheduled =
-    (existing.dueAt?.getTime() ?? null) !== (input.dueAt?.getTime() ?? null)
+    (existing.dueAt?.getTime() ?? null) !== (input.dueAt?.getTime() ?? null) ||
+    existing.remindMinutes !== input.remindMinutes
   await db
     .update(tasks)
     .set({
@@ -282,7 +287,15 @@ export async function importFile(file: TasksFile) {
           completedAt: task.completedAt ? new Date(task.completedAt) : null,
           dueAt: task.dueAt ? new Date(task.dueAt) : null,
           // Past reminders aren't sent again after an import.
-          remindedAt: task.dueAt && new Date(task.dueAt) <= now ? now : null,
+          remindMinutes:
+            task.remindMinutes === undefined ? 0 : task.remindMinutes,
+          remindedAt:
+            task.dueAt &&
+            new Date(task.dueAt).getTime() -
+              (task.remindMinutes ?? 0) * 60_000 <=
+              now.getTime()
+              ? now
+              : null,
         })),
       )
       counts.tasks += items.length

@@ -298,8 +298,11 @@ pushes it to your phone through [ntfy](https://ntfy.sh):
    opens the app. Save.
 4. Settings → **Send test reminder**.
 
-Each due task is pushed once (editing its due date re-arms it); the server
-checks every minute, so it must be running. Works over plain http on the
+Each task picks when it reminds you (the **Remind** field, under Due): at
+the due time (the default), 5 / 15 / 30 minutes, 1 / 2 hours or a day
+before, or not at all. It's pushed once (changing the due date or the
+reminder re-arms it); the server checks every minute, so it must be
+running. Works over plain http on the
 LAN: the push goes server → ntfy → phone.
 
 There's no login, so anyone on your network can change these settings,

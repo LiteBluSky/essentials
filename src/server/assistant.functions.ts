@@ -40,6 +40,7 @@ export const askAssistant = createServerFn({ method: 'POST' })
           description: action.description,
           folderId,
           dueAt,
+          remindMinutes: action.remindMinutes,
         })
         items.push({ app: 'tasks', id, title: action.title, dueAt })
       } else {

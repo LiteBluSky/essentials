@@ -193,8 +193,8 @@ export const taskFolders = sqliteTable(
 
 // A task lives in a folder, or at root level when folderId = null. Its age
 // (from createdAt) colours it, or its due date when it has one; completedAt
-// set = done. A due task is pushed to the phone (ntfy) once, then remindedAt
-// is set (cleared again when the due date changes).
+// set = done. A due task is pushed to the phone (ntfy) once, remindMinutes
+// before dueAt, then remindedAt is set (cleared again when either changes).
 export const tasks = sqliteTable(
   'tasks',
   {
@@ -207,6 +207,9 @@ export const tasks = sqliteTable(
     position: integer().notNull().default(0),
     completedAt: integer('completed_at', { mode: 'timestamp' }),
     dueAt: integer('due_at', { mode: 'timestamp' }),
+    // How many minutes before dueAt the reminder goes out (0 = at the due
+    // time, null = no reminder).
+    remindMinutes: integer('remind_minutes').default(0),
     remindedAt: integer('reminded_at', { mode: 'timestamp' }),
     ...timestamps,
   },

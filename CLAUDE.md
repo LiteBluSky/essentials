@@ -108,8 +108,10 @@ One SQLite file holds every app. Bookmark tables keep their original names.
 - `task_folders` (same shape) / `tasks` — `id`, `title`, `description` (plain
   text, `''` = none), `folderId`, `position`, `completedAt?` (set = done),
   `dueAt?` (due date + time; drives the colour, the calendar and the
-  reminder), `remindedAt?` (set once the reminder was pushed; cleared when
-  `dueAt` changes), timestamps. Without `dueAt`, `createdAt` drives the
+  reminder), `remindMinutes?` (minutes before `dueAt` to remind; 0 = at
+  the due time, the default; null = no reminder), `remindedAt?` (set once
+  the reminder was pushed; cleared when `dueAt` or `remindMinutes`
+  changes), timestamps. Without `dueAt`, `createdAt` drives the
   colour and calendar day.
 - `settings` — `key` (primary key, one of `SETTINGS` in
   `src/lib/settings.ts`), `value`, `updatedAt`. Edited in the Settings
@@ -339,8 +341,13 @@ createdAt`. **Upcoming** (`UpcomingTasks` in `up-next.tsx`,
   picks. The keys live in `useCalendarKeys`
   (`src/hooks/tasks/use-calendar-keys.ts`), shared with the calendar dialog.
 - **Reminders** (`src/server/reminders.server.ts`): once an open task's
-  `dueAt` passes, it's pushed to `NTFY_URL`/`NTFY_TOPIC` (ntfy app on the
-  phone) once and `remindedAt` set; tasks more than a day late are skipped.
+  reminder time (`dueAt − remindMinutes`, compared in SQL in seconds)
+  passes, it's pushed to `NTFY_URL`/`NTFY_TOPIC` (ntfy app on the phone)
+  once and `remindedAt` set; reminders more than a day late are skipped.
+  The body reads "Due in 15 min · <folder>" (or "Due now"), then the
+  description. The form's **Remind** select (shown once a due day is
+  picked; `REMIND_OPTIONS` in `src/lib/tasks/tree.ts`): at the due time,
+  5/15/30 min, 1/2 hours or 1 day before, or no reminder.
   The Nitro plugin `src/server/reminders.plugin.ts` (registered in
   `vite.config.ts`) runs it every minute from server start by calling the
   `/api/reminders` route through `nitroApp.fetch`. **Don't import the DB
@@ -350,9 +357,8 @@ createdAt`. **Upcoming** (`UpcomingTasks` in `up-next.tsx`,
   (`testReminder` in `settings.functions.ts`).
 - **Calendar** (`calendar-dialog.tsx`, `i` or the header's calendar button):
   a bigger month calendar with a dot per task on its `taskDay` (up to 4,
-  coloured by `taskTone`), the selected day's task count and its tasks
-  listed below (time, title; a click opens the task once the dialog has
-  closed), and the same keys (a click on a day only selects). Enter (or
+  coloured by `taskTone`), the selected day's task count, and the same
+  keys (a click only selects). No per-day task list: Enter shows them. Enter (or
   "Show") closes it and filters the list to that day's tasks (`filterDay`,
   applied before the search; a chip next to the search shows the day and
   clears it, as does `q`); `a` (or the button) closes it and opens the
@@ -364,11 +370,12 @@ createdAt`. **Upcoming** (`UpcomingTasks` in `up-next.tsx`,
 - Clicking a task / `o` / Enter opens its details (`TaskView` in
   `editor-dialogs.tsx`): path, title, description, due/created/completed dates;
   `c` completes, `e` edits, `d` deletes. The form is Task (focused),
-  Folder (top level by default), Due (optional), Description (plain
+  Folder (top level by default), Due (optional) + Remind, Description (plain
   `Textarea`); Enter saves; a new task closes
   the dialog and reveals the task in the tree.
 - **Import/export**: `{ format: 1, folders: [{ name, folders, tasks }],
-tasks: [{ title, description?, createdAt?, completedAt?, dueAt? }] }` (ISO
+tasks: [{ title, description?, createdAt?, completedAt?, dueAt?,
+remindMinutes? }] }` (ISO
   dates, kept so ages survive; past due dates aren't reminded again),
   appended like the other apps.
 
@@ -382,7 +389,7 @@ timezone to an OpenAI-compatible chat completions API (`fetch`, no SDK;
 `assistant.server.ts`: OpenRouter by default; `LLM_API_KEY` / `LLM_BASE_URL`
 / `LLM_MODEL` from `readSettings()`, default model
 `anthropic/claude-haiku-5.5`) with two tools,
-`create_task { title, description?, due? }` (local `YYYY-MM-DD[THH:mm]`,
+`create_task { title, description?, due?, remind_minutes_before? }` (local `YYYY-MM-DD[THH:mm]`,
 converted with `zonedTime`) and `create_note { title?, body }`. Every item
 goes into the top-level **Unsorted** folder of its app (`UNSORTED_FOLDER`,
 found case-insensitively or created: `ensureTopFolder` in each app's

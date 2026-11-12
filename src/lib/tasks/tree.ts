@@ -224,6 +224,34 @@ export function dueLabel(dueAt: Date, now = new Date()) {
   )
 }
 
+/** The form's "Remind" choices: minutes before the due time (null =
+ * no reminder). */
+export const REMIND_OPTIONS: Array<{ value: number | null; label: string }> = [
+  { value: 0, label: 'At the due time' },
+  { value: 5, label: '5 minutes before' },
+  { value: 15, label: '15 minutes before' },
+  { value: 30, label: '30 minutes before' },
+  { value: 60, label: '1 hour before' },
+  { value: 120, label: '2 hours before' },
+  { value: 24 * 60, label: '1 day before' },
+  { value: null, label: 'No reminder' },
+]
+
+/** "15 min", "2 hours", "1 day": a reminder's lead time. */
+export function leadLabel(minutes: number) {
+  const plural = (n: number, unit: string) =>
+    `${n} ${unit}${n === 1 ? '' : 's'}`
+  if (minutes % (24 * 60) === 0) return plural(minutes / (24 * 60), 'day')
+  if (minutes % 60 === 0) return plural(minutes / 60, 'hour')
+  return `${minutes} min`
+}
+
+/** "At the due time", "15 min before", "No reminder". */
+export function remindLabel(minutes: number | null) {
+  if (minutes === null) return 'No reminder'
+  return minutes === 0 ? 'At the due time' : `${leadLabel(minutes)} before`
+}
+
 /** A due date given as a day only lands at this time (local). */
 export const DEFAULT_DUE_HOUR = 9
 
@@ -348,6 +376,7 @@ export function toTasksFile(tree: Tree): TasksFile {
     createdAt: t.createdAt.toISOString(),
     ...(t.completedAt && { completedAt: t.completedAt.toISOString() }),
     ...(t.dueAt && { dueAt: t.dueAt.toISOString() }),
+    ...(t.dueAt && t.remindMinutes !== 0 && { remindMinutes: t.remindMinutes }),
   })
   const folder = (node: FolderNode): ExportFolder => ({
     name: node.folder.name,

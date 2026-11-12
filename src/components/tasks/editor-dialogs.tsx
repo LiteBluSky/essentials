@@ -36,7 +36,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
 import { useConfirmKey } from '@/hooks/use-confirm-key'
 import type { Task } from '@/db/schema'
-import { flattenFolders, folderPath } from '@/lib/tasks/tree'
+import { flattenFolders, folderPath, remindLabel } from '@/lib/tasks/tree'
 import type { FolderNode, Tree } from '@/lib/tasks/tree'
 import {
   deleteFolder,
@@ -231,6 +231,8 @@ function TaskView({
               {dateTime.format(task.dueAt)}
               {!done && <TaskAge task={task} />}
             </dd>
+            <dt className="text-muted-foreground">Reminder</dt>
+            <dd>{remindLabel(task.remindMinutes)}</dd>
           </>
         )}
         <dt className="text-muted-foreground">Created</dt>

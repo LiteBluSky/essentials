@@ -13,13 +13,21 @@ import {
   FieldLabel,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/toast'
 import type { Task } from '@/db/schema'
 import { taskInput } from '@/lib/tasks/schemas'
 import type { TaskInput } from '@/lib/tasks/schemas'
-import { DEFAULT_DUE_HOUR } from '@/lib/tasks/tree'
+import { DEFAULT_DUE_HOUR, REMIND_OPTIONS } from '@/lib/tasks/tree'
 import type { FolderOption } from '@/lib/tasks/tree'
 import {
   createTask,
@@ -29,9 +37,10 @@ import {
 import { DatePicker } from './date-picker'
 import { FolderSelect } from './folder-select'
 
-// The form's own fields; the due date is kept beside it (a day + a time).
-const formInput = taskInput.omit({ dueAt: true })
-type FormInput = Omit<TaskInput, 'dueAt'>
+// The form's own fields; the due date (a day + a time) and its reminder are
+// kept beside it.
+const formInput = taskInput.omit({ dueAt: true, remindMinutes: true })
+type FormInput = Omit<TaskInput, 'dueAt' | 'remindMinutes'>
 
 // Kept short on purpose: type the task, Enter, done. The folder, the due date
 // and the description are optional extras (Ctrl+Enter saves from the
@@ -59,10 +68,14 @@ export function TaskForm({
   const [dueTime, setDueTime] = useState(() =>
     task?.dueAt ? format(task.dueAt, 'HH:mm') : '',
   )
+  // Minutes before the due time to remind (null = no reminder).
+  const [remind, setRemind] = useState<number | null>(() =>
+    task ? task.remindMinutes : 0,
+  )
   const save = useMutation({
     mutationFn: async (value: FormInput) => {
       const dueAt = dueDay ? atTime(dueDay, dueTime) : null
-      const data = { ...value, dueAt }
+      const data = { ...value, dueAt, remindMinutes: remind }
       if (task) {
         await updateTask({ data: { id: task.id, ...data } })
         return task.id
@@ -181,6 +194,29 @@ export function TaskForm({
             )}
           </div>
         </Field>
+        {dueDay && (
+          <Field>
+            <FieldLabel htmlFor="task-remind">Remind</FieldLabel>
+            <Select
+              items={REMIND_OPTIONS}
+              value={remind}
+              onValueChange={(value) => setRemind(value)}
+            >
+              <SelectTrigger id="task-remind" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {REMIND_OPTIONS.map((option) => (
+                    <SelectItem key={option.label} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
+        )}
         <form.Field
           name="description"
           children={(field) => {

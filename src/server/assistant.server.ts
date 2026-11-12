@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import type { AssistantInput } from '@/lib/assistant'
+import { MAX_REMIND_MINUTES } from '@/lib/tasks/schemas'
 import { readSettings } from './settings.server'
 
 // Server-only: the LLM call behind the assistant. Any OpenAI-compatible chat
@@ -47,7 +48,12 @@ const TOOLS = [
           due: {
             type: 'string',
             description:
-              "When it's due (and when to remind), in the user's local time: YYYY-MM-DDTHH:mm, or YYYY-MM-DD for a day without a time. Omit if no day or time was mentioned.",
+              "When it's due, in the user's local time: YYYY-MM-DDTHH:mm, or YYYY-MM-DD for a day without a time. Omit if no day or time was mentioned.",
+          },
+          remind_minutes_before: {
+            type: 'integer',
+            description:
+              'How many minutes before the due time to send the reminder, only if the user asked for an early reminder (e.g. "remind me 15 minutes before" = 15, "a day before" = 1440). Omit otherwise: the reminder then comes at the due time.',
           },
         },
         required: ['title'],
@@ -85,6 +91,12 @@ const taskArgs = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?/)
     .optional(),
+  remind_minutes_before: z
+    .number()
+    .int()
+    .min(0)
+    .max(MAX_REMIND_MINUTES)
+    .optional(),
 })
 const noteArgs = z.object({
   title: z.string().trim().max(255).optional(),
@@ -92,7 +104,13 @@ const noteArgs = z.object({
 })
 
 export type PlannedAction =
-  | { kind: 'task'; title: string; description: string; due?: string }
+  | {
+      kind: 'task'
+      title: string
+      description: string
+      due?: string
+      remindMinutes: number
+    }
   | { kind: 'note'; title: string; body: string }
 
 const completion = z.object({
@@ -185,6 +203,7 @@ export async function planActions({
           title: parsed.data.title,
           description: parsed.data.description?.trim() ?? '',
           due: parsed.data.due,
+          remindMinutes: parsed.data.remind_minutes_before ?? 0,
         })
       }
     } else if (call.function.name === 'create_note') {

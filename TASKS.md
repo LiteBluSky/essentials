@@ -210,13 +210,16 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       the form's created "Date" becomes "Due" (also when editing)
 - [x] Colours, labels ("tomorrow 09:00"), Today and the calendar follow the
       due date; "Upcoming" lists overdue / due within a week
-- [x] Calendar: dots on due days, the selected day's tasks listed (click
-      opens), `a` starts a task due that day
+- [x] Calendar: dots on due days, `a` starts a task due that day (no
+      per-day task list: Enter filters to the day)
 - [x] Phone reminders via ntfy: pushed once when due (Nitro plugin, every
       minute); "Send test reminder" in Settings
 - [x] "Tell me…" field on every app (focused on open, `s`): an LLM
       (OpenRouter / OpenAI-compatible) turns a sentence into tasks / notes in
       "Unsorted"; hidden without an API key
+- [x] Per-task reminder time (`remindMinutes`, migration 0007): at the
+      due time, 5 min … 1 day before, or none; the assistant understands
+      "remind me 15 minutes before"
 - [x] Settings dialog (every app's ⋮ menu): LLM + ntfy settings stored in
       the DB (`settings` table, migration 0006), env as fallback; secrets
       write-only

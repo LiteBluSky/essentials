@@ -4,6 +4,9 @@ import { z } from 'zod'
 
 const id = z.number().int().positive()
 
+/** The longest "remind me before": a week. */
+export const MAX_REMIND_MINUTES = 7 * 24 * 60
+
 export const folderInput = z.object({
   name: z
     .string()
@@ -26,6 +29,8 @@ export const taskInput = z.object({
   // When it's due (null = no due date, no reminder). The phone is pinged
   // then (see reminders.server.ts).
   dueAt: z.coerce.date().nullable(),
+  // Minutes before dueAt to remind (0 = at the due time, null = never).
+  remindMinutes: z.number().int().min(0).max(MAX_REMIND_MINUTES).nullable(),
 })
 export type TaskInput = z.infer<typeof taskInput>
 
@@ -57,6 +62,13 @@ const exportTask = z.object({
   createdAt: z.iso.datetime().optional(),
   completedAt: z.iso.datetime().optional(),
   dueAt: z.iso.datetime().optional(),
+  remindMinutes: z
+    .number()
+    .int()
+    .min(0)
+    .max(MAX_REMIND_MINUTES)
+    .nullable()
+    .optional(),
 })
 export type ExportTask = z.infer<typeof exportTask>
 
