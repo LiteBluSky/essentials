@@ -214,7 +214,7 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       per-day task list: Enter filters to the day)
 - [x] Phone reminders via ntfy: pushed once when due (Nitro plugin, every
       minute); "Send test reminder" in Settings
-- [x] "Tell me…" field on every app (focused on open, `s`): an LLM
+- [x] "Tell me…" field on every app (`s` focuses it): an LLM
       (OpenRouter / OpenAI-compatible) turns a sentence into tasks / notes in
       "Unsorted"; hidden without an API key
 - [x] Per-task reminder time (`remindMinutes`, migration 0007): at the

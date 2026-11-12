@@ -279,8 +279,8 @@ Both are optional and off by default. Set them up in the app: ⋮ menu →
 variables of the same names (`.env.local`, or a `.env` next to
 `compose.yaml` for Docker) still work as a fallback.
 
-**"Tell me…"** — a field at the top of every app, focused when the app
-opens. Type (or tap the phone keyboard's mic and talk) something like
+**"Tell me…"** — a field at the top of every app (press `s` or tap it).
+Type (or tap the phone keyboard's mic and talk) something like
 _"remind me to call the dentist Friday at 3"_ or _"note: cabin wifi is
 abc123"_, press Enter, and it's created in the **Unsorted** folder of Tasks
 or Notes, ready to file. It needs an LLM key: get one at

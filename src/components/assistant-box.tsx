@@ -37,8 +37,8 @@ function isTyping(target: EventTarget | null) {
  * The "Tell me…" field at the top of every app: type (or dictate with the
  * phone keyboard's mic) a task, reminder or note, Enter, and the assistant
  * files it under "Unsorted" in Tasks / Notes. Only shown when the server has
- * an LLM key. Focused when the page opens; Esc hands the keys back to the
- * tree, `s` comes back (while `enabled`: no dialog open).
+ * an LLM key. Not focused on its own: `s` (while `enabled`: no dialog
+ * open) or a tap goes in, Esc hands the keys back to the tree.
  */
 export function AssistantBox({ enabled }: { enabled: boolean }) {
   const { data: available } = useSuspenseQuery(assistantEnabledQueryOptions)
@@ -51,11 +51,6 @@ function AssistantField({ enabled }: { enabled: boolean }) {
   const navigate = useNavigate()
   const ref = useRef<HTMLTextAreaElement>(null)
   const [text, setText] = useState('')
-
-  // Ready to type as soon as the app opens.
-  useEffect(() => {
-    ref.current?.focus({ preventScroll: true })
-  }, [])
 
   useEffect(() => {
     if (!enabled) return

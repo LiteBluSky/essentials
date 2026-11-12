@@ -382,8 +382,8 @@ remindMinutes? }] }` (ISO
 ### Assistant ("Tell me…", every app)
 
 `AssistantBox` (`src/components/assistant-box.tsx`) is a field right under
-each app's header, **focused when the page opens**: type or dictate (phone
-keyboard mic) a sentence, Enter (Shift+Enter = newline). `askAssistant`
+each app's header (not focused on load: `s` or a tap goes in): type or
+dictate (phone keyboard mic) a sentence, Enter (Shift+Enter = newline). `askAssistant`
 (`src/server/assistant.functions.ts`) sends it with the browser's time and
 timezone to an OpenAI-compatible chat completions API (`fetch`, no SDK;
 `assistant.server.ts`: OpenRouter by default; `LLM_API_KEY` / `LLM_BASE_URL`
