@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
+import { DictateButton } from '@/components/dictate-button'
 import { ReferenceAutocomplete } from '@/components/reference-autocomplete'
 import { ReferenceText } from '@/components/reference'
 import { Bubble, BubbleContent } from '@/components/ui/bubble'
@@ -37,6 +38,8 @@ import {
   MessageScrollerViewport,
 } from '@/components/ui/message-scroller'
 import { Spinner } from '@/components/ui/spinner'
+import { toast } from '@/components/ui/toast'
+import { useDictation } from '@/hooks/use-dictation'
 import type {
   AssistantFound,
   AssistantItem,
@@ -318,6 +321,15 @@ export function ChatComposer({
 }) {
   const ref = useRef<HTMLTextAreaElement>(null)
   const [text, setText] = useState('')
+  const dictation = useDictation({
+    onText: setText,
+    onError: (message) =>
+      toast.add({
+        title: "Couldn't listen",
+        description: message,
+        type: 'error',
+      }),
+  })
 
   useEffect(() => {
     if (!enabled) return
@@ -339,6 +351,7 @@ export function ChatComposer({
   const send = async () => {
     const message = text.trim()
     if (!message || busy) return
+    dictation.stop()
     setText('')
     // Put it back if it didn't go through.
     if (!(await onSend(message))) setText(message)
@@ -371,13 +384,22 @@ export function ChatComposer({
               e.preventDefault()
               void send()
             } else if (e.key === 'Escape') {
+              dictation.finish()
               e.currentTarget.blur()
             }
           }}
         />
         <ReferenceAutocomplete target={ref} />
         <InputGroupAddon align="block-end" className="p-2">
-          {!text && <Kbd className="max-sm:hidden">s</Kbd>}
+          {!text && !dictation.listening && (
+            <Kbd className="max-sm:hidden">s</Kbd>
+          )}
+          <DictateButton
+            dictation={dictation}
+            value={text}
+            disabled={busy}
+            size="icon-sm"
+          />
           <InputGroupButton
             variant="default"
             size="icon-sm"

@@ -244,6 +244,8 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       (`COMPLETED_TTL_DAYS`, purged when the tree loads); open tasks stay
 - [x] Chats are deleted automatically 7 days after their last message
       (`CHAT_TTL_DAYS`, purged when the conversation list loads)
+- [x] Dictation button (browser Web Speech API) in Ask Jarvis and the chat
+      box; hidden where unsupported
 - [ ] Verify on the phone: dictation into the field, ntfy reminder arrives
 
 ## 19. Contacts app

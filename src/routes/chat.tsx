@@ -86,13 +86,6 @@ export const Route = createFileRoute('/chat')({
   component: ChatPage,
 })
 
-const EXAMPLES = [
-  'What tasks are due this week?',
-  'What did I write about the CRM?',
-  'Which links do I have about invoices?',
-  'Add a note with my packing list: passport, charger, sunscreen',
-]
-
 function isTyping(target: EventTarget | null) {
   return (
     target instanceof HTMLElement &&
@@ -411,19 +404,6 @@ function ChatPage() {
                       too.
                     </EmptyDescription>
                   </EmptyHeader>
-                  <EmptyContent className="flex-row flex-wrap justify-center">
-                    {EXAMPLES.map((example) => (
-                      <Button
-                        key={example}
-                        variant="outline"
-                        size="sm"
-                        disabled={send.isPending}
-                        onClick={() => void onSend(example)}
-                      >
-                        {example}
-                      </Button>
-                    ))}
-                  </EmptyContent>
                 </Empty>
               ) : (
                 <ChatThread messages={shown} pending={pending} />

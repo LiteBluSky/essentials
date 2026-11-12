@@ -81,7 +81,8 @@ Each app is self-contained and namespaced; only the shell is shared.
   `lib/global-search.ts`, `server/search.*.ts`), the assistant
   (`components/assistant-box.tsx`, `lib/assistant.ts`,
   `server/assistant*.ts`, `server/agent*.ts`, `server/changes.server.ts`,
-  `server/prompts.server.ts`, `server/llm.server.ts`, `hooks/use-undo-run.ts`),
+  `server/prompts.server.ts`, `server/llm.server.ts`, `hooks/use-undo-run.ts`,
+  `hooks/use-dictation.ts`, `components/dictate-button.tsx`),
   settings
   (`components/settings-dialog.tsx`,
   `lib/settings.ts`, `server/settings.*.ts`), `ui/`.
@@ -494,7 +495,21 @@ resets it. While the `@` list is open it keeps ↑/↓.
 
 `AssistantBox` (`src/components/assistant-box.tsx`) is a field right under
 each app's header (not focused on load: `s` or a tap goes in): type or
-dictate (phone keyboard mic) a sentence, Enter (Shift+Enter = newline). `askAssistant`
+dictate a sentence, Enter (Shift+Enter = newline).
+
+**Dictation** (here and in Chat's box): a mic button (`DictateButton`,
+`useDictation`) uses the browser's own Web Speech API
+(`SpeechRecognition` / `webkitSpeechRecognition`; Chrome, Edge, Safari —
+not rendered where missing, e.g. Firefox, or on the server). Tap to
+listen: words are appended to the field live (interim results) in
+`navigator.language`, it stops by itself after a pause, tap again (or
+Esc) stops it; sending aborts it. Nothing is sent anywhere by the app
+itself (the browser may use its vendor's speech service). The mic needs
+a secure origin (https or localhost); a blocked mic is an error toast.
+Chromium forks without Google's speech service (Vivaldi, Brave, Opera)
+have the API but always fail with `network`; that toast points to Chrome /
+Edge / Safari or the OS dictation (Win+H). The
+phone keyboard's own mic still works too. `askAssistant`
 (`src/server/assistant.functions.ts`) sends it with the browser's time and
 timezone to the provider picked in Settings (`LLM_PROVIDER`;
 `llm.server.ts`, shared with Chat: neutral `Turn`s / `ToolDef`s converted

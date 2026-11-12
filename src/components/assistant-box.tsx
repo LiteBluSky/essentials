@@ -8,6 +8,7 @@ import { format } from 'date-fns'
 import { SendHorizontalIcon, SparklesIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
+import { DictateButton } from '@/components/dictate-button'
 import { ReferenceText } from '@/components/reference'
 import { ReferenceAutocomplete } from '@/components/reference-autocomplete'
 import {
@@ -26,6 +27,7 @@ import type {
   ChangeSummary,
 } from '@/lib/assistant'
 import { requestOpen } from '@/lib/global-search'
+import { useDictation } from '@/hooks/use-dictation'
 import { useRequestHistory } from '@/hooks/use-request-history'
 import { useUndoRun } from '@/hooks/use-undo-run'
 import {
@@ -43,8 +45,8 @@ function isTyping(target: EventTarget | null) {
 }
 
 /**
- * The "Tell me…" field at the top of every app: type (or dictate with the
- * phone keyboard's mic) a task, reminder or note, Enter, and the assistant
+ * The "Tell me…" field at the top of every app: type (or dictate: the mic
+ * button, or the phone keyboard's) a task, reminder or note, Enter, and the assistant
  * files it under "Unsorted" in Tasks / Notes. Only shown when the server has
  * an LLM key. Not focused on its own: `s` (while `enabled`: no dialog
  * open) or a tap goes in, Esc hands the keys back to the tree.
@@ -61,6 +63,15 @@ function AssistantField({ enabled }: { enabled: boolean }) {
   const ref = useRef<HTMLTextAreaElement>(null)
   const [text, setText] = useState('')
   const history = useRequestHistory()
+  const dictation = useDictation({
+    onText: setText,
+    onError: (message) =>
+      toast.add({
+        title: "Couldn't listen",
+        description: message,
+        type: 'error',
+      }),
+  })
 
   useEffect(() => {
     if (!enabled) return
@@ -193,7 +204,9 @@ function AssistantField({ enabled }: { enabled: boolean }) {
 
   const send = () => {
     const sentence = text.trim()
-    if (sentence && !ask.isPending) ask.mutate(sentence)
+    if (!sentence || ask.isPending) return
+    dictation.stop()
+    ask.mutate(sentence)
   }
 
   return (
@@ -226,6 +239,7 @@ function AssistantField({ enabled }: { enabled: boolean }) {
               e.preventDefault()
               send()
             } else if (e.key === 'Escape') {
+              dictation.finish()
               e.currentTarget.blur()
             } else if (
               (e.key === 'ArrowUp' || e.key === 'ArrowDown') &&
@@ -255,7 +269,14 @@ function AssistantField({ enabled }: { enabled: boolean }) {
         />
         <ReferenceAutocomplete target={ref} />
         <InputGroupAddon align="inline-end">
-          {!text && !ask.isPending && <Kbd className="max-sm:hidden">s</Kbd>}
+          {!text && !ask.isPending && !dictation.listening && (
+            <Kbd className="max-sm:hidden">s</Kbd>
+          )}
+          <DictateButton
+            dictation={dictation}
+            value={text}
+            disabled={ask.isPending}
+          />
           <InputGroupButton
             type="submit"
             size="icon-xs"
