@@ -390,12 +390,26 @@ timezone to an OpenAI-compatible chat completions API (`fetch`, no SDK;
 / `LLM_MODEL` from `readSettings()`, default model
 `anthropic/claude-haiku-5.5`) with two tools,
 `create_task { title, description?, due?, remind_minutes_before? }` (local `YYYY-MM-DD[THH:mm]`,
-converted with `zonedTime`) and `create_note { title?, body }`. Every item
+converted with `zonedTime`), `create_note { title?, body }` and
+`open_item { query, app?, folder? }`. The prompt makes a **list** (shopping,
+packing…) **one note** with a `- [ ] item` checklist, never several tasks;
+separate unrelated actions stay separate tasks. Every created item
 goes into the top-level **Unsorted** folder of its app (`UNSORTED_FOLDER`,
 found case-insensitively or created: `ensureTopFolder` in each app's
 server file); no folder guessing. On success the field clears, the trees
 are invalidated and a toast per item offers **Open** (`requestOpen`, like
-the global search). Without an API key the field isn't rendered
+the global search).
+
+**Find / open** ("open my packing list", "find the dentist task", "go to
+the GitHub link"): `open_item` runs the global search (`search()` from
+`search.server.ts`) and `findOne` picks the best match: in the named app
+if any, an item unless a folder was asked for, a name containing every
+word first, then the search's order (latest edited). The result's `found`
+list goes back with `created`; the first match opens at once (note/task via
+`requestOpen` + navigate, a folder is revealed, a link opens in a new tab;
+if the browser blocks that tab, since it's no longer right after the
+click, a toast offers "Open link"), any others are toasts with **Open**,
+and no match is a "Couldn't find" toast. Without an API key the field isn't rendered
 (`assistantEnabledQueryOptions`, prefetched by each app's loader) and
 nothing else changes.
 

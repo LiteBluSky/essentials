@@ -82,6 +82,36 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'open_item',
+      description:
+        'Find and open something that already exists: a link (bookmark), note, task or folder the user refers to ("open my packing list", "show the dentist task", "go to the GitHub link"). Creates nothing.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description:
+              'A few distinctive words from its title (or URL), e.g. "dentist" or "github". All of them must appear in it, so keep it short.',
+          },
+          app: {
+            type: 'string',
+            enum: ['bookmarks', 'notes', 'tasks'],
+            description:
+              'Where to look, if the user said: a link/bookmark/site = bookmarks, a note/list = notes, a task/to-do/reminder = tasks. Omit if unsure.',
+          },
+          folder: {
+            type: 'boolean',
+            description: 'True if the user asked for a folder.',
+          },
+        },
+        required: ['query'],
+        additionalProperties: false,
+      },
+    },
+  },
 ]
 
 const taskArgs = z.object({
@@ -98,6 +128,11 @@ const taskArgs = z.object({
     .max(MAX_REMIND_MINUTES)
     .optional(),
 })
+const openArgs = z.object({
+  query: z.string().trim().min(1).max(200),
+  app: z.enum(['bookmarks', 'notes', 'tasks']).optional(),
+  folder: z.boolean().optional(),
+})
 const noteArgs = z.object({
   title: z.string().trim().max(255).optional(),
   body: z.string().trim().min(1).max(500_000),
@@ -112,6 +147,12 @@ export type PlannedAction =
       remindMinutes: number
     }
   | { kind: 'note'; title: string; body: string }
+  | {
+      kind: 'open'
+      query: string
+      app?: 'bookmarks' | 'notes' | 'tasks'
+      folder: boolean
+    }
 
 const completion = z.object({
   choices: z
@@ -157,8 +198,10 @@ export async function planActions({
   }
 
   const system = [
-    'You turn what the user says (often dictated, so forgive odd wording) into tasks and notes by calling the tools. Always call at least one tool; call it several times if they mention several separate things.',
-    'A task is something to do; a note is information to keep. "Remind me…" is always a task.',
+    'You turn what the user says (often dictated, so forgive odd wording) into tasks and notes, or open things they already have, by calling the tools. Always call at least one tool; call them several times if they mention several separate things.',
+    'A task is one thing to do; a note is information to keep. "Remind me…" is always a task.',
+    'A list of items (shopping, packing, groceries, ideas, things to bring or buy, several things under one topic) is ONE note, never several tasks: give it a short title and write the items as a markdown checklist, one "- [ ] item" per line. Separate unrelated actions ("call the dentist and pay the bill") are separate tasks.',
+    'When they ask to open, show, find or go to something ("open…", "show me…", "where is…"), call open_item instead of creating anything.',
     `The user's local time is ${localTime(new Date(now), timeZone)} (day/month/year, ${timeZone}). Resolve relative dates ("tomorrow", "Friday", "in 2 hours", "tonight") against it and give due times in that local time. A weekday means the next one to come.`,
     "Keep titles short and in the user's language. Never invent details.",
   ].join('\n')
@@ -206,6 +249,16 @@ export async function planActions({
           remindMinutes: parsed.data.remind_minutes_before ?? 0,
         })
       }
+    } else if (call.function.name === 'open_item') {
+      const parsed = openArgs.safeParse(args)
+      if (parsed.success) {
+        actions.push({
+          kind: 'open',
+          query: parsed.data.query,
+          app: parsed.data.app,
+          folder: parsed.data.folder ?? false,
+        })
+      }
     } else if (call.function.name === 'create_note') {
       const parsed = noteArgs.safeParse(args)
       if (parsed.success) {
@@ -217,7 +270,11 @@ export async function planActions({
       }
     }
   }
-  if (!actions.length) throw new Error("Couldn't make a task or note of that")
+  if (!actions.length) {
+    throw new Error(
+      "Couldn't make a task or note of that, or find what to open",
+    )
+  }
   return actions
 }
 

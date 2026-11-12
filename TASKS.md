@@ -217,6 +217,8 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] "Tell me…" field on every app (`s` focuses it): an LLM
       (OpenRouter / OpenAI-compatible) turns a sentence into tasks / notes in
       "Unsorted"; hidden without an API key
+- [x] Lists become one checklist note; "open / find / show …" opens the best
+      match (link, note, task or folder) via the global search
 - [x] Per-task reminder time (`remindMinutes`, migration 0007): at the
       due time, 5 min … 1 day before, or none; the assistant understands
       "remind me 15 minutes before"

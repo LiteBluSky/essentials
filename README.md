@@ -283,7 +283,10 @@ variables of the same names (`.env.local`, or a `.env` next to
 Type (or tap the phone keyboard's mic and talk) something like
 _"remind me to call the dentist Friday at 3"_ or _"note: cabin wifi is
 abc123"_, press Enter, and it's created in the **Unsorted** folder of Tasks
-or Notes, ready to file. It needs an LLM key: get one at
+or Notes, ready to file. A list (_"shopping list: milk, eggs, bread"_)
+becomes one note with a checklist. It also finds things: _"open my packing
+list"_, _"find the dentist task"_ or _"go to the GitHub link"_ opens the
+best match (links in a new tab). It needs an LLM key: get one at
 [openrouter.ai](https://openrouter.ai) and paste it into Settings → API key
 (any OpenAI-compatible API works: change the base URL and model). Only the
 sentence you type is sent to the provider.

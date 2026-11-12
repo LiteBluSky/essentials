@@ -18,7 +18,7 @@ import { Kbd } from '@/components/ui/kbd'
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
 import { UNSORTED_FOLDER } from '@/lib/assistant'
-import type { AssistantItem } from '@/lib/assistant'
+import type { AssistantFound, AssistantItem } from '@/lib/assistant'
 import { requestOpen } from '@/lib/global-search'
 import {
   askAssistant,
@@ -73,14 +73,16 @@ function AssistantField({ enabled }: { enabled: boolean }) {
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         },
       }),
-    onSuccess: async (items) => {
+    onSuccess: async ({ created, found }) => {
       setText('')
       await Promise.all(
-        [...new Set(items.map((item) => item.app))].map((app) =>
+        [...new Set(created.map((item) => item.app))].map((app) =>
           queryClient.invalidateQueries({ queryKey: [app, 'tree'] }),
         ),
       )
-      for (const item of items) {
+      // The first thing found opens straight away; any others are offered.
+      found.forEach((entry, i) => showFound(entry, i === 0))
+      for (const item of created) {
         toast.add({
           title: itemTitle(item),
           description: itemDetail(item),
@@ -103,6 +105,52 @@ function AssistantField({ enabled }: { enabled: boolean }) {
       }),
   })
 
+  const openMatch = (match: NonNullable<AssistantFound['match']>) => {
+    requestOpen({ app: match.app, kind: match.kind, id: match.id })
+    void navigate({ to: `/${match.app}` })
+  }
+
+  const showFound = ({ query, match }: AssistantFound, openNow: boolean) => {
+    if (!match) {
+      toast.add({
+        title: `Couldn't find “${query}”`,
+        description: 'Try other words, or search everything with z.',
+        type: 'warning',
+      })
+      return
+    }
+    const where = [APP_LABEL[match.app], match.path].filter(Boolean).join(' › ')
+    if (match.url) {
+      // A link opens in a new tab, unless the browser blocks a tab opened
+      // this long after the click: then it's a button in the toast. (Not
+      // 'noopener': window.open would then always return null.)
+      const url = match.url
+      const tab = openNow ? window.open(url, '_blank') : null
+      if (tab) {
+        tab.opener = null
+        return
+      }
+      toast.add({
+        title: match.label,
+        description: url,
+        actionProps: {
+          children: 'Open link',
+          onClick: () => window.open(url, '_blank', 'noopener'),
+        },
+      })
+      return
+    }
+    if (openNow) {
+      openMatch(match)
+      return
+    }
+    toast.add({
+      title: match.label,
+      description: where,
+      actionProps: { children: 'Open', onClick: () => openMatch(match) },
+    })
+  }
+
   const send = () => {
     const sentence = text.trim()
     if (sentence && !ask.isPending) ask.mutate(sentence)
@@ -124,7 +172,7 @@ function AssistantField({ enabled }: { enabled: boolean }) {
           rows={1}
           className="min-h-0"
           aria-label="Tell me a task, a reminder or a note"
-          placeholder="Tell me… “remind me to call the dentist Friday at 3”"
+          placeholder="Tell me… “remind me to call the dentist Friday at 3” or “open my packing list”"
           enterKeyHint="send"
           value={text}
           disabled={ask.isPending}
@@ -158,6 +206,8 @@ function AssistantField({ enabled }: { enabled: boolean }) {
     </form>
   )
 }
+
+const APP_LABEL = { bookmarks: 'Bookmarks', notes: 'Notes', tasks: 'Tasks' }
 
 function itemTitle(item: AssistantItem) {
   const title =

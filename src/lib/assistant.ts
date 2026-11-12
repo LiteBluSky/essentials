@@ -1,9 +1,12 @@
 import { z } from 'zod'
 
+import type { SearchApp, SearchResult } from '@/lib/global-search'
+
 // The assistant ("Tell me…" field on every app): a sentence goes to an LLM
 // (OpenRouter or any OpenAI-compatible API, see assistant.server.ts), which
-// turns it into tasks and/or notes. Everything it creates lands in the
-// top-level "Unsorted" folder of its app, to be filed by hand.
+// turns it into tasks and/or notes, or finds something to open (through the
+// global search). Everything it creates lands in the top-level "Unsorted"
+// folder of its app, to be filed by hand.
 
 export const UNSORTED_FOLDER = 'Unsorted'
 
@@ -19,3 +22,14 @@ export type AssistantInput = z.infer<typeof assistantInput>
 export type AssistantItem =
   | { app: 'tasks'; id: number; title: string; dueAt: Date | null }
   | { app: 'notes'; id: number; title: string }
+
+/** Something asked for ("open my packing list") and the best match, if any. */
+export type AssistantFound = {
+  query: string
+  match: (SearchResult & { app: SearchApp }) | null
+}
+
+export type AssistantResult = {
+  created: Array<AssistantItem>
+  found: Array<AssistantFound>
+}
