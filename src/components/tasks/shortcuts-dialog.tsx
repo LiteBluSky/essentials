@@ -31,6 +31,10 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       { keys: [mod(SHORTCUTS.search.label), ['/']], action: 'Search this app' },
       { keys: [['z']], action: 'Search everything (all apps)' },
       {
+        keys: [['s']],
+        action: 'Tell me… (new task or note; Esc goes back)',
+      },
+      {
         keys: [['a']],
         action: 'New task',
       },
@@ -90,14 +94,14 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
     ],
   },
   {
-    title: 'Date picker (new task) and calendar',
+    title: 'Due date picker and calendar',
     shortcuts: [
       { keys: [['h'], ['l']], action: 'Previous / next day' },
       { keys: [['k'], ['j']], action: 'Previous / next week' },
       { keys: [['m'], ['Shift', 'M']], action: 'Next / previous month' },
       { keys: [['y'], ['Shift', 'Y']], action: 'Next / previous year' },
       { keys: [['Enter']], action: 'Pick the date (calendar: show its tasks)' },
-      { keys: [['a']], action: 'Calendar: new task on that day' },
+      { keys: [['a']], action: 'Calendar: new task due that day' },
     ],
   },
   {

@@ -12,7 +12,10 @@ project (`../notes`, port 8009); it was merged in here.
 
 Keep it **clean, minimal and to the point**. Each app does one thing with as
 little friction as possible. No accounts, no sync, no tags, no
-previews/favicon scraping, no analytics, no rich-text editor. A new app must
+previews/favicon scraping, no analytics, no rich-text editor. The only
+outside calls are opt-in by env and off without it: the assistant's LLM
+(`LLM_API_KEY`) and phone reminders via ntfy (`NTFY_TOPIC`); the app must
+work exactly as before without them. A new app must
 be just as small: something to store, organise and open.
 
 Work is tracked in [`TASKS.md`](./TASKS.md) — read it first, pick the next
@@ -72,7 +75,9 @@ Each app is self-contained and namespaced; only the shell is shared.
   (`search`, `newFolder`), `hooks/use-expanded-folders.ts`,
   `hooks/use-install-app.ts`, `components/theme-toggle.tsx`, the global
   search (`components/global-search.tsx`, `hooks/use-global-search.ts`,
-  `lib/global-search.ts`, `server/search.*.ts`), `ui/`.
+  `lib/global-search.ts`, `server/search.*.ts`), the assistant
+  (`components/assistant-box.tsx`, `lib/assistant.ts`,
+  `server/assistant.*.ts`), `ui/`.
 - Apps don't import from each other. The tree code (keyboard hook, DnD,
   folder form/select) is duplicated per app on purpose for now (see
   TASKS.md); keep the copies behaving alike.
@@ -80,8 +85,9 @@ Each app is self-contained and namespaced; only the shell is shared.
   prefixed with the app name; render `<AppNav />` at the left of its header
   and pass `onSwitchApp` to its tree keyboard hook; call `useGlobalSearch`,
   render `<GlobalSearch>` and the header search button, and add its folders
-  and items to `search.server.ts`; add its page to `PAGES` in `public/sw.js`
-  (bump the cache name).
+  and items to `search.server.ts`; render `<AssistantBox>` under the header
+  and prefetch `assistantEnabledQueryOptions` in its loader; add its page to
+  `PAGES` in `public/sw.js` (bump the cache name).
 
 ## Data model (`src/db/schema.ts`)
 
@@ -100,7 +106,10 @@ One SQLite file holds every app. Bookmark tables keep their original names.
   reordering keeps `updatedAt` (it means "edited").
 - `task_folders` (same shape) / `tasks` — `id`, `title`, `description` (plain
   text, `''` = none), `folderId`, `position`, `completedAt?` (set = done),
-  timestamps. `createdAt` drives the colour.
+  `dueAt?` (due date + time; drives the colour, the calendar and the
+  reminder), `remindedAt?` (set once the reminder was pushed; cleared when
+  `dueAt` changes), timestamps. Without `dueAt`, `createdAt` drives the
+  colour and calendar day.
 - `links_bin` / `notes_bin` — the **bin**: a copy of each deleted link /
   note (also those inside a deleted folder; folders themselves aren't
   kept) with its `folderId`, `folderPath` (display only) and `deletedAt`.
@@ -293,17 +302,21 @@ A to-do list. The row menu has open, complete/reopen, edit/move, move up/down
 (folders view only), delete; folder rows as in Notes.
 
 - **No dated folders**: a task with no folder picked goes to the top level;
-  folders need a name. **Today** (`TodayTasks` in `up-next.tsx`,
-  `todayTasks`) is a list above Up next of the tasks dated today (created
-  on the browser's local date, open and done, wherever they're filed),
-  shown after hydration only.
+  folders need a name. A task's calendar day is `taskDay` = `dueAt ??
+createdAt`. **Upcoming** (`UpcomingTasks` in `up-next.tsx`,
+  `upcomingTasks`) lists open tasks overdue or due within 7 days, soonest
+  first; **Today** (`todayTasks`) the tasks whose day is today (open and
+  done, wherever they're filed) except open due ones (in Upcoming). Both
+  above Up next, shown after hydration only.
 - **Colours** (`taskTone` in `src/lib/tasks/tree.ts`, tokens `--warning` /
-  `--success` in `styles.css` next to `--destructive`): red after 3 days
-  open, yellow after 1 (calendar days in the browser's timezone, so
-  yesterday's task is "1 day"), green when done. Shown on the checkbox and
-  the age label. The server can't know the timezone, so open tasks' ages
-  render only after hydration (`useHydrated`); they update on the next
-  re-render (e.g. a refetch), with no timer.
+  `--success` in `styles.css` next to `--destructive`): green when done.
+  With a due date: red once past it, yellow on its day. Without: red after
+  3 days open, yellow after 1 (calendar days in the browser's timezone, so
+  yesterday's task is "1 day"). Shown on the checkbox and the label next to
+  the title (`TaskAge`: `dueLabel` ("tomorrow 09:00", "Fri 15:00") for open
+  due tasks, else the age). The server can't know the timezone, so open
+  tasks' labels render only after hydration (`useHydrated`); they update on
+  the next re-render (e.g. a refetch), with no timer.
 - **Views** (`useTaskView`, stored in `tasks:view`): open / completed
   (`t`) × folders / one flat list (`v`), with matching button groups next
   to the search for touch screens. The open view hides folders whose tasks
@@ -312,34 +325,65 @@ A to-do list. The row menu has open, complete/reopen, edit/move, move up/down
   first (completed: latest first). Drag and drop only in open + folders.
   Move up/down steps past hidden (completed) siblings (`shown` in
   `tree-dnd.tsx`).
-- **Date** (`date-picker.tsx`, shadcn `Calendar` in a `Popover`): a new
-  task's day, today by default; saved as `createdAt` = that day at the
-  current time (`createTaskInput`, ISO string). Not offered when editing.
-  In the calendar `h`/`l` day, `j`/`k` week, `m`/`M` month and `y`/`Y` year
-  forward/back move the selection (handled in capture, before the
-  calendar's own keys); Enter picks. The keys live in `useCalendarKeys`
+- **Due** (`date-picker.tsx`, shadcn `Calendar` in a `Popover`, plus an
+  `Input type="time"` and a clear button): optional, for new and edited
+  tasks; a day without a time is due at `DEFAULT_DUE_HOUR` (09:00).
+  `createdAt` is always the creation time. In the calendar `h`/`l` day,
+  `j`/`k` week, `m`/`M` month and `y`/`Y` year forward/back move the
+  selection (handled in capture, before the calendar's own keys); Enter
+  picks. The keys live in `useCalendarKeys`
   (`src/hooks/tasks/use-calendar-keys.ts`), shared with the calendar dialog.
+- **Reminders** (`src/server/reminders.server.ts`): once an open task's
+  `dueAt` passes, it's pushed to `NTFY_URL`/`NTFY_TOPIC` (ntfy app on the
+  phone) once and `remindedAt` set; tasks more than a day late are skipped.
+  The Nitro plugin `src/server/reminders.plugin.ts` (registered in
+  `vite.config.ts`) runs it every minute from server start by calling the
+  `/api/reminders` route through `nitroApp.fetch`. **Don't import the DB
+  from the plugin**: it's bundled apart and would open (and migrate) a
+  second connection. Off without `NTFY_TOPIC`. The menu's "Send test
+  reminder" calls `testReminder`.
 - **Calendar** (`calendar-dialog.tsx`, `i` or the header's calendar button):
-  a bigger month calendar with a dot per task on the day it was created
-  (up to 4, coloured by `taskTone`), the selected day's task count, and the
-  same keys (a click only selects). Enter (or "Show") closes it and filters
-  the list to that day's tasks (`filterDay`, applied before the search; a
-  chip next to the search shows the day and clears it, as does `q`); `a`
-  (or the button) closes it and opens the new-task form dated that day
-  (`EditorState.date`). It opens on the filtered day, else today. Like the
+  a bigger month calendar with a dot per task on its `taskDay` (up to 4,
+  coloured by `taskTone`), the selected day's task count and its tasks
+  listed below (time, title; a click opens the task once the dialog has
+  closed), and the same keys (a click on a day only selects). Enter (or
+  "Show") closes it and filters the list to that day's tasks (`filterDay`,
+  applied before the search; a chip next to the search shows the day and
+  clears it, as does `q`); `a` (or the button) closes it and opens the
+  new-task form due that day (`EditorState.date`). It opens on the filtered day, else today. Like the
   global search, it acts once fully closed and doesn't return focus then
   (`returnFocus`, reset when it next opens), so the form keeps focus.
 - **Up next** (`up-next.tsx`, `upNext`): the 9 oldest open tasks, oldest
   first, keys `1`–`9`; newer ones aren't listed until those are done.
 - Clicking a task / `o` / Enter opens its details (`TaskView` in
-  `editor-dialogs.tsx`): path, title, description, created/completed dates;
+  `editor-dialogs.tsx`): path, title, description, due/created/completed dates;
   `c` completes, `e` edits, `d` deletes. The form is Task (focused),
-  Folder (top level by default), Date (new tasks only), Description (plain
+  Folder (top level by default), Due (optional), Description (plain
   `Textarea`); Enter saves; a new task closes
   the dialog and reveals the task in the tree.
 - **Import/export**: `{ format: 1, folders: [{ name, folders, tasks }],
-tasks: [{ title, description?, createdAt?, completedAt? }] }` (ISO dates,
-  kept so ages survive), appended like the other apps.
+tasks: [{ title, description?, createdAt?, completedAt?, dueAt? }] }` (ISO
+  dates, kept so ages survive; past due dates aren't reminded again),
+  appended like the other apps.
+
+### Assistant ("Tell me…", every app)
+
+`AssistantBox` (`src/components/assistant-box.tsx`) is a field right under
+each app's header, **focused when the page opens**: type or dictate (phone
+keyboard mic) a sentence, Enter (Shift+Enter = newline). `askAssistant`
+(`src/server/assistant.functions.ts`) sends it with the browser's time and
+timezone to an OpenAI-compatible chat completions API (`fetch`, no SDK;
+`assistant.server.ts`: OpenRouter by default, `LLM_API_KEY` / `LLM_BASE_URL`
+/ `LLM_MODEL`, default `anthropic/claude-haiku-5.5`) with two tools,
+`create_task { title, description?, due? }` (local `YYYY-MM-DD[THH:mm]`,
+converted with `zonedTime`) and `create_note { title?, body }`. Every item
+goes into the top-level **Unsorted** folder of its app (`UNSORTED_FOLDER`,
+found case-insensitively or created: `ensureTopFolder` in each app's
+server file); no folder guessing. On success the field clears, the trees
+are invalidated and a toast per item offers **Open** (`requestOpen`, like
+the global search). Without `LLM_API_KEY` the field isn't rendered
+(`assistantEnabledQueryOptions`, prefetched by each app's loader) and
+nothing else changes.
 
 ### Keyboard
 
@@ -384,6 +428,8 @@ tasks: [{ title, description?, createdAt?, completedAt? }] }` (ISO dates,
   deletes (`useConfirmKey` in `src/hooks/use-confirm-key.ts`; repeats of a
   held key are ignored).
 - `z` opens the global search on every app (`useGlobalSearch`).
+- `s` focuses the "Tell me…" field (when shown); `Esc` in it blurs it so the
+  tree keys work again.
 - `?` (or the header keyboard button) opens the app's shortcuts help
   (`src/components/<app>/shortcuts-dialog.tsx`) — keep its list in sync
   when adding or changing a shortcut.
@@ -412,7 +458,9 @@ Treat `eslint --fix` output as untrusted — re-run `typecheck` afterwards.
 ## Environment
 
 See `.env.example`. Nothing is required; overrides (`DATABASE_PATH`,
-`VITE_APP_NAME`) go in `.env.local` (gitignored). Don't put `PORT` in
+`VITE_APP_NAME`, and the optional `LLM_*` / `NTFY_*` / `PUBLIC_URL`, which
+are server-only, never `VITE_`) go in `.env.local` (gitignored); Docker
+passes them through `compose.yaml`. Don't put `PORT` in
 `.env.local` — Vite picks it up and moves the dev server off 3000.
 Production uses port 8008: on Windows it's set by `scripts/start.ps1`, run
 at logon by the `Essentials` Scheduled Task (`scripts/install-startup.ps1` /

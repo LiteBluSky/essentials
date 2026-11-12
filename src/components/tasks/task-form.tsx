@@ -1,5 +1,7 @@
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { format } from 'date-fns'
+import { XIcon } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -17,6 +19,7 @@ import { toast } from '@/components/ui/toast'
 import type { Task } from '@/db/schema'
 import { taskInput } from '@/lib/tasks/schemas'
 import type { TaskInput } from '@/lib/tasks/schemas'
+import { DEFAULT_DUE_HOUR } from '@/lib/tasks/tree'
 import type { FolderOption } from '@/lib/tasks/tree'
 import {
   createTask,
@@ -26,9 +29,13 @@ import {
 import { DatePicker } from './date-picker'
 import { FolderSelect } from './folder-select'
 
-// Kept short on purpose: type the task, Enter, done. The folder, the date (new
-// tasks only) and the description are optional extras (Ctrl+Enter saves from
-// the description).
+// The form's own fields; the due date is kept beside it (a day + a time).
+const formInput = taskInput.omit({ dueAt: true })
+type FormInput = Omit<TaskInput, 'dueAt'>
+
+// Kept short on purpose: type the task, Enter, done. The folder, the due date
+// and the description are optional extras (Ctrl+Enter saves from the
+// description).
 export function TaskForm({
   task,
   folderId,
@@ -38,24 +45,29 @@ export function TaskForm({
 }: {
   task?: Task
   folderId: TaskInput['folderId']
-  /** A new task's day; today when unset. */
+  /** A new task's due day (from the calendar); none when unset. */
   date?: Date
   folderOptions: Array<FolderOption>
   /** Called with the saved task's id. */
   onDone: (id: number) => void
 }) {
   const queryClient = useQueryClient()
-  // A new task's day (today by default); it gets the current time on save.
-  const [date, setDate] = useState(() => initialDate ?? new Date())
+  // Due: a day (none = not due) and an optional time (else 09:00).
+  const [dueDay, setDueDay] = useState<Date | null>(
+    () => task?.dueAt ?? initialDate ?? null,
+  )
+  const [dueTime, setDueTime] = useState(() =>
+    task?.dueAt ? format(task.dueAt, 'HH:mm') : '',
+  )
   const save = useMutation({
-    mutationFn: async (value: TaskInput) => {
-      const data = value
+    mutationFn: async (value: FormInput) => {
+      const dueAt = dueDay ? atTime(dueDay, dueTime) : null
+      const data = { ...value, dueAt }
       if (task) {
         await updateTask({ data: { id: task.id, ...data } })
         return task.id
       }
-      const createdAt = atCurrentTime(date).toISOString()
-      return (await createTask({ data: { ...data, createdAt } })).id
+      return (await createTask({ data })).id
     },
     onSuccess: async (id) => {
       await queryClient.invalidateQueries(tasksTreeQueryOptions)
@@ -79,7 +91,7 @@ export function TaskForm({
       description: task?.description ?? '',
       folderId: task ? task.folderId : folderId,
     },
-    validators: { onSubmit: taskInput },
+    validators: { onSubmit: formInput },
     onSubmit: ({ value }) => save.mutateAsync(value),
   })
 
@@ -131,12 +143,44 @@ export function TaskForm({
             </Field>
           )}
         />
-        {!task && (
-          <Field>
-            <FieldLabel htmlFor="task-date">Date</FieldLabel>
-            <DatePicker id="task-date" value={date} onChange={setDate} />
-          </Field>
-        )}
+        <Field>
+          <FieldLabel htmlFor="task-due">Due</FieldLabel>
+          <div className="flex gap-2">
+            <div className="min-w-0 flex-1">
+              <DatePicker
+                id="task-due"
+                value={dueDay}
+                onChange={setDueDay}
+                placeholder="No due date"
+              />
+            </div>
+            {dueDay && (
+              <>
+                <Input
+                  type="time"
+                  aria-label="Due time"
+                  title={`Due time (${DEFAULT_DUE_HOUR}:00 when empty)`}
+                  className="w-28"
+                  value={dueTime}
+                  onChange={(e) => setDueTime(e.target.value)}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label="No due date"
+                  title="No due date"
+                  onClick={() => {
+                    setDueDay(null)
+                    setDueTime('')
+                  }}
+                >
+                  <XIcon />
+                </Button>
+              </>
+            )}
+          </div>
+        </Field>
         <form.Field
           name="description"
           children={(field) => {
@@ -183,15 +227,16 @@ export function TaskForm({
   )
 }
 
-/** `day`'s date at the current time of day. */
-function atCurrentTime(day: Date) {
-  const now = new Date()
+/** `day` at `time` (`HH:mm`), or at DEFAULT_DUE_HOUR when it's empty. */
+function atTime(day: Date, time: string) {
+  const [hours, minutes] = time
+    ? time.split(':').map(Number)
+    : [DEFAULT_DUE_HOUR, 0]
   return new Date(
     day.getFullYear(),
     day.getMonth(),
     day.getDate(),
-    now.getHours(),
-    now.getMinutes(),
-    now.getSeconds(),
+    hours,
+    minutes,
   )
 }

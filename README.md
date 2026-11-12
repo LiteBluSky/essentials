@@ -1,8 +1,9 @@
 # Essentials
 
 A handful of small personal apps in one: **Bookmarks** (links), **Notes**
-(markdown) and **Tasks** (a to-do list that colours tasks by age), each organised into folders and subfolders and shown as a file
-tree. Switch between them with the navbar at the top, or `Shift+H` /
+(markdown) and **Tasks** (a to-do list with due dates and phone reminders), each organised into folders and subfolders and shown as a file
+tree. Optionally, a **"Tell me…"** field on every app turns a typed or
+dictated sentence into a task or note. Switch between them with the navbar at the top, or `Shift+H` /
 `Shift+L`. No accounts, no sync. It runs on your own machine or home server
 and serves on **http://localhost:8008**.
 
@@ -14,7 +15,8 @@ There's nothing to configure and no database server: the data is one SQLite
 file, created with its tables the first time the server starts. Optional
 settings (see `.env.example`): `DATABASE_PATH` (where the file lives,
 default `data/essentials.db`) and `VITE_APP_NAME` (the name shown in the app;
-build-time).
+build-time). The assistant and phone reminders are off until you set them
+up (see [Assistant and reminders](#assistant-and-reminders)).
 
 > **No login.** The server listens on all interfaces, so anyone who can reach
 > port 8008 can read and edit your bookmarks, notes and tasks. Keep it on your LAN (or behind
@@ -269,6 +271,33 @@ install or work offline. To install it on a phone, put it behind HTTPS, for
 example with Tailscale (`tailscale serve --bg 8008`, then open the
 `https://<machine>.<tailnet>.ts.net` address it prints) or a reverse proxy
 with a certificate (Caddy, nginx…).
+
+## Assistant and reminders
+
+Both are optional and off by default; set them in `.env.local` (Windows /
+native) or a `.env` next to `compose.yaml` (Docker), then restart.
+
+**"Tell me…"** — a field at the top of every app, focused when the app
+opens. Type (or tap the phone keyboard's mic and talk) something like
+_"remind me to call the dentist Friday at 3"_ or _"note: cabin wifi is
+abc123"_, press Enter, and it's created in the **Unsorted** folder of Tasks
+or Notes, ready to file. It needs an LLM key: get one at
+[openrouter.ai](https://openrouter.ai) and set `LLM_API_KEY` (any
+OpenAI-compatible API works via `LLM_BASE_URL` + `LLM_MODEL`). Only the
+sentence you type is sent to the provider.
+
+**Phone reminders** — when a task with a due date falls due, the server
+pushes it to your phone through [ntfy](https://ntfy.sh):
+
+1. Install the ntfy app (Android: Play Store / F-Droid; iPhone: App Store).
+2. Pick a long random topic name and subscribe to it in the app.
+3. Set `NTFY_TOPIC` to it (and `NTFY_URL` / `NTFY_TOKEN` if you run your own
+   ntfy server), optionally `PUBLIC_URL` so tapping a reminder opens the app.
+4. Restart, then Tasks ⋮ menu → **Send test reminder**.
+
+Each due task is pushed once (editing its due date re-arms it); the server
+checks every minute, so it must be running. Works over plain http on the
+LAN: the push goes server → ntfy → phone.
 
 ## Data: backup and moving machines
 

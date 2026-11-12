@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { Task } from '@/db/schema'
 import { useHydrated } from '@/hooks/tasks/use-hydrated'
-import { ageLabel, taskTone } from '@/lib/tasks/tree'
+import { ageLabel, dueLabel, taskTone } from '@/lib/tasks/tree'
 import type { FolderNode, TaskTone, Tree } from '@/lib/tasks/tree'
 import { cn } from '@/lib/utils'
 import type { OpenEditor } from './editor'
@@ -418,7 +418,8 @@ function useTone(task: Task): TaskTone {
   return hydrated ? taskTone(task) : 'fresh'
 }
 
-/** How long the task has been open ("today", "3 days"), in its colour. */
+/** When an open task is due ("tomorrow 09:00"), else how long it has been
+ * open ("today", "3 days"), in its colour. */
 export function TaskAge({
   task,
   className,
@@ -432,7 +433,11 @@ export function TaskAge({
     <span
       className={cn('shrink-0 text-xs tabular-nums', AGE_TONE[tone], className)}
     >
-      {hydrated ? ageLabel(task) : null}
+      {!hydrated
+        ? null
+        : task.dueAt && !task.completedAt
+          ? dueLabel(task.dueAt)
+          : ageLabel(task)}
     </span>
   )
 }

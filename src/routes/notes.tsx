@@ -18,6 +18,7 @@ import { QuickNotes } from '@/components/notes/quick-notes'
 import { ShortcutsDialog } from '@/components/notes/shortcuts-dialog'
 import { TreeDndProvider } from '@/components/notes/tree-dnd'
 import { AppNav } from '@/components/app-nav'
+import { AssistantBox } from '@/components/assistant-box'
 import { GlobalSearch } from '@/components/global-search'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
@@ -53,11 +54,15 @@ import {
   findFolder,
   quickNotes,
 } from '@/lib/notes/tree'
+import { assistantEnabledQueryOptions } from '@/server/assistant.functions'
 import { notesTreeQueryOptions } from '@/server/notes.functions'
 
 export const Route = createFileRoute('/notes')({
   loader: ({ context }) =>
-    context.queryClient.ensureQueryData(notesTreeQueryOptions),
+    Promise.all([
+      context.queryClient.ensureQueryData(notesTreeQueryOptions),
+      context.queryClient.ensureQueryData(assistantEnabledQueryOptions),
+    ]),
   head: () => ({ meta: [{ title: `Notes · ${APP_NAME}` }] }),
   component: Home,
 })
@@ -229,6 +234,8 @@ function Home() {
           </ButtonGroup>
         </div>
       </header>
+
+      <AssistantBox enabled={!dialogOpen} />
 
       {/* Own provider so the menu's move up/down works outside the tree. */}
       <TreeDndProvider

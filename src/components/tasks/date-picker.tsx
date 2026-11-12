@@ -13,28 +13,33 @@ import { useCalendarKeys } from '@/hooks/tasks/use-calendar-keys'
 import { CalendarKeysHint } from './calendar-dialog'
 
 /**
- * A day picker (shadcn Calendar in a Popover) for a new task's date. Only
- * the day is chosen; the form adds the current time when saving. Keys:
- * h/l day, j/k week, m/M month, y/Y year, Enter picks.
+ * A day picker (shadcn Calendar in a Popover) for a task's due date. Only
+ * the day is chosen (the form has its own time field). Opens on today when
+ * empty. Keys: h/l day, j/k week, m/M month, y/Y year, Enter picks.
  */
 export function DatePicker({
   id,
   value,
   onChange,
+  placeholder = 'Pick a day',
 }: {
   id?: string
-  value: Date
+  value: Date | null
   onChange: (date: Date) => void
+  placeholder?: string
 }) {
   const [open, setOpen] = useState(false)
-  const keys = useCalendarKeys(value, onChange)
+  // The keys need a day to move from: today until one is picked.
+  const [today] = useState(() => new Date())
+  const shown = value ?? today
+  const keys = useCalendarKeys(shown, onChange)
 
   return (
     <Popover
       open={open}
       onOpenChange={(next) => {
         setOpen(next)
-        if (next) keys.setMonth(value)
+        if (next) keys.setMonth(shown)
       }}
     >
       <PopoverTrigger
@@ -47,9 +52,15 @@ export function DatePicker({
         }
       >
         <CalendarIcon data-icon="inline-start" />
-        {format(value, 'EEE d MMM yyyy')}
-        {isToday(value) && (
-          <span className="text-muted-foreground">(today)</span>
+        {value ? (
+          <>
+            {format(value, 'EEE d MMM yyyy')}
+            {isToday(value) && (
+              <span className="text-muted-foreground">(today)</span>
+            )}
+          </>
+        ) : (
+          <span className="text-muted-foreground">{placeholder}</span>
         )}
       </PopoverTrigger>
       <PopoverContent
@@ -62,7 +73,7 @@ export function DatePicker({
           mode="single"
           required
           autoFocus
-          selected={value}
+          selected={shown}
           onSelect={(date) => {
             onChange(date)
             setOpen(false)

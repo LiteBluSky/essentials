@@ -4,9 +4,9 @@ import { createServerFn } from '@tanstack/react-start'
 import {
   byId,
   completeInput,
-  createTaskInput,
   folderInput,
   moveInput,
+  taskInput,
   tasksFile,
   updateFolderInput,
   updateTaskInput,
@@ -23,6 +23,7 @@ import {
   removeTask,
   setCompleted,
 } from './tasks.server'
+import { push } from './reminders.server'
 
 // No auth by design: the server is only meant for the owner's LAN (see
 // CLAUDE.md).
@@ -55,7 +56,7 @@ export const deleteFolder = createServerFn({ method: 'POST' })
   })
 
 export const createTask = createServerFn({ method: 'POST' })
-  .validator(createTaskInput)
+  .validator(taskInput)
   .handler(({ data }) => insertTask(data))
 
 export const updateTask = createServerFn({ method: 'POST' })
@@ -85,3 +86,14 @@ export const moveTreeItem = createServerFn({ method: 'POST' })
 export const importTasks = createServerFn({ method: 'POST' })
   .validator(tasksFile)
   .handler(({ data }) => importFile(data))
+
+/** "Send test reminder" (⋮ menu): pushes a test notification via ntfy. */
+export const testReminder = createServerFn({ method: 'POST' }).handler(
+  async () => {
+    await push({
+      title: 'Test reminder',
+      message: 'Reminders from your tasks will arrive like this.',
+      tags: 'white_check_mark',
+    })
+  },
+)

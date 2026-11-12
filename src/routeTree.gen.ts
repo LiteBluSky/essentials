@@ -14,6 +14,7 @@ import { Route as BookmarksRouteImport } from './routes/bookmarks'
 import { Route as ManifestDotwebmanifestRouteImport } from './routes/manifest[.]webmanifest'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as ApiRemindersRouteImport } from './routes/api/reminders'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,6 +41,11 @@ const TasksRoute = TasksRouteImport.update({
   path: '/tasks',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiRemindersRoute = ApiRemindersRouteImport.update({
+  id: '/api/reminders',
+  path: '/api/reminders',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
   '/notes': typeof NotesRoute
   '/tasks': typeof TasksRoute
+  '/api/reminders': typeof ApiRemindersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
   '/notes': typeof NotesRoute
   '/tasks': typeof TasksRoute
+  '/api/reminders': typeof ApiRemindersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,12 +70,25 @@ export interface FileRoutesById {
   '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
   '/notes': typeof NotesRoute
   '/tasks': typeof TasksRoute
+  '/api/reminders': typeof ApiRemindersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/bookmarks' | '/manifest.webmanifest' | '/notes' | '/tasks'
+  fullPaths:
+    | '/'
+    | '/bookmarks'
+    | '/manifest.webmanifest'
+    | '/notes'
+    | '/tasks'
+    | '/api/reminders'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/bookmarks' | '/manifest.webmanifest' | '/notes' | '/tasks'
+  to:
+    | '/'
+    | '/bookmarks'
+    | '/manifest.webmanifest'
+    | '/notes'
+    | '/tasks'
+    | '/api/reminders'
   id:
     | '__root__'
     | '/'
@@ -75,6 +96,7 @@ export interface FileRouteTypes {
     | '/manifest.webmanifest'
     | '/notes'
     | '/tasks'
+    | '/api/reminders'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -83,6 +105,7 @@ export interface RootRouteChildren {
   ManifestDotwebmanifestRoute: typeof ManifestDotwebmanifestRoute
   NotesRoute: typeof NotesRoute
   TasksRoute: typeof TasksRoute
+  ApiRemindersRoute: typeof ApiRemindersRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -122,6 +145,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TasksRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/reminders': {
+      id: '/api/reminders'
+      path: '/api/reminders'
+      fullPath: '/api/reminders'
+      preLoaderRoute: typeof ApiRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -131,6 +161,7 @@ const rootRouteChildren: RootRouteChildren = {
   ManifestDotwebmanifestRoute: ManifestDotwebmanifestRoute,
   NotesRoute: NotesRoute,
   TasksRoute: TasksRoute,
+  ApiRemindersRoute: ApiRemindersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

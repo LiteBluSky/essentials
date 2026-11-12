@@ -1,3 +1,5 @@
+import { differenceInCalendarDays, format } from 'date-fns'
+
 import type { Folder, Task } from '@/db/schema'
 import { EXPORT_FORMAT } from '@/lib/tasks/schemas'
 import type { ExportFolder, ExportTask, TasksFile } from '@/lib/tasks/schemas'
@@ -76,10 +78,16 @@ function taskMatches(task: Task, query: string) {
   )
 }
 
-/** Only the tasks dated `day` (`YYYY-MM-DD`, local; see `todayName`), plus
- * the folders leading to them. Browser only (timezone). */
+/** The day a task belongs to in the calendar: its due date, else the day it
+ * was created. */
+export function taskDay(task: Pick<Task, 'createdAt' | 'dueAt'>) {
+  return task.dueAt ?? task.createdAt
+}
+
+/** Only the tasks on `day` (`YYYY-MM-DD`, local; see `todayName` and
+ * `taskDay`), plus the folders leading to them. Browser only (timezone). */
 export function filterDay(tree: Tree, day: string): Tree {
-  const onDay = (t: Task) => todayName(t.createdAt) === day
+  const onDay = (t: Task) => todayName(taskDay(t)) === day
   const filterNode = (node: FolderNode): FolderNode | null => {
     const folders = node.folders
       .map(filterNode)
@@ -174,16 +182,21 @@ export function taskAgeDays(task: Pick<Task, 'createdAt'>, now = new Date()) {
 }
 
 /**
- * The task's colour: green once done, red after 3 days open, yellow after 1,
- * none while fresh.
+ * The task's colour: green once done. With a due date: red once it's past,
+ * yellow on the day. Without: red after 3 days open, yellow after 1, none
+ * while fresh.
  */
 export type TaskTone = 'done' | 'overdue' | 'due' | 'fresh'
 
 export function taskTone(
-  task: Pick<Task, 'createdAt' | 'completedAt'>,
+  task: Pick<Task, 'createdAt' | 'completedAt' | 'dueAt'>,
   now = new Date(),
 ): TaskTone {
   if (task.completedAt) return 'done'
+  if (task.dueAt) {
+    if (task.dueAt <= now) return 'overdue'
+    return todayName(task.dueAt) === todayName(now) ? 'due' : 'fresh'
+  }
   const days = taskAgeDays(task, now)
   return days >= 3 ? 'overdue' : days >= 1 ? 'due' : 'fresh'
 }
@@ -194,11 +207,53 @@ export function ageLabel(task: Pick<Task, 'createdAt'>, now = new Date()) {
   return days === 0 ? 'today' : `${days} day${days === 1 ? '' : 's'}`
 }
 
-/** The tasks dated today (created on the local date `now`), open or done,
- * in the order they were added. Depends on the timezone: browser only. */
+/** When it's due, short: "today 15:00", "tomorrow 09:00", "Fri 15:00",
+ * "12 Dec 15:00" (with the year when it isn't this one). Browser only. */
+export function dueLabel(dueAt: Date, now = new Date()) {
+  const time = format(dueAt, 'HH:mm')
+  const days = differenceInCalendarDays(dueAt, now)
+  if (days === 0) return `today ${time}`
+  if (days === 1) return `tomorrow ${time}`
+  if (days === -1) return `yesterday ${time}`
+  if (days > 1 && days < 7) return format(dueAt, 'EEE HH:mm')
+  return format(
+    dueAt,
+    dueAt.getFullYear() === now.getFullYear()
+      ? 'd MMM HH:mm'
+      : 'd MMM yyyy HH:mm',
+  )
+}
+
+/** A due date given as a day only lands at this time (local). */
+export const DEFAULT_DUE_HOUR = 9
+
+/** How many days ahead "Upcoming" looks (today included). */
+export const UPCOMING_DAYS = 7
+
+/** Open tasks that are overdue or due within `UPCOMING_DAYS`, soonest
+ * first. Browser only (timezone). */
+export function upcomingTasks(tasks: Array<Task>, now = new Date()) {
+  return tasks
+    .filter(
+      (t): t is Task & { dueAt: Date } =>
+        t.completedAt === null &&
+        t.dueAt !== null &&
+        differenceInCalendarDays(t.dueAt, now) < UPCOMING_DAYS,
+    )
+    .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime() || a.id - b.id)
+}
+
+/** The tasks on today (see `taskDay`), open or done, in the order they were
+ * added — except open ones with a due date, which "Upcoming" lists. Depends
+ * on the timezone: browser only. */
 export function todayTasks(tasks: Array<Task>, now = new Date()) {
   const today = todayName(now)
-  return tasks.filter((t) => todayName(t.createdAt) === today).sort(byCreated)
+  return tasks
+    .filter(
+      (t) =>
+        todayName(taskDay(t)) === today && !(t.dueAt && t.completedAt === null),
+    )
+    .sort(byCreated)
 }
 
 /** The local date as `YYYY-MM-DD`: names the "Today" folder and unnamed
@@ -292,6 +347,7 @@ export function toTasksFile(tree: Tree): TasksFile {
     ...(t.description && { description: t.description }),
     createdAt: t.createdAt.toISOString(),
     ...(t.completedAt && { completedAt: t.completedAt.toISOString() }),
+    ...(t.dueAt && { dueAt: t.dueAt.toISOString() }),
   })
   const folder = (node: FolderNode): ExportFolder => ({
     name: node.folder.name,

@@ -36,6 +36,13 @@
       "when": 1794306517273,
       "tag": "0004_nappy_energizer",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1794481034606,
+      "tag": "0005_woozy_nitro",
+      "breakpoints": true
     }
   ]
 }

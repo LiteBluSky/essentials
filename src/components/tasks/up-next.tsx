@@ -16,8 +16,15 @@ export function UpNext(props: ListProps) {
   return <QuickList id="up-next" title="Up next" numbered {...props} />
 }
 
-// "Today": the tasks dated today, wherever they're filed (open and done).
-// Only after hydration: "today" is the browser's date.
+// "Upcoming": open tasks that are overdue or due within the week, soonest
+// first, with when they're due. Only after hydration (browser's timezone).
+export function UpcomingTasks(props: ListProps) {
+  return <QuickList id="upcoming" title="Upcoming" {...props} />
+}
+
+// "Today": the tasks on today, wherever they're filed (open and done), minus
+// the due ones (in Upcoming). Only after hydration: "today" is the browser's
+// date.
 export function TodayTasks(props: ListProps) {
   return <QuickList id="today" title="Today" {...props} />
 }

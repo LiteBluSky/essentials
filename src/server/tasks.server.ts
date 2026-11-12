@@ -4,7 +4,6 @@ import { db } from '@/db'
 import { taskFolders as folders, tasks } from '@/db/schema'
 import type {
   CompleteInput,
-  CreateTaskInput,
   ExportFolder,
   ExportTask,
   FolderInput,
@@ -135,14 +134,31 @@ export async function removeFolder(id: number) {
   })
 }
 
-export async function insertTask({ createdAt, ...input }: CreateTaskInput) {
+export async function insertTask(input: TaskInput) {
   await assertFolderExists(input.folderId)
   const position = await nextTaskPosition(input.folderId)
   const [row] = await db
     .insert(tasks)
-    .values({ ...input, position, ...(createdAt && { createdAt }) })
+    .values({ ...input, position })
     .returning({ id: tasks.id })
   return row
+}
+
+/** The id of the top-level folder named `name` (case-insensitive), created
+ * at the end of the top level if there's none. */
+export async function ensureTopFolder(name: string) {
+  const existing = (
+    await db
+      .select({ id: folders.id })
+      .from(folders)
+      .where(
+        sql`${folders.parentId} is null and ${folders.name} = ${name} collate nocase`,
+      )
+      .orderBy(asc(folders.position))
+      .limit(1)
+  ).at(0)
+  if (existing) return existing.id
+  return (await insertFolder({ name, parentId: null })).id
 }
 
 export async function editTask(id: number, input: TaskInput) {
@@ -150,19 +166,23 @@ export async function editTask(id: number, input: TaskInput) {
   await assertFolderExists(folderId)
   const existing = (
     await db
-      .select({ folderId: tasks.folderId })
+      .select({ folderId: tasks.folderId, dueAt: tasks.dueAt })
       .from(tasks)
       .where(eq(tasks.id, id))
   ).at(0)
   if (!existing) throw new Error('Task not found')
 
   const moved = existing.folderId !== folderId
+  // A new due date re-arms its reminder.
+  const rescheduled =
+    (existing.dueAt?.getTime() ?? null) !== (input.dueAt?.getTime() ?? null)
   await db
     .update(tasks)
     .set({
       ...input,
       folderId,
       ...(moved && { position: await nextTaskPosition(folderId) }),
+      ...(rescheduled && { remindedAt: null }),
     })
     .where(eq(tasks.id, id))
 }
@@ -260,6 +280,9 @@ export async function importFile(file: TasksFile) {
           position: start + i,
           createdAt: task.createdAt ? new Date(task.createdAt) : now,
           completedAt: task.completedAt ? new Date(task.completedAt) : null,
+          dueAt: task.dueAt ? new Date(task.dueAt) : null,
+          // Past reminders aren't sent again after an import.
+          remindedAt: task.dueAt && new Date(task.dueAt) <= now ? now : null,
         })),
       )
       counts.tasks += items.length

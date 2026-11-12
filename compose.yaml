@@ -8,6 +8,16 @@ services:
         VITE_APP_NAME: ${VITE_APP_NAME:-Essentials}
     # To use the published image instead of building locally:
     # image: ghcr.io/liteblusky/essentials:latest
+    # Optional assistant + phone reminders (see .env.example): put them in
+    # a .env file next to this one, or your shell.
+    environment:
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      NTFY_TOPIC: ${NTFY_TOPIC:-}
+      NTFY_URL: ${NTFY_URL:-}
+      NTFY_TOKEN: ${NTFY_TOKEN:-}
+      PUBLIC_URL: ${PUBLIC_URL:-}
     ports:
       - '8008:8008'
     volumes:

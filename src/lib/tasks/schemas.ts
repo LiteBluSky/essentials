@@ -23,15 +23,11 @@ export const taskInput = z.object({
   description: z.string().max(10_000, 'Keep the description shorter'),
   // null = top level (the default: no folder picked).
   folderId: id.nullable(),
+  // When it's due (null = no due date, no reminder). The phone is pinged
+  // then (see reminders.server.ts).
+  dueAt: z.coerce.date().nullable(),
 })
 export type TaskInput = z.infer<typeof taskInput>
-
-// A new task can be dated (the form's date picker: the picked day at the
-// current time). Sent as an ISO string. Editing keeps the original date.
-export const createTaskInput = taskInput.extend({
-  createdAt: z.coerce.date().optional(),
-})
-export type CreateTaskInput = z.infer<typeof createTaskInput>
 
 export const byId = z.object({ id })
 
@@ -60,6 +56,7 @@ const exportTask = z.object({
   description: taskInput.shape.description.optional(),
   createdAt: z.iso.datetime().optional(),
   completedAt: z.iso.datetime().optional(),
+  dueAt: z.iso.datetime().optional(),
 })
 export type ExportTask = z.infer<typeof exportTask>
 

@@ -224,10 +224,19 @@ function TaskView({
       )}
 
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+        {task.dueAt && (
+          <>
+            <dt className="text-muted-foreground">Due</dt>
+            <dd className="flex items-center gap-2">
+              {dateTime.format(task.dueAt)}
+              {!done && <TaskAge task={task} />}
+            </dd>
+          </>
+        )}
         <dt className="text-muted-foreground">Created</dt>
         <dd className="flex items-center gap-2">
           {dateTime.format(task.createdAt)}
-          {!done && <TaskAge task={task} />}
+          {!done && !task.dueAt && <TaskAge task={task} />}
         </dd>
         {task.completedAt && (
           <>

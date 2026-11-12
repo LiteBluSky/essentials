@@ -12,7 +12,7 @@ export type EditorState =
       mode: 'edit'
       task?: Task
       folderId: TaskInput['folderId']
-      /** A new task's day (from the calendar); today when unset. */
+      /** A new task's due day (from the calendar); none when unset. */
       date?: Date
     }
   | { kind: 'folder'; folder?: Folder; parentId: number | null }

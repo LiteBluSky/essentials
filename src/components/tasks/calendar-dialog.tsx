@@ -16,11 +16,12 @@ import {
 import { Kbd } from '@/components/ui/kbd'
 import type { Task } from '@/db/schema'
 import { useCalendarKeys } from '@/hooks/tasks/use-calendar-keys'
-import { taskTone, todayName } from '@/lib/tasks/tree'
+import { taskDay, taskTone, todayName } from '@/lib/tasks/tree'
 import { cn } from '@/lib/utils'
 import type { TaskTone } from '@/lib/tasks/tree'
 
-// One dot per task created that day, in the task's colour (as in the tree).
+// One dot per task on that day (due then, else created then), in the task's
+// colour (as in the tree).
 const DOT_TONE: Record<TaskTone, string> = {
   overdue: 'bg-destructive',
   due: 'bg-warning',
@@ -31,7 +32,7 @@ const MAX_DOTS = 4
 
 const TasksByDay = createContext<ReadonlyMap<string, Array<Task>>>(new Map())
 
-/** A calendar day with a dot per task created on it. */
+/** A calendar day with a dot per task on it. */
 function DayWithDots({
   children,
   ...props
@@ -75,10 +76,11 @@ export function CalendarKeysHint({
 
 /**
  * The month at a glance (`i` or the header button): a dot per task on the
- * day it was created, coloured like the task. The same keys as the form's
- * date picker move the selection (a click selects too); Enter (or the
- * button) shows that day's tasks in the list, `a` (or the button) starts a
- * new task dated that day.
+ * day it's due (or was created, without a due date), coloured like the
+ * task, and the selected day's tasks listed below (a click opens one). The
+ * same keys as the form's date picker move the selection (a click selects
+ * too); Enter (or the button) shows that day's tasks in the list, `a` (or
+ * the button) starts a new task due that day.
  */
 export function CalendarDialog({
   open,
@@ -86,6 +88,7 @@ export function CalendarDialog({
   tasks,
   selected,
   onNewTask,
+  onOpenTask,
   onShowDay,
 }: {
   open: boolean
@@ -93,28 +96,38 @@ export function CalendarDialog({
   tasks: Array<Task>
   /** The day it opens on (the list's date filter); else today. */
   selected?: Date
-  /** New task on this day (opened once this dialog has closed). */
+  /** New task due this day (opened once this dialog has closed). */
   onNewTask: (date: Date) => void
+  /** Open a task's details (once this dialog has closed). */
+  onOpenTask: (id: number) => void
   /** Filter the list to this day's tasks. */
   onShowDay: (date: Date) => void
 }) {
   const byDay = useMemo(() => {
     const map = new Map<string, Array<Task>>()
     for (const task of tasks) {
-      const key = todayName(task.createdAt)
+      const key = todayName(taskDay(task))
       const list = map.get(key)
       if (list) list.push(task)
       else map.set(key, [task])
     }
+    for (const list of map.values()) {
+      list.sort((a, b) => taskDay(a).getTime() - taskDay(b).getTime())
+    }
     return map
   }, [tasks])
 
-  // A new task is opened once this dialog is gone, and this dialog doesn't
-  // hand focus back to what opened it (the form has it by then). The flag is
-  // only reset once it has opened again: Base UI may restore focus after
-  // onOpenChangeComplete.
-  const picked = useRef<Date | null>(null)
+  // A new task / a task's details open once this dialog is gone, and this
+  // dialog doesn't hand focus back to what opened it (the other dialog has
+  // it by then). The flag is only reset once it has opened again: Base UI
+  // may restore focus after onOpenChangeComplete.
+  const picked = useRef<Picked | null>(null)
   const returnFocus = useRef(true)
+  const pick = (next: Picked) => {
+    picked.current = next
+    returnFocus.current = false
+    onOpenChange(false)
+  }
 
   return (
     <Dialog
@@ -122,11 +135,13 @@ export function CalendarDialog({
       onOpenChange={onOpenChange}
       onOpenChangeComplete={(isOpen) => {
         if (isOpen) returnFocus.current = true
-        const date = picked.current
-        if (isOpen || !date) return
+        const next = picked.current
+        if (isOpen || !next) return
         picked.current = null
         // After the popup has unmounted and any focus handling is done.
-        setTimeout(() => onNewTask(date))
+        setTimeout(() =>
+          next.kind === 'new' ? onNewTask(next.date) : onOpenTask(next.id),
+        )
       }}
     >
       <DialogContent
@@ -137,11 +152,8 @@ export function CalendarDialog({
           <CalendarBody
             byDay={byDay}
             initial={selected}
-            onNewTask={(date) => {
-              picked.current = date
-              returnFocus.current = false
-              onOpenChange(false)
-            }}
+            onNewTask={(date) => pick({ kind: 'new', date })}
+            onOpenTask={(id) => pick({ kind: 'open', id })}
             onShowDay={(date) => {
               onShowDay(date)
               onOpenChange(false)
@@ -153,16 +165,20 @@ export function CalendarDialog({
   )
 }
 
+type Picked = { kind: 'new'; date: Date } | { kind: 'open'; id: number }
+
 // Mounted per opening, so it starts on `initial` (or today) each time.
 function CalendarBody({
   byDay,
   initial,
   onNewTask,
+  onOpenTask,
   onShowDay,
 }: {
   byDay: ReadonlyMap<string, Array<Task>>
   initial?: Date
   onNewTask: (date: Date) => void
+  onOpenTask: (id: number) => void
   onShowDay: (date: Date) => void
 }) {
   const [date, setDate] = useState(() => initial ?? new Date())
@@ -210,6 +226,40 @@ function CalendarBody({
           className="[--cell-size:--spacing(11)]"
         />
       </div>
+      {dayTasks.length > 0 && (
+        <ul className="flex max-h-48 flex-col overflow-y-auto">
+          {dayTasks.map((task) => (
+            <li key={task.id}>
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={() => onOpenTask(task.id)}
+              >
+                <span
+                  aria-hidden
+                  className={cn(
+                    'size-2 shrink-0 rounded-full',
+                    DOT_TONE[taskTone(task)],
+                  )}
+                />
+                <span
+                  className={cn(
+                    'truncate',
+                    task.completedAt && 'text-muted-foreground line-through',
+                  )}
+                >
+                  {task.title}
+                </span>
+                {task.dueAt && (
+                  <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                    {format(task.dueAt, 'HH:mm')}
+                  </span>
+                )}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
       <CalendarKeysHint action="show its tasks" actionKey="Enter" />
       <DialogFooter>
         <Button variant="outline" onClick={() => onShowDay(date)}>
@@ -219,7 +269,7 @@ function CalendarBody({
         </Button>
         <Button onClick={() => onNewTask(date)}>
           <PlusIcon data-icon="inline-start" />
-          New task on {format(date, 'd MMM')}
+          New task due {format(date, 'd MMM')}
           <Kbd>a</Kbd>
         </Button>
       </DialogFooter>

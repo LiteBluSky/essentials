@@ -26,8 +26,9 @@ import { ImportExportMenu } from '@/components/tasks/import-export-menu'
 import { ShortcutsDialog } from '@/components/tasks/shortcuts-dialog'
 import { TaskList, TaskTree } from '@/components/tasks/task-tree'
 import { TreeDndProvider } from '@/components/tasks/tree-dnd'
-import { TodayTasks, UpNext } from '@/components/tasks/up-next'
+import { TodayTasks, UpNext, UpcomingTasks } from '@/components/tasks/up-next'
 import { AppNav } from '@/components/app-nav'
+import { AssistantBox } from '@/components/assistant-box'
 import { GlobalSearch } from '@/components/global-search'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
@@ -70,12 +71,17 @@ import {
   todayName,
   todayTasks,
   upNext,
+  upcomingTasks,
 } from '@/lib/tasks/tree'
+import { assistantEnabledQueryOptions } from '@/server/assistant.functions'
 import { tasksTreeQueryOptions } from '@/server/tasks.functions'
 
 export const Route = createFileRoute('/tasks')({
   loader: ({ context }) =>
-    context.queryClient.ensureQueryData(tasksTreeQueryOptions),
+    Promise.all([
+      context.queryClient.ensureQueryData(tasksTreeQueryOptions),
+      context.queryClient.ensureQueryData(assistantEnabledQueryOptions),
+    ]),
   head: () => ({ meta: [{ title: `Tasks · ${APP_NAME}` }] }),
   component: Home,
 })
@@ -115,6 +121,10 @@ function Home() {
     () => (hydrated ? todayTasks(data.tasks) : []),
     [hydrated, data.tasks],
   )
+  const upcoming = useMemo(
+    () => (hydrated ? upcomingTasks(data.tasks) : []),
+    [hydrated, data.tasks],
+  )
   const complete = useCompleteTask()
 
   const { expanded, setOpen, collapseAll } = useExpandedFolders('tasks')
@@ -127,8 +137,8 @@ function Home() {
     setEditor(state)
     setEditorOpen(true)
   }
-  // New tasks go to the top level unless a folder is given, dated today
-  // unless a day is given (from the calendar).
+  // New tasks go to the top level unless a folder is given, not due unless a
+  // day is given (from the calendar).
   const newTask = (folderId: TaskInput['folderId'] = null, date?: Date) => {
     if (typeof folderId === 'number') setOpen(folderId, true)
     openEditor({ kind: 'task', mode: 'edit', folderId, date })
@@ -304,6 +314,8 @@ function Home() {
         </div>
       </header>
 
+      <AssistantBox enabled={!dialogOpen} />
+
       {/* Own provider so the menu's move up/down works outside the tree. */}
       <TreeDndProvider
         tree={tree}
@@ -311,6 +323,11 @@ function Home() {
         enabled={false}
         onExpand={(id) => setOpen(id, true)}
       >
+        <UpcomingTasks
+          tasks={upcoming}
+          onEdit={openEditor}
+          onComplete={complete}
+        />
         <TodayTasks tasks={today} onEdit={openEditor} onComplete={complete} />
         <UpNext tasks={next} onEdit={openEditor} onComplete={complete} />
       </TreeDndProvider>
@@ -515,6 +532,9 @@ function Home() {
         tasks={data.tasks}
         selected={day ? parseISO(day) : undefined}
         onNewTask={(date) => newTask(null, date)}
+        onOpenTask={(id) =>
+          openEditor({ kind: 'task', mode: 'view', taskId: id })
+        }
         onShowDay={(date) => setDay(todayName(date))}
       />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />

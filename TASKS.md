@@ -204,6 +204,21 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] Editing a note focuses its title first (Enter moves on to the note)
 - [x] `j`/`k` scroll the note preview
 
+## 18. Assistant and reminders
+
+- [x] Tasks get an optional due date + time (`dueAt`, migration 0005);
+      the form's created "Date" becomes "Due" (also when editing)
+- [x] Colours, labels ("tomorrow 09:00"), Today and the calendar follow the
+      due date; "Upcoming" lists overdue / due within a week
+- [x] Calendar: dots on due days, the selected day's tasks listed (click
+      opens), `a` starts a task due that day
+- [x] Phone reminders via ntfy: pushed once when due (Nitro plugin, every
+      minute); "Send test reminder" in the ⋮ menu
+- [x] "Tell me…" field on every app (focused on open, `s`): an LLM
+      (OpenRouter / OpenAI-compatible) turns a sentence into tasks / notes in
+      "Unsorted"; hidden without `LLM_API_KEY`
+- [ ] Verify on the phone: dictation into the field, ntfy reminder arrives
+
 ## History of the notes app (before the merge)
 
 ### Notes 0. Scaffold (from the bookmarks app)

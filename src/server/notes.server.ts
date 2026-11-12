@@ -89,6 +89,23 @@ export async function insertFolder(input: FolderInput) {
   return row
 }
 
+/** The id of the top-level folder named `name` (case-insensitive), created
+ * at the end of the top level if there's none. */
+export async function ensureTopFolder(name: string) {
+  const existing = (
+    await db
+      .select({ id: folders.id })
+      .from(folders)
+      .where(
+        sql`${folders.parentId} is null and ${folders.name} = ${name} collate nocase`,
+      )
+      .orderBy(asc(folders.position))
+      .limit(1)
+  ).at(0)
+  if (existing) return existing.id
+  return (await insertFolder({ name, parentId: null })).id
+}
+
 export async function editFolder(id: number, input: FolderInput) {
   await assertFolderExists(input.parentId)
   await assertNotDescendant(id, input.parentId)

@@ -18,6 +18,7 @@ import { ImportExportMenu } from '@/components/bookmarks/import-export-menu'
 import { ShortcutsDialog } from '@/components/bookmarks/shortcuts-dialog'
 import { TreeDndProvider } from '@/components/bookmarks/tree-dnd'
 import { AppNav } from '@/components/app-nav'
+import { AssistantBox } from '@/components/assistant-box'
 import { GlobalSearch } from '@/components/global-search'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
@@ -52,11 +53,15 @@ import {
   filterTree,
   findFolder,
 } from '@/lib/bookmarks/tree'
+import { assistantEnabledQueryOptions } from '@/server/assistant.functions'
 import { bookmarksTreeQueryOptions } from '@/server/bookmarks.functions'
 
 export const Route = createFileRoute('/bookmarks')({
   loader: ({ context }) =>
-    context.queryClient.ensureQueryData(bookmarksTreeQueryOptions),
+    Promise.all([
+      context.queryClient.ensureQueryData(bookmarksTreeQueryOptions),
+      context.queryClient.ensureQueryData(assistantEnabledQueryOptions),
+    ]),
   head: () => ({ meta: [{ title: `Bookmarks · ${APP_NAME}` }] }),
   component: Home,
 })
@@ -220,6 +225,8 @@ function Home() {
           </ButtonGroup>
         </div>
       </header>
+
+      <AssistantBox enabled={!dialogOpen} />
 
       {/* Own provider so the menu's move up/down works outside the tree. */}
       <TreeDndProvider

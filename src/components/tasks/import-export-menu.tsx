@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
+  BellRingIcon,
   DownloadIcon,
   EllipsisVerticalIcon,
   MonitorDownIcon,
@@ -24,7 +25,11 @@ import { tasksFile } from '@/lib/tasks/schemas'
 import type { TasksFile } from '@/lib/tasks/schemas'
 import { toTasksFile } from '@/lib/tasks/tree'
 import type { Tree } from '@/lib/tasks/tree'
-import { importTasks, tasksTreeQueryOptions } from '@/server/tasks.functions'
+import {
+  importTasks,
+  tasksTreeQueryOptions,
+  testReminder,
+} from '@/server/tasks.functions'
 
 function plural(n: number, word: string) {
   return `${n} ${word}${n === 1 ? '' : 's'}`
@@ -104,6 +109,22 @@ export function ImportExportMenu({ tree }: { tree: Tree }) {
       }),
   })
 
+  const sendTest = useMutation({
+    mutationFn: () => testReminder(),
+    onSuccess: () =>
+      toast.add({
+        title: 'Test reminder sent',
+        description: 'It should be on your phone now.',
+        type: 'success',
+      }),
+    onError: (error) =>
+      toast.add({
+        title: "Couldn't send a reminder",
+        description: error.message,
+        type: 'error',
+      }),
+  })
+
   const isEmpty = !tree.folders.length && !tree.tasks.length
 
   return (
@@ -127,6 +148,16 @@ export function ImportExportMenu({ tree }: { tree: Tree }) {
             <DropdownMenuItem disabled={isEmpty} onClick={() => download(tree)}>
               <DownloadIcon />
               Export JSON
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuItem
+              disabled={sendTest.isPending}
+              onClick={() => sendTest.mutate()}
+            >
+              <BellRingIcon />
+              Send test reminder
             </DropdownMenuItem>
           </DropdownMenuGroup>
           {app.state !== 'installed' && (
