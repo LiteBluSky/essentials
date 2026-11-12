@@ -213,7 +213,8 @@ unless it's actually slow.
 ## UI
 
 Each app is one page laid out the same way: header (the **app navbar** on
-the left — icon + name per app, the current one highlighted — then New
+the left — an icon per app, its name in a tooltip, the current one
+highlighted — then New
 folder, New <item>, and a `ButtonGroup` of global search, the ⋮
 import/export menu, shortcuts help and theme menu; below 500px the buttons wrap under the
 navbar), the app's quick list, search box, then the tree. Folders are
@@ -580,13 +581,10 @@ instead when it has focus), `gg`/`G` latest/oldest, `a` new chat, `d` /
 box (Enter sends, Shift+Enter new line, Esc leaves it), `z` global search,
 `Shift+H` / `Shift+L` switch apps.
 
-**Navbar** (`components/app-nav.tsx`, every app): scrolls sideways (no
-scrollbar shown) when the apps don't fit. Each page mounts its own, so the
-scroll position is kept in a module variable across switches and the
-current app then glides to the middle (instant with reduced motion), so it
-follows `Shift+H` / `Shift+L`;
-below `sm` (640px) it shows only the icons (names stay as `title` and for
-screen readers).
+**Navbar** (`components/app-nav.tsx`, every app): one icon button per
+app (`APPS`), the current one highlighted (`secondary`, `aria-current`),
+its name in a shadcn `Tooltip` on hover and as the `aria-label`. No labels
+and no scrolling, at any width.
 
 ### Settings (every app's ⋮ menu)
 
