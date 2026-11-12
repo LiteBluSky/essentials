@@ -664,8 +664,24 @@ off on that side.
   from the `tasks` table (`calendar.server.ts`), like the global search.
 - One query (`calendarQueryOptions`, key `['calendar', 'data']`): every
   strip plus the dated tasks. The whole grid renders after hydration.
-- Not (yet) in the global search, `@` references or the assistant's
-  tools, and no `AssistantBox` (the grid gets the room). Its ⋮ menu
+- **Strip list** (`i`, `strips-dialog.tsx`): every strip in a `Command`
+  dialog, earliest first (past ones dimmed), opening on the first not
+  over yet. The list has focus, not the filter: `j`/`k` (↓/↑), `gg`/`G`,
+  Enter / `o` / click goes to it (the month, its first day focused), `e`
+  edits, `d` deletes (`DeleteStripDialog`, `d` `d`), `/` filters by name
+  or date (Esc back to the list). Each pick runs once the list has fully
+  closed (no focus fight); editing / deleting reopens the list after.
+- **The assistant** has Calendar tools (`agent-calendar.server.ts`,
+  `CALENDAR_TOOLS` in `ALL_TOOLS`, run first by `runTool`):
+  `list_calendar` (strips overlapping a local day range; default today +
+  90 days), `create_calendar_strip` (title, start / end day, a colour
+  only if named; default `DEFAULT_COLOR`), `update_calendar_strip`,
+  `delete_calendar_strip`. Changes are recorded as `app: 'calendar'`
+  items (`changes.server.ts` maps it to `calendar_events`), so Undo works;
+  strips have no `@` references. `APP_PROMPT` says strips are for things
+  going on over days with nothing to do (else a task, never both).
+- Not (yet) in the global search or `@` references, and no
+  `AssistantBox` (the grid gets the room). Its ⋮ menu
   (`calendar-menu.tsx`) has Settings, Assistant history and Install.
 
 **Navbar** (`components/app-nav.tsx`, every app): one icon button per
@@ -735,7 +751,7 @@ can't read the secrets back.
   `components/calendar/shortcuts-dialog.tsx`): `h`/`l` day, `k`/`j` week
   (arrows too), `m`/`M` (PageDown/PageUp) month — sent to DayPicker as
   the keys it already handles — `t` today, Enter/Space start / finish a
-  range, `a` new strip, `o` that day's tasks (navigates to
+  range, `a` new strip, `i` the strip list, `o` that day's tasks (navigates to
   `/tasks?day=YYYY-MM-DD`; Tasks' `validateSearch` takes it into its
   day filter and drops it from the URL, so the chip / `q` clear it), Esc
   cancels the range, `z`, `f`, `?`, `Shift+H/L`. In the strip dialog,
@@ -747,6 +763,11 @@ can't read the secrets back.
   deletes (`useConfirmKey` in `src/hooks/use-confirm-key.ts`; repeats of a
   held key are ignored).
 - `z` opens the global search on every app (`useGlobalSearch`).
+- **Ctrl+Enter** (⌘ on macOS) submits every form from any field
+  (`submitOnModEnter` in `src/lib/submit-shortcut.ts`, as the `<form>`'s
+  `onKeyDownCapture`, so it wins over the fields' own keys); the note
+  editor has its own (Ctrl+Enter / Ctrl+S, save and preview). Use it on
+  any new form.
 - `f` opens the **app switcher** on every app (`components/app-switcher.tsx`,
   mounted once in `__root.tsx` with its own listener; off while typing or
   while any dialog / menu / listbox is open): the same Dialog + Command as

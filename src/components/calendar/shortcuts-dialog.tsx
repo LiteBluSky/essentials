@@ -47,6 +47,19 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       { keys: [['a']], action: 'New strip on the focused day (or the range)' },
       { keys: [['Esc']], action: 'Cancel the range' },
       { keys: [['Ctrl', 'Enter']], action: 'In the strip form: save' },
+      { keys: [['i']], action: 'List every strip (go to, edit or delete one)' },
+    ],
+  },
+  {
+    title: 'Strip list (i)',
+    shortcuts: [
+      { keys: [['j'], ['↓']], action: 'Next strip' },
+      { keys: [['k'], ['↑']], action: 'Previous strip' },
+      { keys: [['g', 'g'], ['G']], action: 'First / last strip' },
+      { keys: [['Enter'], ['o']], action: 'Go to it in the month' },
+      { keys: [['e']], action: 'Edit it' },
+      { keys: [['d']], action: 'Delete it (d again confirms)' },
+      { keys: [['/']], action: 'Filter by name (Esc back to the list)' },
       {
         keys: [['Drag']],
         action: 'With the mouse: drag over days (or click one) to add a strip',

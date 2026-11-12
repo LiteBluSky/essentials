@@ -12,11 +12,15 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { AppNav } from '@/components/app-nav'
 import { CalendarMenu } from '@/components/calendar/calendar-menu'
-import { EventDialog } from '@/components/calendar/event-dialog'
+import {
+  DeleteStripDialog,
+  EventDialog,
+} from '@/components/calendar/event-dialog'
 import type { EventEditor } from '@/components/calendar/event-dialog'
 import { DAY_KEY_ALIASES, sendDayKey } from '@/components/calendar/day-keys'
 import { MonthGrid } from '@/components/calendar/month-grid'
 import { ShortcutsDialog } from '@/components/calendar/shortcuts-dialog'
+import { StripsDialog } from '@/components/calendar/strips-dialog'
 import { GlobalSearch } from '@/components/global-search'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
@@ -28,6 +32,7 @@ import { isoDay, orderedRange, parseDay } from '@/lib/calendar/layout'
 import type { Strip } from '@/lib/calendar/layout'
 import { APP_NAME } from '@/lib/config'
 import { requestOpen } from '@/lib/global-search'
+import type { CalendarEvent } from '@/db/schema'
 import { calendarQueryOptions } from '@/server/calendar.functions'
 
 // The Calendar app: a month of coloured strips, each over a day or a range
@@ -80,7 +85,18 @@ function CalendarPage() {
   const [helpOpen, setHelpOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const dialogOpen = editorOpen || helpOpen || searchOpen || settingsOpen
+  // `i`: every strip in a list. Editing / deleting from it comes back to it.
+  const [listOpen, setListOpen] = useState(false)
+  const backToList = useRef(false)
+  const [toDelete, setToDelete] = useState<CalendarEvent | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const dialogOpen =
+    editorOpen ||
+    helpOpen ||
+    searchOpen ||
+    settingsOpen ||
+    listOpen ||
+    deleteOpen
 
   const strips = useMemo<Array<Strip>>(() => {
     const events: Array<Strip> = data.events.map((event) => ({
@@ -233,6 +249,10 @@ function CalendarPage() {
           e.preventDefault()
           void navigate({ to: '/tasks', search: { day: day ?? today } })
           break
+        case 'i':
+          e.preventDefault()
+          setListOpen(true)
+          break
         case 'z':
           e.preventDefault()
           setSearchOpen(true)
@@ -352,7 +372,40 @@ function CalendarPage() {
         open={editorOpen}
         onOpenChange={(open) => {
           setEditorOpen(open)
-          if (!open) setSelection(null)
+          if (open) return
+          setSelection(null)
+          if (backToList.current) {
+            backToList.current = false
+            setListOpen(true)
+          }
+        }}
+      />
+      <StripsDialog
+        open={listOpen}
+        onOpenChange={setListOpen}
+        events={data.events}
+        onGo={(event) => goToDay(event.startDay)}
+        onEdit={(event) => {
+          backToList.current = true
+          setEditor({ mode: 'edit', event })
+          setEditorOpen(true)
+        }}
+        onDelete={(event) => {
+          backToList.current = true
+          setToDelete(event)
+          setDeleteOpen(true)
+        }}
+      />
+      <DeleteStripDialog
+        event={toDelete}
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          setDeleteOpen(open)
+          if (open) return
+          if (backToList.current) {
+            backToList.current = false
+            setListOpen(true)
+          }
         }}
       />
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />

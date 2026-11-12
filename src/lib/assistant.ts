@@ -40,7 +40,7 @@ export type AssistantFound = {
 /** A change the assistant made to something that existed (or a folder /
  * bookmark it created), for messages and Undo. */
 export type ChangeSummary = {
-  app: 'bookmarks' | 'notes' | 'tasks' | 'contacts'
+  app: 'bookmarks' | 'notes' | 'tasks' | 'contacts' | 'calendar'
   target: 'item' | 'folder'
   op: 'create' | 'update' | 'delete'
   id: number

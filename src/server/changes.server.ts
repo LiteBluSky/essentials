@@ -3,6 +3,7 @@ import { and, asc, desc, eq, gt, inArray, isNull, max } from 'drizzle-orm'
 import { db } from '@/db'
 import {
   assistantChanges,
+  calendarEvents,
   folders as bookmarkFolders,
   contactFolders,
   contacts,
@@ -23,16 +24,20 @@ import type { ChangeSummary } from '@/lib/assistant'
 // back: a created thing is deleted, an edit restored, a deletion re-inserted
 // with its original ids (and the Bin copies it made removed).
 
-export type App = 'bookmarks' | 'notes' | 'tasks' | 'contacts'
+export type App = 'bookmarks' | 'notes' | 'tasks' | 'contacts' | 'calendar'
 
 // The tables per app. They share the columns used here (id, folderId /
-// parentId), so one table type stands in for all of them.
+// parentId), so one table type stands in for all of them. The Calendar has
+// no folders (its strips are only ever `item` changes).
 type ItemTable = typeof notes
 type FolderTable = typeof noteFolders
-const ITEMS = { bookmarks: links, notes, tasks, contacts } as unknown as Record<
-  App,
-  ItemTable
->
+const ITEMS = {
+  bookmarks: links,
+  notes,
+  tasks,
+  contacts,
+  calendar: calendarEvents,
+} as unknown as Record<App, ItemTable>
 const FOLDERS = {
   bookmarks: bookmarkFolders,
   notes: noteFolders,

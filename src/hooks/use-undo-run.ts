@@ -9,6 +9,7 @@ const AFFECTED = [
   ['notes'],
   ['tasks'],
   ['contacts'],
+  ['calendar'],
   ['chat'],
   ['assistant', 'history'],
 ]

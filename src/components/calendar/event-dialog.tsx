@@ -48,6 +48,7 @@ import type { CalendarColor } from '@/lib/calendar/colors'
 import { WEEK_STARTS_ON, isoDay, parseDay } from '@/lib/calendar/layout'
 import { eventInput } from '@/lib/calendar/schemas'
 import type { EventInput } from '@/lib/calendar/schemas'
+import { submitOnModEnter } from '@/lib/submit-shortcut'
 import { cn } from '@/lib/utils'
 import {
   calendarQueryOptions,
@@ -156,22 +157,6 @@ function EventForm({
       }),
   })
 
-  const remove = useMutation({
-    mutationFn: (id: number) => deleteEvent({ data: { id } }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries(calendarQueryOptions)
-      setConfirmDelete(false)
-      onDone()
-      toast.add({ title: 'Deleted', type: 'success' })
-    },
-    onError: (error) =>
-      toast.add({
-        title: "Couldn't delete",
-        description: error.message,
-        type: 'error',
-      }),
-  })
-
   const form = useForm({
     defaultValues: {
       title: event?.title ?? '',
@@ -202,15 +187,8 @@ function EventForm({
           e.preventDefault()
           void form.handleSubmit()
         }}
-        // Ctrl+Enter (⌘ on macOS) saves from anywhere in the form: the
-        // swatches and the range picker included (caught before they see
-        // the Enter).
-        onKeyDownCapture={(e) => {
-          if (e.key !== 'Enter' || !(e.ctrlKey || e.metaKey)) return
-          e.preventDefault()
-          e.stopPropagation()
-          void form.handleSubmit()
-        }}
+        // Ctrl+Enter saves from any field (swatches and range picker too).
+        onKeyDownCapture={submitOnModEnter(() => void form.handleSubmit())}
         className="flex flex-col gap-6"
       >
         <FieldGroup>
@@ -373,19 +351,57 @@ function EventForm({
         </DialogFooter>
       </form>
       {event && (
-        <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-          <AlertDialogContent>
-            {confirmDelete && (
-              <DeleteConfirm
-                label={event.title}
-                pending={remove.isPending}
-                onConfirm={() => remove.mutate(event.id)}
-              />
-            )}
-          </AlertDialogContent>
-        </AlertDialog>
+        <DeleteStripDialog
+          event={event}
+          open={confirmDelete}
+          onOpenChange={setConfirmDelete}
+          onDeleted={onDone}
+        />
       )}
     </>
+  )
+}
+
+/** "Delete …?" for a strip (`d` confirms, so `d` `d` deletes). */
+export function DeleteStripDialog({
+  event,
+  open,
+  onOpenChange,
+  onDeleted,
+}: {
+  event: CalendarEvent | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onDeleted?: () => void
+}) {
+  const queryClient = useQueryClient()
+  const remove = useMutation({
+    mutationFn: (id: number) => deleteEvent({ data: { id } }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries(calendarQueryOptions)
+      onOpenChange(false)
+      onDeleted?.()
+      toast.add({ title: 'Deleted', type: 'success' })
+    },
+    onError: (error) =>
+      toast.add({
+        title: "Couldn't delete",
+        description: error.message,
+        type: 'error',
+      }),
+  })
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        {open && event && (
+          <DeleteConfirm
+            label={event.title}
+            pending={remove.isPending}
+            onConfirm={() => remove.mutate(event.id)}
+          />
+        )}
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
 

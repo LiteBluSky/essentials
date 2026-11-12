@@ -100,7 +100,8 @@ function AssistantField({ enabled }: { enabled: boolean }) {
       history.reset()
       await Promise.all(
         [...new Set([...created, ...changed].map((item) => item.app))].map(
-          (app) => queryClient.invalidateQueries({ queryKey: [app, 'tree'] }),
+          // Every query of the app (the Calendar's isn't a tree).
+          (app) => queryClient.invalidateQueries({ queryKey: [app] }),
         ),
       )
       // Edits / deletions: one toast saying what changed, with Undo.
@@ -296,7 +297,7 @@ function AssistantField({ enabled }: { enabled: boolean }) {
 function changeLines(changed: Array<ChangeSummary>) {
   const lines = changed.map(
     (c) =>
-      `${c.op === 'delete' ? 'Deleted' : c.op === 'create' ? 'Added' : 'Changed'} ${c.target === 'folder' ? 'folder' : APP_LABEL[c.app].toLowerCase().replace(/s$/, '')} “${c.label}”${c.detail ? ` · ${c.detail}` : ''}`,
+      `${c.op === 'delete' ? 'Deleted' : c.op === 'create' ? 'Added' : 'Changed'} ${c.target === 'folder' ? 'folder' : c.app === 'calendar' ? 'calendar strip' : APP_LABEL[c.app].toLowerCase().replace(/s$/, '')} “${c.label}”${c.detail ? ` · ${c.detail}` : ''}`,
   )
   return lines.length > 5
     ? [...lines.slice(0, 5), `…and ${lines.length - 5} more`].join('\n')

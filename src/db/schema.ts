@@ -353,7 +353,7 @@ export const assistantChanges = sqliteTable(
     id: integer().primaryKey({ autoIncrement: true }),
     runId: text('run_id').notNull(),
     app: text({
-      enum: ['bookmarks', 'notes', 'tasks', 'contacts'],
+      enum: ['bookmarks', 'notes', 'tasks', 'contacts', 'calendar'],
     }).notNull(),
     target: text({ enum: ['item', 'folder'] }).notNull(),
     op: text({ enum: ['create', 'update', 'delete'] }).notNull(),

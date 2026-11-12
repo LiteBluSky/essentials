@@ -35,6 +35,7 @@ import {
   tasksTreeQueryOptions,
   updateTask,
 } from '@/server/tasks.functions'
+import { submitOnModEnter } from '@/lib/submit-shortcut'
 import { DatePicker } from './date-picker'
 import { FolderSelect } from './folder-select'
 
@@ -117,6 +118,8 @@ export function TaskForm({
         e.preventDefault()
         void form.handleSubmit()
       }}
+      // Ctrl+Enter saves from any field.
+      onKeyDownCapture={submitOnModEnter(() => void form.handleSubmit())}
       className="flex flex-col gap-6"
     >
       <FieldGroup>
@@ -236,12 +239,6 @@ export function TaskForm({
                   value={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={(e) => field.handleChange(e.target.value)}
-                  onKeyDown={(e) => {
-                    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                      e.preventDefault()
-                      void form.handleSubmit()
-                    }
-                  }}
                   aria-invalid={isInvalid}
                 />
                 <ReferenceAutocomplete target={descriptionRef} />

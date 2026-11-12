@@ -25,6 +25,7 @@ import {
   bookmarksTreeQueryOptions,
   updateLink,
 } from '@/server/bookmarks.functions'
+import { submitOnModEnter } from '@/lib/submit-shortcut'
 import { FolderSelect } from './folder-select'
 
 // "example.com/page" -> "https://example.com/page"
@@ -86,6 +87,8 @@ export function LinkForm({
         e.preventDefault()
         void form.handleSubmit()
       }}
+      // Ctrl+Enter saves from any field.
+      onKeyDownCapture={submitOnModEnter(() => void form.handleSubmit())}
       className="flex flex-col gap-6"
     >
       <FieldGroup>

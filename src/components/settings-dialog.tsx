@@ -47,6 +47,7 @@ import {
   updateSettings,
 } from '@/server/settings.functions'
 import { ASSISTANT_NAME } from '@/lib/assistant'
+import { submitOnModEnter } from '@/lib/submit-shortcut'
 
 const GROUPS: Array<{
   legend: string
@@ -198,6 +199,8 @@ function SettingsForm({
         e.preventDefault()
         void form.handleSubmit()
       }}
+      // Ctrl+Enter saves from any field.
+      onKeyDownCapture={submitOnModEnter(() => void form.handleSubmit())}
       className="flex flex-col gap-6"
     >
       {GROUPS.map((group) => (

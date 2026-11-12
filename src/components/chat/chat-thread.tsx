@@ -191,10 +191,12 @@ const APP_ITEM: Record<ChangeSummary['app'], string> = {
   notes: 'note',
   tasks: 'task',
   contacts: 'contact',
+  calendar: 'calendar strip',
 }
 
 function ChangedMarker({ change }: { change: ChangeSummary }) {
   const open = useOpen()
+  const navigate = useNavigate()
   const Icon =
     change.op === 'delete'
       ? Trash2Icon
@@ -224,7 +226,9 @@ function ChangedMarker({ change }: { change: ChangeSummary }) {
           size="xs"
           variant="outline"
           onClick={() =>
-            open({ app: change.app, id: change.id, kind: change.target })
+            change.app === 'calendar'
+              ? void navigate({ to: '/calendar' })
+              : open({ app: change.app, id: change.id, kind: change.target })
           }
         >
           Open

@@ -145,7 +145,7 @@ function ChatPage() {
       for (const app of new Set(
         [...result.created, ...result.changed].map((item) => item.app),
       )) {
-        void queryClient.invalidateQueries({ queryKey: [app, 'tree'] })
+        void queryClient.invalidateQueries({ queryKey: [app] })
       }
       return true
     } catch (error) {

@@ -281,6 +281,9 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] Navbar entry, offline page (`sw.js` cache v6)
 - [x] `o` on a day opens Tasks filtered to that day (`/tasks?day=`)
 - [x] Strip dialog: h/j/k/l through the colours and in the range picker
+- [x] `i`: list of every strip (vim keys: go to, edit, delete, filter)
+- [x] Jarvis can list, create, change and delete strips (with Undo)
+- [x] Ctrl+Enter saves every form from any field
 - [ ] Verify in a real browser (drag, strips across weeks, phone width)
 - [ ] Optional: strips in the global search and the assistant's tools
 

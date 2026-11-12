@@ -20,6 +20,7 @@ import { REFERENCE_TYPES, formatReference } from '@/lib/references'
 import { noteInput } from '@/lib/notes/schemas'
 import { MAX_REMIND_MINUTES, taskInput } from '@/lib/tasks/schemas'
 import { DEFAULT_DUE_HOUR, remindLabel } from '@/lib/tasks/tree'
+import { CALENDAR_TOOLS, runCalendarTool } from './agent-calendar.server'
 import { ACTION_TOOLS, toAction } from './assistant.server'
 import { runAction } from './assistant-actions.server'
 import * as bookmarksDb from './bookmarks.server'
@@ -33,7 +34,6 @@ import {
   recordCreate,
   recordUpdate,
 } from './changes.server'
-import type { App } from './changes.server'
 import { zonedTime } from './llm.server'
 import type { ToolDef } from './llm.server'
 import * as notesDb from './notes.server'
@@ -50,6 +50,8 @@ const MAX_BODY_CHARS = 20_000
 
 const APPS = ['bookmarks', 'notes', 'tasks', 'contacts'] as const
 const appArg = z.enum(APPS)
+/** The apps with folders and items (the Calendar has its own tools). */
+type App = (typeof APPS)[number]
 const id = z.number().int().positive()
 
 export const LOOKUP_TOOLS: Array<ToolDef> = [
@@ -281,7 +283,12 @@ export const EDIT_TOOLS: Array<ToolDef> = [
 ]
 
 /** Every tool, for the Chat and Tell me loops. */
-export const ALL_TOOLS = [...LOOKUP_TOOLS, ...ACTION_TOOLS, ...EDIT_TOOLS]
+export const ALL_TOOLS = [
+  ...LOOKUP_TOOLS,
+  ...ACTION_TOOLS,
+  ...EDIT_TOOLS,
+  ...CALENDAR_TOOLS,
+]
 
 const searchArgs = z.object({
   query: z.string().max(200).default(''),
@@ -519,7 +526,10 @@ function changed(
   summary: ChangeSummary,
 ): { changed: ChangeSummary; ref?: string } {
   ctx.result.changed.push(summary)
-  return summary.target === 'item' && summary.op !== 'delete'
+  // Calendar strips have no references (they never come through here).
+  return summary.target === 'item' &&
+    summary.op !== 'delete' &&
+    summary.app !== 'calendar'
     ? { changed: summary, ref: refFor(summary.app, summary.label, summary.id) }
     : { changed: summary }
 }
@@ -678,6 +688,8 @@ export async function runTool(
   ctx: RunContext,
 ): Promise<unknown> {
   const bad = { error: `Bad arguments for ${name}` }
+  const calendar = await runCalendarTool(name, args, ctx)
+  if (calendar !== undefined) return calendar
   switch (name) {
     case 'search': {
       const parsed = searchArgs.safeParse(args)
