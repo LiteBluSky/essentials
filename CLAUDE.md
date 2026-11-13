@@ -16,8 +16,9 @@ Keep it **clean, minimal and to the point**. Each app does one thing with as
 little friction as possible. No accounts, no sync, no tags, no
 previews/favicon scraping, no analytics, no rich-text editor. The only
 outside calls are opt-in and off until configured (Settings…, or env): the
-assistant's LLM (`LLM_API_KEY`) and phone reminders via ntfy
-(`NTFY_TOPIC`); the app must work exactly as before without them. A new app must
+assistant's LLM (`LLM_API_KEY`), phone reminders via ntfy
+(`NTFY_TOPIC`) and a remote database (Turso, Settings → Database; the local
+file is the default); the app must work exactly as before without them. A new app must
 be just as small: something to store, organise and open.
 
 Work is tracked in [`TASKS.md`](./TASKS.md) — read it first, pick the next
@@ -87,7 +88,9 @@ Each app is self-contained and namespaced; only the shell is shared.
   `hooks/use-dictation.ts`, `components/dictate-button.tsx`),
   settings
   (`components/settings-dialog.tsx`,
-  `lib/settings.ts`, `server/settings.*.ts`), `ui/`.
+  `lib/settings.ts`, `server/settings.*.ts`), the database switch
+  (`components/database-settings.tsx`, `lib/databases.ts`,
+  `server/databases.*.ts`), `ui/`.
 - Apps don't import from each other. The tree code (keyboard hook, DnD,
   folder form/select) is duplicated per app on purpose for now (see
   TASKS.md); keep the copies behaving alike.
@@ -153,7 +156,12 @@ One SQLite file holds every app. Bookmark tables keep their original names.
 - `settings` — `key` (primary key, one of `SETTINGS` in
   `src/lib/settings.ts`), `value`, `updatedAt`. Edited in the Settings
   dialog; read on the server with `readSettings()` (`settings.server.ts`),
-  where a missing row falls back to the env var of the same name.
+  where a missing row falls back to the env var of the same name. Also
+  holds `ACTIVE_DATABASE` (not in `SETTINGS`): the remote database in use.
+- `databases` — remote libSQL databases (Turso / sqld) the data can be
+  switched to: `name`, `url`, `authToken` (`''` = none; write-only, the
+  browser sees its last 4 characters), timestamps. Like `settings`, only
+  ever read from the local file (migrations create both everywhere).
 - `links_bin` / `notes_bin` — the **bin**: a copy of each deleted link /
   note (also those inside a deleted folder; folders themselves aren't
   kept) with its `folderId`, `folderPath` (display only) and `deletedAt`.
@@ -206,6 +214,15 @@ unless it's actually slow.
   `data/essentials.db`, created if missing) and runs the `drizzle/`
   migrations on startup — no manual DB step on deploy. Schema change: edit
   `schema.ts`, `pnpm db:generate`, commit the migration.
+- **Two handles**: `localDb` is always the local file and holds only
+  `settings` + `databases` (use it for those, and nothing else). `db` is the
+  data, in the database in use: a `Proxy` forwarding to the current
+  connection, so Settings → Database can switch it at runtime
+  (`setActive`; `connectRemote` checks a remote answers and migrates it
+  first). On start the saved choice (`ACTIVE_DATABASE`) is reconnected; if
+  it's unreachable the server falls back to the local file and Settings
+  shows why (`startupError`). Never keep a builder or prepared statement
+  from `db` across requests.
 - The running server locks `.output`'s native libsql binary, so
   `pnpm build` fails with `EPERM` while it's up: run `scripts/stop.ps1`
   first, then `install-startup.ps1` after.
@@ -703,6 +720,19 @@ the ✕ button removes it. Saving invalidates `['settings']` and
 `assistantEnabledQueryOptions`, so the field shows up without a restart.
 No auth (like everything else): anyone on the LAN can change them, but
 can't read the secrets back.
+
+**Database** (`components/database-settings.tsx`, its own section above
+the form, with its own actions): Local (the `DATABASE_PATH` file, as
+always) plus any number of remote libSQL databases — one entry per Turso
+database (name, `libsql://…` URL, token; a group token can be reused), so
+several Turso databases can be switched between. Adding one connects and
+creates its tables first (`createDatabase`); **Use** switches every app
+(`switchDatabase`, server-wide, remembered across restarts) and reloads
+the page; the trash button forgets one (not the one in use; its data stays
+in Turso). Each database holds its own data — nothing is copied (each
+app's export / import moves data). Settings, the database list and the
+assistant / ntfy keys always stay in the local file. Reminders, the
+assistant log and chats follow the database in use.
 
 ### Keyboard
 

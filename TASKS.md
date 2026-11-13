@@ -287,6 +287,18 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [ ] Verify in a real browser (drag, strips across weeks, phone width)
 - [ ] Optional: strips in the global search and the assistant's tools
 
+## 22. Remote database (Turso)
+
+- [x] `databases` table (migration 0013) in the local file; `localDb` for
+      settings, `db` forwards to the database in use (switchable at runtime)
+- [x] Settings → Database: Local + any number of Turso / libSQL databases
+      (add checks the connection and creates the tables, Use switches every
+      app and reloads, remove forgets one); choice kept across restarts,
+      unreachable at startup falls back to local and says so
+- [ ] Verify against a real Turso database (add, switch, restart, back to
+      local)
+- [ ] Optional: copy the current data into another database when switching
+
 ## 20. References (`@`)
 
 - [x] `@type(Name#id)` syntax for bookmarks, notes, tasks and contacts;

@@ -1,11 +1,12 @@
 import { eq } from 'drizzle-orm'
 
-import { db } from '@/db'
+import { localDb as db } from '@/db'
 import { settings } from '@/db/schema'
 import { SETTINGS, SETTING_KEYS } from '@/lib/settings'
 import type { SettingKey, SettingsInput, SettingsView } from '@/lib/settings'
 
-// Server-only. Saved settings win over the env var of the same name.
+// Server-only. Saved settings win over the env var of the same name. Always
+// the local file, whichever database the data comes from.
 
 /** Every setting's effective value ('' = unset). */
 export async function readSettings(): Promise<Record<SettingKey, string>> {

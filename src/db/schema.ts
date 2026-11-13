@@ -445,3 +445,17 @@ export const calendarEvents = sqliteTable(
 )
 
 export type CalendarEvent = typeof calendarEvents.$inferSelect
+
+// Remote libSQL databases (Turso, or a self-hosted sqld) the data can be
+// switched to in Settings. Read only from the local file (with `settings`
+// and the `ACTIVE_DATABASE` key): migrations create the table in every
+// database, but it stays empty in remote ones. `authToken` '' = none.
+export const databases = sqliteTable('databases', {
+  id: integer().primaryKey({ autoIncrement: true }),
+  name: text().notNull(),
+  url: text().notNull(),
+  authToken: text('auth_token').notNull().default(''),
+  ...timestamps,
+})
+
+export type DatabaseSource = typeof databases.$inferSelect

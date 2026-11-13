@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BellRingIcon, XIcon } from 'lucide-react'
 import { useState } from 'react'
 
+import { DatabaseSettings } from '@/components/database-settings'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -68,8 +69,9 @@ const GROUPS: Array<{
 ]
 
 /**
- * Settings… (every app's ⋮ menu): the assistant's LLM and the ntfy reminder
- * target, stored in the database. An empty field falls back to the env var /
+ * Settings… (every app's ⋮ menu): the database in use (its own section and
+ * actions, outside the form), the assistant's LLM and the ntfy reminder
+ * target, stored in the local database. An empty field falls back to the env var /
  * default. Secrets are write-only: leave them empty to keep what's saved.
  */
 export function SettingsDialog({
@@ -90,6 +92,7 @@ export function SettingsDialog({
             them.
           </DialogDescription>
         </DialogHeader>
+        <DatabaseSettings />
         {settings.data ? (
           <SettingsForm
             // Fresh form state each time it opens with new data.

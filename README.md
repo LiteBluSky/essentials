@@ -21,6 +21,16 @@ default `data/essentials.db`) and `VITE_APP_NAME` (the name shown in the app;
 build-time). The assistant and phone reminders are off until you set them
 up (see [Assistant and reminders](#assistant-and-reminders)).
 
+**Remote database (optional)**: Settings… → Database can keep the data in
+[Turso](https://turso.tech) (hosted libSQL; the free tier is plenty)
+instead of the local file, and switch between several Turso databases (e.g.
+work / personal) or back to local at any time. Create one with
+`turso db create personal`, then paste `turso db show personal --url` and a
+token from `turso db tokens create personal` into **Add Turso database**.
+Its tables are created when it's added. Each database has its own data;
+switching copies nothing (use each app's export / import to move things).
+Settings themselves always stay in the local file.
+
 > **No login.** The server listens on all interfaces, so anyone who can reach
 > port 8008 can read and edit your bookmarks, notes and tasks. Keep it on your LAN (or behind
 > something like Tailscale); don't forward the port to the internet.
