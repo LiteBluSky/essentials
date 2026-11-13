@@ -37,7 +37,7 @@ export function EntriesList({
                   {e.title || c.label}
                   {e.subscriptionId !== null && (
                     <RepeatIcon
-                      aria-label="Subscription"
+                      aria-label="Recurring"
                       className="text-muted-foreground"
                     />
                   )}

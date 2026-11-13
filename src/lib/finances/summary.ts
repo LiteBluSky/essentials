@@ -1,10 +1,10 @@
-import { addMonths, addYears, format, parseISO } from 'date-fns'
-
 import type { EntryKind } from './categories'
 import { monthOf } from './money'
 
 // A month's totals (pure). The current month (and later ones) come from its
-// entries; a past month from its saved report (the entries are gone).
+// entries; a past month from its saved report (the entries are gone). What
+// was left at the end of a month (or overspent) carries over into the next:
+// a month's "left" = carried over + in − out.
 
 export type Line = {
   kind: EntryKind
@@ -26,6 +26,8 @@ type ReportRow = Line & { month: string }
 
 export type CurrencyTotals = {
   currency: string
+  /** Left over from every month before (negative = overspent). */
+  carried: number
   income: number
   spent: number
   /** Expenses per category, biggest first. */
@@ -56,21 +58,64 @@ export function monthLines(
   return [...lines.values()]
 }
 
-/** A month's totals per currency; euros (the default) first. */
-export function totalsByCurrency(lines: Array<Line>): Array<CurrencyTotals> {
+/** What every month before `month` left over, per currency (in − out). */
+export function carriedInto(
+  month: string,
+  entries: Array<EntryLike>,
+  reports: Array<ReportRow>,
+) {
+  const carried = new Map<string, number>()
+  const add = (kind: EntryKind, currency: string, cents: number) =>
+    carried.set(
+      currency,
+      (carried.get(currency) ?? 0) + (kind === 'income' ? cents : -cents),
+    )
+  for (const e of entries) {
+    if (monthOf(e.day) < month) add(e.kind, e.currency, e.cents)
+  }
+  for (const r of reports) {
+    if (r.month < month) add(r.kind, r.currency, r.cents)
+  }
+  return carried
+}
+
+/** A month's totals per currency, with what carried over into it. */
+export function monthTotals(
+  month: string,
+  entries: Array<EntryLike>,
+  reports: Array<ReportRow>,
+) {
+  return totalsByCurrency(
+    monthLines(month, entries, reports),
+    carriedInto(month, entries, reports),
+  )
+}
+
+/** A month's totals per currency; euros (the default) first. A currency
+ * with only something carried over still shows. */
+export function totalsByCurrency(
+  lines: Array<Line>,
+  carried: Map<string, number> = new Map(),
+): Array<CurrencyTotals> {
   const byCurrency = new Map<string, CurrencyTotals>()
-  for (const line of lines) {
-    let t = byCurrency.get(line.currency)
+  const totalsOf = (currency: string) => {
+    let t = byCurrency.get(currency)
     if (!t) {
       t = {
-        currency: line.currency,
+        currency,
+        carried: carried.get(currency) ?? 0,
         income: 0,
         spent: 0,
         expenses: [],
         incomes: [],
       }
-      byCurrency.set(line.currency, t)
+      byCurrency.set(currency, t)
     }
+    return t
+  }
+  for (const [currency, cents] of carried) if (cents !== 0) totalsOf(currency)
+  for (const line of lines) {
+    const t = totalsOf(line.currency)
     if (line.kind === 'income') {
       t.income += line.cents
       t.incomes.push(line)
@@ -87,37 +132,4 @@ export function totalsByCurrency(lines: Array<Line>): Array<CurrencyTotals> {
   return all.sort((a, b) =>
     a.currency === 'EUR' ? -1 : b.currency === 'EUR' ? 1 : 0,
   )
-}
-
-/** What a subscription costs per month (yearly ones spread out). */
-export function monthlyCost(sub: { cents: number; every: 'month' | 'year' }) {
-  return sub.every === 'year' ? Math.round(sub.cents / 12) : sub.cents
-}
-
-/** A subscription's `n`th charge from its start: the same day each month /
- * year (the 31st is the month's last day when shorter). */
-export function chargeDay(
-  startDay: string,
-  every: 'month' | 'year',
-  n: number,
-) {
-  const start = parseISO(startDay)
-  return format(
-    every === 'year' ? addYears(start, n) : addMonths(start, n),
-    'yyyy-MM-dd',
-  )
-}
-
-/** The first charge after `day` (or on it, if not charged yet). */
-export function nextCharge(
-  sub: { startDay: string; every: 'month' | 'year'; chargedDay: string | null },
-  day: string,
-) {
-  for (let n = 0; n < 1200; n++) {
-    const charge = chargeDay(sub.startDay, sub.every, n)
-    if (charge >= day && (!sub.chargedDay || charge > sub.chargedDay)) {
-      return charge
-    }
-  }
-  return null
 }

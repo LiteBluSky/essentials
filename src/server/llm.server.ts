@@ -100,7 +100,14 @@ export function addUsage(a: ModelUsage | null, b: ModelUsage): ModelUsage {
 /** One call: the conversation so far in, the next assistant turn out. */
 export function callModel(
   config: LlmConfig,
-  request: { system: string; turns: Array<Turn>; tools: Array<ToolDef> },
+  request: {
+    system: string
+    turns: Array<Turn>
+    tools: Array<ToolDef>
+    /** The provider's own web search (Anthropic's server tool, OpenRouter's
+     * web plugin), for this call only. */
+    webSearch?: boolean
+  },
 ): Promise<ModelReply> {
   return config.provider === 'anthropic'
     ? callAnthropic(config, request)
@@ -166,9 +173,14 @@ function toOpenAi(turns: Array<Turn>) {
 
 async function callOpenAi(
   config: LlmConfig,
-  { system, turns, tools }: Parameters<typeof callModel>[1],
+  { system, turns, tools, webSearch }: Parameters<typeof callModel>[1],
 ): Promise<ModelReply> {
   const openRouter = new URL(config.baseUrl).hostname.endsWith('openrouter.ai')
+  if (webSearch && !openRouter) {
+    throw new Error(
+      'Web search needs Anthropic or OpenRouter (Settings → Assistant)',
+    )
+  }
   const res = await fetch(`${config.baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -187,6 +199,8 @@ async function callOpenAi(
       }),
       // OpenRouter reports the request's cost in `usage.cost`.
       ...(openRouter && { usage: { include: true } }),
+      // OpenRouter's web plugin (its search is billed in `usage.cost`).
+      ...(webSearch && { plugins: [{ id: 'web', max_results: 5 }] }),
     }),
     signal: AbortSignal.timeout(90_000),
   })
@@ -249,6 +263,15 @@ function anthropicCost(model: string, input: number, output: number) {
  * server-side refusal fallback. */
 const TAKES_EFFORT = /^claude-(opus|sonnet|haiku|fable|mythos)-5/
 const TAKES_FALLBACK = /^claude-(fable-5-[12]|opus-5|sonnet-5-5)/
+/** Models with the dynamic-filtering web search; older ones get the basic
+ * one. */
+const NEW_WEB_SEARCH =
+  /^claude-(fable|mythos|opus-5|sonnet-5|opus-4-[678]|sonnet-4-6)/
+/** Searches one call may run, and what each costs ($10 per 1,000). */
+const MAX_SEARCHES = 5
+const SEARCH_USD = 0.01
+/** A long search turn can pause; it's resumed this many times at most. */
+const MAX_RESUMES = 3
 
 function toAnthropic(
   turns: Array<Turn>,
@@ -284,44 +307,102 @@ function toAnthropic(
 
 async function callAnthropic(
   config: LlmConfig,
-  { system, turns, tools }: Parameters<typeof callModel>[1],
+  { system, turns, tools, webSearch }: Parameters<typeof callModel>[1],
 ): Promise<ModelReply> {
   const client = new Anthropic({ apiKey: config.key, timeout: 90_000 })
   const fallback = TAKES_FALLBACK.test(config.model)
-  const response = await client.beta.messages.create({
-    model: config.model,
-    max_tokens: 16000,
-    system,
-    messages: toAnthropic(turns),
-    // tool_choice stays auto (forcing a call is rejected by the newest
-    // models); the prompts say when to call a tool.
-    ...(tools.length > 0 && {
-      tools: tools.map((tool) => ({
-        name: tool.name,
-        description: tool.description,
-        input_schema:
-          tool.parameters as Anthropic.Beta.BetaTool['input_schema'],
-      })),
-    }),
-    // Look-ups and short answers: little thinking needed.
-    ...(TAKES_EFFORT.test(config.model) && {
-      output_config: { effort: 'low' as const },
-    }),
-    // If a safety classifier declines, another model answers instead.
-    ...(fallback && {
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default' as const,
-    }),
-  })
+  const allTools: Array<Anthropic.Beta.BetaToolUnion> = tools.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    input_schema: tool.parameters as Anthropic.Beta.BetaTool['input_schema'],
+  }))
+  if (webSearch) {
+    allTools.push(
+      NEW_WEB_SEARCH.test(config.model)
+        ? {
+            type: 'web_search_20260209',
+            name: 'web_search',
+            max_uses: MAX_SEARCHES,
+          }
+        : {
+            type: 'web_search_20250305',
+            name: 'web_search',
+            max_uses: MAX_SEARCHES,
+          },
+    )
+  }
+  const messages = toAnthropic(turns)
+  // A search turn that runs long comes back paused (`pause_turn`): it's
+  // sent back as is to carry on, and the parts are joined.
+  const content: Array<Anthropic.Beta.BetaContentBlock> = []
+  const responses: Array<Anthropic.Beta.BetaMessage> = []
+  for (let resume = 0; ; resume++) {
+    const part = await client.beta.messages.create({
+      model: config.model,
+      max_tokens: 16000,
+      system,
+      messages,
+      // tool_choice stays auto (forcing a call is rejected by the newest
+      // models); the prompts say when to call a tool.
+      ...(allTools.length > 0 && { tools: allTools }),
+      // Look-ups and short answers: little thinking needed.
+      ...(TAKES_EFFORT.test(config.model) && {
+        output_config: { effort: 'low' as const },
+      }),
+      // If a safety classifier declines, another model answers instead.
+      ...(fallback && {
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default' as const,
+      }),
+    })
+    responses.push(part)
+    content.push(...part.content)
+    if (part.stop_reason !== 'pause_turn' || resume >= MAX_RESUMES) break
+    messages.push({ role: 'assistant', content: part.content })
+  }
+  const response = responses[responses.length - 1]
   if (response.stop_reason === 'refusal') {
     throw new Error('The model declined to answer that')
   }
 
-  // Price each model that ran (a fallback model bills at its own rates).
+  // Price each model that ran (a fallback model bills at its own rates),
+  // plus the searches.
+  const hops = responses.flatMap((part) => priceHops(part, config.model))
+  const searches = responses.reduce(
+    (n, part) => n + (part.usage.server_tool_use?.web_search_requests ?? 0),
+    0,
+  )
+  const costs = [
+    ...hops.map((hop) => anthropicCost(hop.model, hop.input, hop.output)),
+    searches * SEARCH_USD,
+  ]
+
+  return {
+    provider: 'anthropic',
+    model: response.model,
+    inputTokens: hops.reduce((n, hop) => n + hop.input, 0),
+    outputTokens: hops.reduce((n, hop) => n + hop.output, 0),
+    costUsd: costs.some((c) => c === null)
+      ? null
+      : costs.reduce<number>((n, c) => n + (c ?? 0), 0),
+    text: content
+      .flatMap((block) => (block.type === 'text' ? [block.text] : []))
+      .join(''),
+    calls: content.flatMap((block) =>
+      block.type === 'tool_use'
+        ? [{ id: block.id, name: block.name, args: block.input }]
+        : [],
+    ),
+    raw: content,
+  }
+}
+
+/** The models that ran for one response and the tokens each used. */
+function priceHops(response: Anthropic.Beta.BetaMessage, model: string) {
   const usage = response.usage
-  const hops = usage.iterations?.length
+  return usage.iterations?.length
     ? usage.iterations.map((hop) => ({
-        model: ('model' in hop ? hop.model : null) ?? config.model,
+        model: ('model' in hop ? hop.model : null) ?? model,
         input:
           hop.input_tokens +
           hop.cache_creation_input_tokens +
@@ -338,28 +419,6 @@ async function callAnthropic(
           output: usage.output_tokens,
         },
       ]
-  const costs = hops.map((hop) =>
-    anthropicCost(hop.model, hop.input, hop.output),
-  )
-
-  return {
-    provider: 'anthropic',
-    model: response.model,
-    inputTokens: hops.reduce((n, hop) => n + hop.input, 0),
-    outputTokens: hops.reduce((n, hop) => n + hop.output, 0),
-    costUsd: costs.some((c) => c === null)
-      ? null
-      : costs.reduce<number>((n, c) => n + (c ?? 0), 0),
-    text: response.content
-      .flatMap((block) => (block.type === 'text' ? [block.text] : []))
-      .join('\n'),
-    calls: response.content.flatMap((block) =>
-      block.type === 'tool_use'
-        ? [{ id: block.id, name: block.name, args: block.input }]
-        : [],
-    ),
-    raw: response.content,
-  }
 }
 
 // ---- Time --------------------------------------------------------------------

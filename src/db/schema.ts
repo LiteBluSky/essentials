@@ -9,6 +9,8 @@ import {
   text,
 } from 'drizzle-orm/sqlite-core'
 
+import type { Pattern } from '../lib/finances/schedule'
+
 const timestamps = {
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
@@ -366,6 +368,7 @@ export const assistantChanges = sqliteTable(
         'calendar',
         'finances',
         'subscriptions',
+        'budgets',
       ],
     }).notNull(),
     target: text({ enum: ['item', 'folder'] }).notNull(),
@@ -512,18 +515,34 @@ export const financeMonths = sqliteTable(
   (t) => [primaryKey({ columns: [t.month, t.kind, t.category, t.currency] })],
 )
 
-// Charged automatically (an expense entry) on `startDay` and then the same
-// day every month / year; `chargedDay` is the last charge.
+// Recurring money ("subscriptions" in the code): an expense or income
+// entry is added automatically on each day of its schedule (see
+// `src/lib/finances/schedule.ts`); `chargedDay` is the last one added.
 export const financeSubscriptions = sqliteTable('finance_subscriptions', {
   id: integer().primaryKey({ autoIncrement: true }),
+  kind: text({ enum: ['expense', 'income'] })
+    .notNull()
+    .default('expense'),
   name: text().notNull(),
   cents: integer().notNull(),
   currency: text().notNull().default('EUR'),
   category: text().notNull().default('subscriptions'),
-  every: text({ enum: ['month', 'year'] })
+  every: text({ enum: ['day', 'week', 'month', 'year'] })
     .notNull()
     .default('month'),
+  /** Every `interval` days / weeks / months / years. */
+  interval: integer().notNull().default(1),
   startDay: text('start_day').notNull(),
+  /** Monthly: the days of the month it falls on (none = the start's day). */
+  patterns: text({ mode: 'json' })
+    .$type<Array<Pattern>>()
+    .notNull()
+    .default([]),
+  /** A day on a weekend moves to the Friday before / Monday after. */
+  weekend: text({ enum: ['before', 'after'] }),
+  /** Ends after this day, or after this many times (null = never). */
+  endDay: text('end_day'),
+  endAfter: integer('end_after'),
   chargedDay: text('charged_day'),
   ...timestamps,
 })

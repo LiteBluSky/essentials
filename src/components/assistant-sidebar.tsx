@@ -115,21 +115,25 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
     enabled: desktop && conversationId !== null,
   })
 
-  // `s` focuses the message box (opening the panel first); not while
-  // typing or with a dialog open.
+  // `s` focuses the message box (opening the panel first), Shift+S hides
+  // the panel; not while typing or with a dialog open.
   useEffect(() => {
     if (!enabled || !desktop) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
       const t = e.target
       if (
-        e.key !== 's' ||
+        (e.key !== 's' && e.key !== 'S') ||
         (t instanceof HTMLElement &&
           (t.isContentEditable ||
             ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)))
       )
         return
       e.preventDefault()
+      if (e.key === 'S') {
+        toggle(false)
+        return
+      }
       toggle(true)
       requestAnimationFrame(() =>
         panel.current?.querySelector('textarea')?.focus(),
@@ -140,7 +144,7 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
   }, [enabled, desktop])
 
   const send = useMutation({
-    mutationFn: (text: string) =>
+    mutationFn: ({ text, webSearch }: { text: string; webSearch: boolean }) =>
       sendChatMessage({
         data: {
           // A conversation deleted meanwhile (or expired) starts a new one.
@@ -148,14 +152,18 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
           text,
           now: new Date().toISOString(),
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          webSearch,
         },
       }),
   })
 
-  const onSend = async (text: string) => {
+  const onSend = async (text: string, webSearch: boolean) => {
     setPending({ text })
     try {
-      const { conversationId: id, result } = await send.mutateAsync(text)
+      const { conversationId: id, result } = await send.mutateAsync({
+        text,
+        webSearch,
+      })
       await queryClient.fetchQuery({
         ...chatMessagesQueryOptions(id),
         staleTime: 0,
@@ -165,7 +173,9 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
       void queryClient.invalidateQueries(assistantHistoryQueryOptions)
       for (const app of new Set(
         [...result.created, ...result.changed].map((item) =>
-          item.app === 'subscriptions' ? 'finances' : item.app,
+          item.app === 'subscriptions' || item.app === 'budgets'
+            ? 'finances'
+            : item.app,
         ),
       )) {
         void queryClient.invalidateQueries({ queryKey: [app] })

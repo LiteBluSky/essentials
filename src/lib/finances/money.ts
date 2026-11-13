@@ -7,19 +7,6 @@ export const DEFAULT_CURRENCY = 'EUR'
 export const CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF'] as const
 export type Currency = (typeof CURRENCIES)[number]
 
-/** Symbols and codes typed in the quick entry ("$12", "12 usd"). */
-const CURRENCY_WORDS: Record<string, Currency | undefined> = {
-  '€': 'EUR',
-  eur: 'EUR',
-  euro: 'EUR',
-  euros: 'EUR',
-  $: 'USD',
-  usd: 'USD',
-  '£': 'GBP',
-  gbp: 'GBP',
-  chf: 'CHF',
-}
-
 /** "€12.50", "-€3.00"; `signed` puts + on income. */
 export function formatMoney(
   cents: number,
@@ -53,63 +40,6 @@ export function parseAmount(text: string): number | null {
   const value = Number(s)
   if (!Number.isFinite(value) || value <= 0) return null
   return Math.round(value * 100)
-}
-
-export type ParsedEntry = {
-  cents: number
-  title: string
-  /** Set by a leading + (income) or - (expense). */
-  kind?: 'expense' | 'income'
-  /** Set by a symbol or code ("$", "usd"). */
-  currency?: Currency
-}
-
-/**
- * The quick entry: an amount and what it was, in any order ("12.50
- * coffee", "coffee 12,50", "+1500 payroll", "$20 book", "20 usd book").
- * Null without an amount.
- */
-export function parseEntry(text: string): ParsedEntry | null {
-  const words = text.trim().split(/\s+/).filter(Boolean)
-  let kind: ParsedEntry['kind']
-  let currency: Currency | undefined
-  let cents: number | null = null
-  const rest: Array<string> = []
-  for (const w of words) {
-    if (cents === null) {
-      // A sign and / or a symbol glued to the number: "+€12", "12€", "-5".
-      const m = /^([+-])?([€$£])?(\d[\d.,]*)([€$£])?$/.exec(w)
-      if (m) {
-        const amount = parseAmount(m[3])
-        if (amount !== null) {
-          cents = amount
-          if (m[1]) kind = m[1] === '+' ? 'income' : 'expense'
-          // Unmatched groups are undefined (not '').
-          const symbol = (m[2] as string | undefined) ?? m[4]
-          if (symbol) currency = CURRENCY_WORDS[symbol]
-          continue
-        }
-      }
-    }
-    const code = CURRENCY_WORDS[w.toLowerCase()]
-    if (code && !currency) {
-      currency = code
-      continue
-    }
-    if ((w === '+' || w === '-') && cents === null) {
-      kind = w === '+' ? 'income' : 'expense'
-      continue
-    }
-    rest.push(w)
-  }
-  if (cents === null) return null
-  const title = rest.join(' ')
-  return {
-    cents,
-    title: title.charAt(0).toUpperCase() + title.slice(1),
-    kind,
-    currency,
-  }
 }
 
 /** `YYYY-MM` of a `YYYY-MM-DD` day. */

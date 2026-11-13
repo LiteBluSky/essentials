@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ASSISTANT_NAME } from '@/lib/assistant'
 
 // Each entry: alternative key combos (joined with "or"), each a list of keys
 // pressed together or in sequence.
@@ -28,15 +29,13 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
     shortcuts: [
       {
         keys: [['a']],
-        action: 'Add: type the amount and what it was (“12.50 coffee”)',
+        action: 'Add money out / in (−/+ in front of the amount switches)',
       },
-      { keys: [['+']], action: 'In the field: start with + for income' },
-      { keys: [['Enter']], action: 'In the field: save it' },
-      { keys: [['Esc']], action: 'Leave the field' },
+      { keys: [['Enter']], action: 'In the pop-up: save it' },
       { keys: [['M']], action: 'Previous month' },
       { keys: [['m']], action: 'Next month' },
       { keys: [['t']], action: 'This month' },
-      { keys: [['u']], action: 'Subscriptions' },
+      { keys: [['u']], action: 'Recurring (bills, subscriptions, income)' },
       { keys: [['b']], action: 'Budgets' },
       { keys: [['r']], action: 'Ask for advice (Jarvis)' },
       { keys: [['Ctrl', 'Enter']], action: 'In a form: save' },
@@ -47,6 +46,14 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
     shortcuts: [
       { keys: [['z']], action: 'Search everything (all apps)' },
       { keys: [['f']], action: 'Switch app (type its name, or pick it)' },
+      {
+        keys: [['s']],
+        action: `Open the ${ASSISTANT_NAME} panel and type (wide screens)`,
+      },
+      {
+        keys: [['Shift', 'S']],
+        action: `Hide the ${ASSISTANT_NAME} panel (wide screens)`,
+      },
       { keys: [['Shift', 'T']], action: 'Next theme (light, dark, system)' },
       { keys: [['p']], action: 'Switch profile (database)' },
       { keys: [['Shift', 'H']], action: 'Previous app' },

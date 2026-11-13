@@ -43,6 +43,10 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
         action: `Ask ${ASSISTANT_NAME}… (tasks, notes, questions; ↑/↓ past requests; Esc goes back)`,
       },
       {
+        keys: [['Shift', 'S']],
+        action: `Hide the ${ASSISTANT_NAME} panel (wide screens)`,
+      },
+      {
         keys: [['a']],
         action: 'New task',
       },

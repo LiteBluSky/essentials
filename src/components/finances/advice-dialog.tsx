@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { MessagesSquareIcon, SparklesIcon } from 'lucide-react'
+import { GlobeIcon, MessagesSquareIcon, SparklesIcon } from 'lucide-react'
 import { useRef, useState } from 'react'
 
 import { ChatMarkdown } from '@/components/chat/chat-markdown'
@@ -17,6 +17,7 @@ import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/toast'
+import { Toggle } from '@/components/ui/toggle'
 import { ASSISTANT_NAME } from '@/lib/assistant'
 import { monthLabel } from '@/lib/finances/money'
 import { submitOnModEnter } from '@/lib/submit-shortcut'
@@ -50,10 +51,13 @@ function Advice({ month }: { month: string }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const [question, setQuestion] = useState('')
+  // Web search for this question only (off again once it's asked).
+  const [webSearch, setWebSearch] = useState(false)
   const ref = useRef<HTMLTextAreaElement>(null)
 
   const ask = useMutation({
-    mutationFn: () => askFinanceAdvice({ data: { question, month } }),
+    mutationFn: (web: boolean) =>
+      askFinanceAdvice({ data: { question, month, webSearch: web } }),
     onSettled: () =>
       Promise.all([
         queryClient.invalidateQueries(assistantHistoryQueryOptions),
@@ -66,6 +70,12 @@ function Advice({ month }: { month: string }) {
         type: 'error',
       }),
   })
+
+  const submit = () => {
+    if (ask.isPending) return
+    ask.mutate(webSearch)
+    setWebSearch(false)
+  }
 
   return (
     <>
@@ -84,9 +94,9 @@ function Advice({ month }: { month: string }) {
         <form
           onSubmit={(e) => {
             e.preventDefault()
-            ask.mutate()
+            submit()
           }}
-          onKeyDownCapture={submitOnModEnter(() => ask.mutate())}
+          onKeyDownCapture={submitOnModEnter(() => submit())}
         >
           <FieldGroup>
             <Field>
@@ -134,14 +144,26 @@ function Advice({ month }: { month: string }) {
             </Button>
           </>
         ) : (
-          <Button disabled={ask.isPending} onClick={() => ask.mutate()}>
-            {ask.isPending ? (
-              <Spinner data-icon="inline-start" />
-            ) : (
-              <SparklesIcon data-icon="inline-start" />
-            )}
-            {ask.isPending ? 'Thinking…' : 'Get advice'}
-          </Button>
+          <>
+            <Toggle
+              variant="outline"
+              pressed={webSearch}
+              onPressedChange={setWebSearch}
+              disabled={ask.isPending}
+              title={`Let ${ASSISTANT_NAME} search the web for this question`}
+            >
+              <GlobeIcon />
+              Search the web
+            </Toggle>
+            <Button disabled={ask.isPending} onClick={() => submit()}>
+              {ask.isPending ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <SparklesIcon data-icon="inline-start" />
+              )}
+              {ask.isPending ? 'Thinking…' : 'Get advice'}
+            </Button>
+          </>
         )}
       </DialogFooter>
     </>

@@ -16,6 +16,7 @@ import {
 import { useEffect, useRef, useState } from 'react'
 
 import { DictateButton } from '@/components/dictate-button'
+import { WebSearchToggle } from '@/components/web-search-toggle'
 import { ReferenceAutocomplete } from '@/components/reference-autocomplete'
 import { ReferenceText } from '@/components/reference'
 import { Bubble, BubbleContent } from '@/components/ui/bubble'
@@ -193,7 +194,8 @@ const APP_ITEM: Record<ChangeSummary['app'], string> = {
   contacts: 'contact',
   calendar: 'calendar strip',
   finances: 'money entry',
-  subscriptions: 'subscription',
+  subscriptions: 'recurring',
+  budgets: 'budget',
 }
 
 function ChangedMarker({ change }: { change: ChangeSummary }) {
@@ -231,7 +233,9 @@ function ChangedMarker({ change }: { change: ChangeSummary }) {
           onClick={() =>
             change.app === 'calendar'
               ? void navigate({ to: '/calendar' })
-              : change.app === 'finances' || change.app === 'subscriptions'
+              : change.app === 'finances' ||
+                  change.app === 'subscriptions' ||
+                  change.app === 'budgets'
                 ? void navigate({ to: '/finances' })
                 : open({ app: change.app, id: change.id, kind: change.target })
           }
@@ -333,12 +337,15 @@ export function ChatComposer({
   enabled,
 }: {
   busy: boolean
-  onSend: (text: string) => Promise<boolean>
+  /** `webSearch`: let Jarvis search the web for this message. */
+  onSend: (text: string, webSearch: boolean) => Promise<boolean>
   /** `s` focuses it (no dialog open). */
   enabled: boolean
 }) {
   const ref = useRef<HTMLTextAreaElement>(null)
   const [text, setText] = useState('')
+  // Web search for the next message only (off again once it's sent).
+  const [webSearch, setWebSearch] = useState(false)
   const dictation = useDictation({
     onText: setText,
     onError: (message) =>
@@ -371,8 +378,10 @@ export function ChatComposer({
     if (!message || busy) return
     dictation.stop()
     setText('')
+    const web = webSearch
+    setWebSearch(false)
     // Put it back if it didn't go through.
-    if (!(await onSend(message))) setText(message)
+    if (!(await onSend(message, web))) setText(message)
   }
 
   return (
@@ -417,6 +426,11 @@ export function ChatComposer({
             value={text}
             disabled={busy}
             size="icon-sm"
+          />
+          <WebSearchToggle
+            on={webSearch}
+            onChange={setWebSearch}
+            disabled={busy}
           />
           <InputGroupButton
             variant="default"

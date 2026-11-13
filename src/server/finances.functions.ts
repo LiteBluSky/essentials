@@ -83,4 +83,4 @@ export const saveBudget = createServerFn({ method: 'POST' })
 
 export const askFinanceAdvice = createServerFn({ method: 'POST' })
   .validator(adviceInput)
-  .handler(({ data }) => getAdvice(data.question, data.month))
+  .handler(({ data }) => getAdvice(data.question, data.month, data.webSearch))

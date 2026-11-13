@@ -4,6 +4,7 @@ import { db, listProfiles, profileHandle, withDatabase } from '@/db'
 import {
   assistantChanges,
   calendarEvents,
+  financeBudgets,
   financeEntries,
   financeSubscriptions,
   folders as bookmarkFolders,
@@ -34,6 +35,9 @@ export type App =
   | 'calendar'
   | 'finances'
   | 'subscriptions'
+  // Budgets have no id: their changes keep the category and the amount
+  // before in `before` (see `recordBudget`), and are undone apart.
+  | 'budgets'
 
 // The tables per app. They share the columns used here (id, folderId /
 // parentId), so one table type stands in for all of them. The Calendar and
@@ -127,6 +131,41 @@ export function recordUpdate(
     label: summary.label,
     before: JSON.stringify(before),
   })
+}
+
+/** A budget set, changed or removed (undo puts the old amount back, or
+ * removes it if there was none). */
+export function recordBudget(
+  runId: string,
+  op: 'create' | 'update' | 'delete',
+  label: string,
+  before: { category: string; cents: number | null },
+) {
+  return record(runId, {
+    app: 'budgets',
+    target: 'item',
+    op,
+    itemId: 0,
+    label,
+    before: JSON.stringify(before),
+  })
+}
+
+async function undoBudget(change: AssistantChange) {
+  if (!change.before) return `Couldn't restore the budget “${change.label}”`
+  const { category, cents } = JSON.parse(change.before) as {
+    category: string
+    cents: number | null
+  }
+  if (cents === null) {
+    await db.delete(financeBudgets).where(eq(financeBudgets.category, category))
+  } else {
+    await db
+      .insert(financeBudgets)
+      .values({ category, cents })
+      .onConflictDoUpdate({ target: financeBudgets.category, set: { cents } })
+  }
+  return null
 }
 
 async function maxBinId(app: App) {
@@ -268,6 +307,7 @@ export async function undoRun(runId: string): Promise<UndoResult> {
 /** Puts one change back; returns why not, if it can't be. */
 async function undoChange(change: AssistantChange): Promise<string | null> {
   const app = change.app
+  if (app === 'budgets') return undoBudget(change)
   const isFolder = change.target === 'folder'
   const table = isFolder ? FOLDERS[app] : ITEMS[app]
   const what = `${isFolder ? 'folder' : 'item'} “${change.label}”`

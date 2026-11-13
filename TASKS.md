@@ -357,6 +357,27 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       collapse, `s`)
 - [ ] Verify in a real browser (quick entry on the phone, chart, dialogs)
 - [ ] Optional: entries in the global search; CSV export of the reports
+- [x] Recurring expenses **and income** (was: subscriptions, always
+      expenses): every N days / weeks / months / years, monthly on chosen
+      days (the 1st and 15th, the last day, the 2nd Friday, the last working
+      day), weekend → Friday before / Monday after, ends on a day or after N
+      times (`src/lib/finances/schedule.ts`, migration 0016)
+- [x] Money pop-up (`a`, the header's Add button) replaces the typed quick
+      entry: −/+ in front of a big till-style amount (digits come in from
+      the right), a small "what was it", auto-categorize + category
+- [x] What's left at the end of a month carries over into the next (an
+      overspend too): Carried over + In − Out = Left
+- [x] Jarvis manages all of Finances: `update_recurring`, `set_budget`
+      (Undo for budgets too), recurring with full schedules
+- [x] Web search toggle on every Jarvis prompt (Ask Jarvis, Chat, the
+      panel, Advice): off by default, off again after each send
+      (Anthropic's `web_search` server tool, OpenRouter's `web` plugin)
+- [ ] Verify in a real browser: the recurring form, the amount pop-up on
+      a phone keyboard, carry-over, the web search toggle
+- [ ] Accounts: which account holds how much (entries tagged with an
+      account, transfers between them, balances) — needs a design (see
+      below)
+- [ ] Investments: holdings and their value over time — needs a design
 
 ## History of the notes app (before the merge)
 

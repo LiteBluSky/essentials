@@ -546,7 +546,8 @@ function changed(
     summary.op !== 'delete' &&
     summary.app !== 'calendar' &&
     summary.app !== 'finances' &&
-    summary.app !== 'subscriptions'
+    summary.app !== 'subscriptions' &&
+    summary.app !== 'budgets'
     ? { changed: summary, ref: refFor(summary.app, summary.label, summary.id) }
     : { changed: summary }
 }

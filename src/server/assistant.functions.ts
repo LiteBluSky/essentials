@@ -43,6 +43,7 @@ export const askAssistant = createServerFn({ method: 'POST' })
         system: tellPrompt(data.now, data.timeZone),
         turns: [{ role: 'user', text: data.text }],
         timeZone: data.timeZone,
+        webSearch: data.webSearch,
       })
       const { result } = run
       const didSomething =

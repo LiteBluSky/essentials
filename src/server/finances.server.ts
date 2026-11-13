@@ -21,42 +21,39 @@ import {
   addMonth,
 } from '@/lib/finances/money'
 import type { EntryInput, SubscriptionInput } from '@/lib/finances/schemas'
+import { monthTotals } from '@/lib/finances/summary'
 import {
-  chargeDay,
-  monthLines,
-  monthlyCost,
-  totalsByCurrency,
-} from '@/lib/finances/summary'
+  describeSchedule,
+  dueDays,
+  monthlyAmount,
+} from '@/lib/finances/schedule'
 import { ASSISTANT_NAME } from '@/lib/assistant'
 import { logRequest } from './assistant-log.server'
 import { saveTurn } from './chat.server'
 import { callModel, llmConfig } from './llm.server'
+import { WEB_SEARCH_PROMPT } from './prompts.server'
 
 // Server-only: the Finances app. Only import from *.functions.ts (and the
 // assistant's tools). "Today" is the server's local day (like the strip
-// reminders; Docker: set TZ). Whenever the data loads, subscriptions due by
-// today are charged and every month before this one is folded into its
+// reminders; Docker: set TZ). Whenever the data loads, recurring expenses
+// and income due by today are added and every month before this one is folded into its
 // report (per category and currency) and its entries deleted.
 
 export function today() {
   return format(new Date(), 'yyyy-MM-dd')
 }
 
-/** Adds the charges of every subscription that fell due by `day`. */
+/** Adds an entry for each day a recurring expense / income fell on by
+ * `day`. */
 async function chargeSubscriptions(day: string) {
   const subs = await db.select().from(financeSubscriptions)
   for (const sub of subs) {
-    const due: Array<string> = []
-    for (let n = 0; n < 1200; n++) {
-      const charge = chargeDay(sub.startDay, sub.every, n)
-      if (charge > day) break
-      if (!sub.chargedDay || charge > sub.chargedDay) due.push(charge)
-    }
+    const due = dueDays(sub, sub.chargedDay, day)
     if (due.length === 0) continue
     await db.transaction(async (tx) => {
       await tx.insert(financeEntries).values(
         due.map((charge) => ({
-          kind: 'expense' as const,
+          kind: sub.kind,
           cents: sub.cents,
           currency: sub.currency,
           title: sub.name,
@@ -187,13 +184,28 @@ export async function insertSubscription(input: SubscriptionInput) {
   return row
 }
 
-/** Changing the start re-plans the charges from then (earlier charges
- * already made stay). */
+/** Changing the schedule re-plans what's still to come (what was already
+ * added stays). Switching expense ⇄ income also fixes the entries it
+ * already added this month (past months only keep totals). */
 export async function editSubscription(id: number, input: SubscriptionInput) {
-  await db
-    .update(financeSubscriptions)
-    .set(input)
-    .where(eq(financeSubscriptions.id, id))
+  await db.transaction(async (tx) => {
+    const before = (
+      await tx
+        .select({ kind: financeSubscriptions.kind })
+        .from(financeSubscriptions)
+        .where(eq(financeSubscriptions.id, id))
+    ).at(0)
+    await tx
+      .update(financeSubscriptions)
+      .set(input)
+      .where(eq(financeSubscriptions.id, id))
+    if (before && before.kind !== input.kind) {
+      await tx
+        .update(financeEntries)
+        .set({ kind: input.kind, category: input.category })
+        .where(eq(financeEntries.subscriptionId, id))
+    }
+  })
 }
 
 /** Stops it; what it already charged stays. */
@@ -216,7 +228,12 @@ export async function setBudget(categoryKey: string, cents: number | null) {
 
 // ---- AI (only when asked) ---------------------------------------------------
 
-async function plainCall(system: string, text: string, logText: string) {
+async function plainCall(
+  system: string,
+  text: string,
+  logText: string,
+  webSearch = false,
+) {
   const config = await llmConfig()
   if (!config) throw new Error('Add an API key in Settings first')
   const started = Date.now()
@@ -225,6 +242,7 @@ async function plainCall(system: string, text: string, logText: string) {
       system,
       turns: [{ role: 'user', text }],
       tools: [],
+      webSearch,
     })
     await logRequest({
       text: logText,
@@ -316,7 +334,7 @@ function describeMonth(
   month: string,
   data: Awaited<ReturnType<typeof loadFinances>>,
 ) {
-  const totals = totalsByCurrency(monthLines(month, data.entries, data.reports))
+  const totals = monthTotals(month, data.entries, data.reports)
   if (totals.length === 0) return `${monthLabel(month)}: nothing recorded.`
   return totals
     .map((t) => {
@@ -326,7 +344,7 @@ function describeMonth(
           .map((l) => `${category(l.category).label} ${money(l.cents)}`)
           .join(', ')
       return [
-        `${monthLabel(month)} (${t.currency}): income ${money(t.income)}, spent ${money(t.spent)}, left ${money(t.income - t.spent)}.`,
+        `${monthLabel(month)} (${t.currency}): carried over from before ${money(t.carried)}, income ${money(t.income)}, spent ${money(t.spent)}, left at the end ${money(t.carried + t.income - t.spent)}.`,
         t.expenses.length ? `  Spent on: ${lines(t.expenses)}.` : '',
         t.incomes.length ? `  Income from: ${lines(t.incomes)}.` : '',
       ]
@@ -338,7 +356,11 @@ function describeMonth(
 
 /** One AI request: plain-language advice on the user's money (and their
  * question, if any), saved as a Chat conversation. */
-export async function getAdvice(question: string, month: string) {
+export async function getAdvice(
+  question: string,
+  month: string,
+  webSearch = false,
+) {
   const data = await loadFinances()
   const months = [0, 1, 2, 3, 4, 5].map((n) => addMonth(month, -n))
   const subs = data.subscriptions
@@ -348,17 +370,21 @@ export async function getAdvice(question: string, month: string) {
     ...months.map((m) => describeMonth(m, data)),
     '',
     subs.length
-      ? `Subscriptions (charged automatically): ${subs
+      ? `Recurring (added automatically): ${subs
           .map(
             (s) =>
-              `${s.name} ${formatMoney(s.cents, s.currency)}/${s.every} (${category(s.category).label})`,
+              `${s.kind === 'income' ? 'income' : 'expense'} ${s.name} ${formatMoney(s.cents, s.currency)}, ${describeSchedule(s)} (${category(s.category).label})`,
           )
-          .join(', ')}. About ${formatMoney(
+          .join('; ')}. In euros, about ${formatMoney(
           subs
-            .filter((s) => s.currency === 'EUR')
-            .reduce((sum, s) => sum + monthlyCost(s), 0),
-        )} a month in euros.`
-      : 'No subscriptions.',
+            .filter((s) => s.currency === 'EUR' && s.kind === 'expense')
+            .reduce((sum, s) => sum + monthlyAmount(s), 0),
+        )} a month out and ${formatMoney(
+          subs
+            .filter((s) => s.currency === 'EUR' && s.kind === 'income')
+            .reduce((sum, s) => sum + monthlyAmount(s), 0),
+        )} in.`
+      : 'Nothing recurring.',
     data.budgets.length
       ? `Monthly budgets: ${data.budgets
           .map((b) => `${category(b.category).label} ${formatMoney(b.cents)}`)
@@ -378,14 +404,19 @@ export async function getAdvice(question: string, month: string) {
   const system = [
     `You are ${ASSISTANT_NAME}, a friendly money coach inside the user's personal app. The user knows nothing about personal finance: explain simply, no jargon (or explain it in a few words), no lecturing.`,
     'Base everything on their numbers below. Give: a short recap of the month (where the money went, what was left), what is going well, the 2–3 most useful things to improve, each with a concrete step and how much it could save, and a simple saving plan (e.g. pay yourself first, an emergency fund of 3–6 months of spending, the 50/30/20 split) fitted to their income. If they ask about buying or saving for something, say whether it fits and how long it would take to save for it.',
-    'Mention subscriptions worth checking. Note that past months only keep totals per category. Amounts in different currencies are never converted. Never invent numbers; if there is little data, say what to track to get better advice.',
+    'What is left at the end of a month carries over into the next (an overspend too). Mention recurring expenses (subscriptions) worth checking. Note that past months only keep totals per category. Amounts in different currencies are never converted. Never invent numbers; if there is little data, say what to track to get better advice.',
     "Answer briefly in the user's language, in markdown, with short headings or bullets.",
     `Category names: ${CATEGORIES.map((c) => c.label).join(', ')}.`,
   ].join('\n')
 
   const ask =
     question || `How am I doing in ${monthLabel(month)}? How can I save more?`
-  const reply = await plainCall(system, `${facts}\n\nMy question: ${ask}`, ask)
+  const reply = await plainCall(
+    webSearch ? `${system}\n${WEB_SEARCH_PROMPT}` : system,
+    `${facts}\n\nMy question: ${ask}`,
+    ask,
+    webSearch,
+  )
   const answer = reply.text.trim() || "I couldn't come up with anything."
   // Saved as a chat, so it can be read again and carried on.
   let conversationId: number | null = null

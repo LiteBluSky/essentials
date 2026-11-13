@@ -76,7 +76,7 @@ export function FinancesMenu({
           <DropdownMenuGroup>
             <DropdownMenuItem onClick={onSubscriptions}>
               <RepeatIcon />
-              Subscriptions…
+              Recurring…
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onBudgets}>
               <WalletIcon />

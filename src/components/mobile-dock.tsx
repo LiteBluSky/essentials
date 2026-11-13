@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
  * the page's `<main>` gets that much bottom padding (inside its
  * `min-h-dvh`, so a short page doesn't scroll) and the toasts sit above it
  * (styles.css). From `lg` up it stays where it is in
- * the page. Used by Ask Jarvis and Finances' quick entry.
+ * the page. Used by Ask Jarvis.
  */
 export function MobileDock({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)

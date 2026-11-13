@@ -22,6 +22,8 @@ export const chatInput = z.object({
   /** The browser's clock and timezone, for "today", "this week", due dates. */
   now: z.iso.datetime(),
   timeZone: z.string().min(1).max(100),
+  /** Let Jarvis search the web for this one request (off by default). */
+  webSearch: z.boolean().default(false),
 })
 export type ChatInput = z.infer<typeof chatInput>
 

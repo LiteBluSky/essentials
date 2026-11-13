@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ASSISTANT_NAME } from '@/lib/assistant'
 
 // Each entry: alternative key combos (joined with "or"), each a list of keys
 // pressed together or in sequence.
@@ -73,6 +74,14 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
     shortcuts: [
       { keys: [['z']], action: 'Search everything (all apps)' },
       { keys: [['f']], action: 'Switch app (type its name, or pick it)' },
+      {
+        keys: [['s']],
+        action: `Open the ${ASSISTANT_NAME} panel and type (wide screens)`,
+      },
+      {
+        keys: [['Shift', 'S']],
+        action: `Hide the ${ASSISTANT_NAME} panel (wide screens)`,
+      },
       { keys: [['Shift', 'T']], action: 'Next theme (light, dark, system)' },
       { keys: [['p']], action: 'Switch profile (database)' },
       { keys: [['Shift', 'H']], action: 'Previous app' },

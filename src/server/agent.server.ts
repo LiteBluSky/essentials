@@ -7,6 +7,7 @@ import { referencesByName } from '@/lib/references'
 import { ALL_TOOLS, runTool } from './agent-tools.server'
 import { addUsage, callModel, llmConfig } from './llm.server'
 import type { ModelUsage, ToolDef, Turn } from './llm.server'
+import { WEB_SEARCH_PROMPT } from './prompts.server'
 
 // Server-only: the assistant's tool loop, shared by Tell me and Chat. The
 // model looks things up, creates, edits or deletes through the tools
@@ -66,17 +67,20 @@ export async function runAgent({
   system: baseSystem,
   turns,
   timeZone,
+  webSearch = false,
 }: {
   system: string
   turns: Array<Turn>
   timeZone: string
+  /** Offer the provider's web search for this request. */
+  webSearch?: boolean
 }): Promise<AgentRun> {
   const config = await llmConfig()
   if (!config) {
     throw new Error('The assistant is off: add an API key in Settings')
   }
 
-  let system = baseSystem
+  let system = webSearch ? `${baseSystem}\n${WEB_SEARCH_PROMPT}` : baseSystem
   const runId = randomUUID()
   const result: AssistantResult = { created: [], found: [], changed: [] }
   const ctx = { runId, timeZone, result }
@@ -143,6 +147,7 @@ ${profilesPrompt(profiles)}`
         system,
         turns: conversation,
         tools,
+        webSearch,
       })
       usage = addUsage(usage, cost)
       if (!calls.length) {

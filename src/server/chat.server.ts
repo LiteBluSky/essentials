@@ -179,6 +179,7 @@ export async function sendMessage(input: ChatInput): Promise<ChatTurnResult> {
     system: systemPrompt(input.now, input.timeZone),
     turns,
     timeZone: input.timeZone,
+    webSearch: input.webSearch,
   })
 
   const { message } = await saveTurn(conversationId, input.text, run)

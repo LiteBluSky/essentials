@@ -139,7 +139,7 @@ function EntryForm({
         <DialogTitle>Edit</DialogTitle>
         <DialogDescription>
           {entry.subscriptionId !== null
-            ? 'A subscription charge.'
+            ? 'Added by something recurring.'
             : 'Money in or out.'}
         </DialogDescription>
       </DialogHeader>

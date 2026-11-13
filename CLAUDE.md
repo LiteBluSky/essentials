@@ -164,11 +164,18 @@ One SQLite file holds every app. Bookmark tables keep their original names.
   `category`, `currency` (the primary key together), `cents`, `count`.
   `loadFinances` folds every entry before the current month (server's
   local day) into it and deletes those entries.
-- `finance_subscriptions` — `name`, `cents`, `currency`, `category`
-  (default `subscriptions`), `every` (`month` | `year`), `startDay` (first
-  charge; then the same day each month / year, `chargeDay`), `chargedDay`
-  (the last charge made), timestamps. `loadFinances` inserts each charge
-  that fell due as an entry. Deleting one keeps its charges.
+- `finance_subscriptions` — **recurring** expenses and income ("Recurring"
+  in the UI): `kind` (`expense` | `income`), `name`, `cents`, `currency`,
+  `category` (default `subscriptions`), and a schedule like Actual
+  Budget's (`src/lib/finances/schedule.ts`, pure): `every` (`day` |
+  `week` | `month` | `year`) × `interval`, from `startDay`; `patterns`
+  (JSON, monthly only: `day` 1–31 / -1 last, `weekday` nth, `workday` nth;
+  none = the start's day), `weekend` (`before` / `after` moves a weekend
+  day to Friday / Monday), `endDay` or `endAfter` (times);
+  `chargedDay` (the last one added), timestamps. `loadFinances` inserts
+  each day that fell due as an entry of its kind. Switching an existing
+  one's kind also fixes this month's entries it added. Deleting one keeps
+  its entries.
 - `finance_budgets` — optional monthly budget per expense `category`
   (primary key), `cents` in euros.
 - `assistant_log` — one row per "Tell me…" request or chat turn (`source`
@@ -573,7 +580,8 @@ resets it. While the `@` list is open it keeps ↑/↓.
 panel floating on the right instead (`AssistantSidebar`,
 `components/assistant-sidebar.tsx`): rounded, translucent with a blur,
 `z-30`; header with New conversation, Open in Chat and Hide (collapsed: a
-round button in the corner; `s` opens it and focuses the box). It's a real
+round button in the corner; `s` opens it and focuses the box,
+`Shift+S` hides it — not while typing). It's a real
 Chat conversation (`sendChatMessage`; Chat's `ChatThread` and
 `ChatComposer`, so markers with Open / Undo), carried on across requests
 and pages until New; the id is in `assistant:conversation`, open/closed in
@@ -590,7 +598,7 @@ width: the textarea (same placeholder), then a bottom row with the `s`
 hint and the mic, and the filled ↑ send button on the right. Keep the two
 alike.
 
-**On phones** (below `lg`) the field, like Finances' quick entry, is
+**On phones** (below `lg`) the field is
 floating at the bottom of the screen in a `MobileDock`
 (`components/mobile-dock.tsx`), like Chat's box: no border or solid band,
 the page fades out under it (a gradient; taps pass through the faded
@@ -682,6 +690,18 @@ by `askAssistant` (`assistant-log.server.ts`; logging never breaks the
 request). The dialog lists the latest `HISTORY_LIMIT` (200) with what was
 said, the result, model, time taken, tokens and cost, and totals over all
 of them; "Clear history" empties it (what was created stays).
+
+**Web search** (`WebSearchToggle`, a globe next to the mic in Ask Jarvis
+and Chat's box — so the panel too — and "Search the web" in Finances'
+Advice): off by default and switched off again the moment a request is
+sent, so it only ever applies to that one request (`webSearch` on
+`assistantInput` / `chatInput` / `adviceInput`). Then `callModel` adds the
+provider's own search: Anthropic's `web_search` server tool
+(`web_search_20260209` on current models, `_20250305` on older ones, at
+most 5 searches, $0.01 each added to the cost; a paused turn
+(`pause_turn`) is resumed inside `callAnthropic`), or OpenRouter's `web`
+plugin; other OpenAI-compatible servers answer with an error. The prompt
+gets `WEB_SEARCH_PROMPT` (cite the sources).
 
 Without an API key the field isn't rendered
 (`assistantEnabledQueryOptions`, prefetched by each app's loader) and
@@ -810,15 +830,16 @@ off on that side.
 
 ### Finances (`/finances`)
 
-Money in and out, kept as small as the rest: **type the amount and what
-it was, Enter** (`QuickEntry`, `components/finances/quick-entry.tsx`).
-`parseEntry` (`src/lib/finances/money.ts`, pure) reads "12.50 coffee",
-"coffee 12,50", "+1800 payroll" (`+` = income, `-` = expense), "$20 book" /
-"20 usd book" (a symbol or code sets the currency). Under the field,
-everything optional, reset after each entry: the −/+ toggle (expense /
-income), currency (`EUR` by default), category (Uncategorized), day
-(today), and **Auto-categorize** (✨, only with an API key; remembered in
-`finances:auto`): an entry saved without a category but with a
+Money in and out, kept as small as the rest: **Add** (the header's +
+button, or `a`) opens the money pop-up (`amount-dialog.tsx`): a −/+
+button in front of a big amount typed like a till (digits come in from
+the right: 6 → 0.06, 60000 → 600.00; − = expense, the default, + =
+income), a small "what was it", then **Auto-categorize** (✨, only with
+an API key; remembered in `finances:auto`) next to an optional category
+select; after the amount, a currency button the size of the −/+ (a
+menu of `CURRENCIES`, euros by default). Saved today (`useAddEntry`,
+`src/hooks/finances/use-add-entry.ts`); a click on the entry edits the
+day. An entry saved without a category but with a
 description is then sent to the AI for one (`categorizeFinanceEntries`,
 one plain call, after saving, so saving never waits). The ⋮ menu's
 "Categorize N with Jarvis" does the month's uncategorized entries in one
@@ -834,14 +855,21 @@ call. **The AI is never called otherwise.**
   `totalsByCurrency` in `src/lib/finances/summary.ts`: entries for current
   months, `finance_months` for past ones).
 - **Month end**: whenever the data loads (`loadFinances`, server's local
-  day, like the strip reminders), due subscription charges are inserted,
+  day, like the strip reminders), due recurring entries are inserted,
   then every entry before this month is folded into `finance_months` and
   deleted. Adding an entry dated in a past month folds it in on the next
   load.
-- **Subscriptions** (`u`, ⋮ menu; `subscriptions-dialog.tsx`): list with
-  the next charge and the monthly total, click to edit, "Stop it" deletes;
-  add form below (name, amount, currency, every month / year, next charge,
-  category).
+- **Carry-over**: what a month left (or overspent) carries into the next,
+  per currency (`carriedInto` / `monthTotals` in `summary.ts`): the month
+  view shows Carried over, In, Out and Left = carried + in − out.
+- **Recurring** (`u`, ⋮ menu; `subscriptions-dialog.tsx`): income first,
+  then expenses, each with its schedule in words and the next day, the
+  monthly totals in and out; click to edit, "Stop it" deletes; the form
+  below: Expense / Income, name, amount, currency, category, first time,
+  repeats every N days / weeks / months / years, the days of the month
+  (rows of 1st…31st / Last × Day / Working day / Monday…), on a weekend,
+  ends (never / on a day / after N times), and a preview of the next
+  days.
 - **Budgets** (`b`, ⋮ menu; `budgets-dialog.tsx`): optional euro amount
   per expense category, saved on blur / Enter, empty = none.
 - **Advice** (`r` or the header button, with an API key; `advice-dialog.tsx`
@@ -851,13 +879,15 @@ call. **The AI is never called otherwise.**
   nothing about finance. The answer is shown as markdown and saved as a
   Chat conversation ("Carry on in Chat"); logged as `source: 'finances'`.
 - **Jarvis** (`agent-finances.server.ts`, `FINANCE_TOOLS` in `ALL_TOOLS`):
-  `add_money_entry` (picks a category itself), `list_finances`,
-  `update_money_entry`, `delete_money_entry`, `add_subscription`,
-  `delete_subscription`; recorded as `finances` / `subscriptions` items in
-  `changes.server.ts` (Undo). So "Jarvis, spent 12 on lunch" works from any
+  `add_money_entry` (picks a category itself), `list_finances` (with the
+  carry-over and full schedules), `update_money_entry`,
+  `delete_money_entry`, `add_recurring` / `update_recurring` /
+  `delete_recurring` (schedules as above), `set_budget`; recorded as
+  `finances` / `subscriptions` / `budgets` items in `changes.server.ts`
+  (Undo; budgets have no id, so `recordBudget` keeps the category and the
+  amount before, and `undoBudget` puts it back). So "Jarvis, spent 12 on lunch" works from any
   app's field.
-- Not in the global search or `@` references; no `AssistantBox` (the
-  quick entry is the field). `callModel` takes an empty tool list for
+- Not in the global search or `@` references; no `AssistantBox`. `callModel` takes an empty tool list for
   plain calls.
 
 **Navbar** (`components/app-nav.tsx`, every app): one icon button per
@@ -950,8 +980,8 @@ names its database).
   `a` new contact, `r` edit, `d` delete, `x`/`p` cut and paste
   (`src/hooks/contacts/use-cut-contact.ts`).
 - Finances (`src/routes/finances.tsx`; help in
-  `components/finances/shortcuts-dialog.tsx`): `a` focuses the quick
-  entry (Enter saves, Esc leaves), `m`/`M` next / previous month, `t` this
+  `components/finances/shortcuts-dialog.tsx`): `a` opens the money
+  pop-up (Enter saves), `m`/`M` next / previous month, `t` this
   month, `u` subscriptions, `b` budgets, `r` advice, `z`, `f`, `?`,
   `Shift+H/L`.
 - Calendar (`src/routes/calendar.tsx`; help in

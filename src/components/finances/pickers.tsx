@@ -23,7 +23,7 @@ import type { CategoryKey, EntryKind } from '@/lib/finances/categories'
 import { CURRENCIES } from '@/lib/finances/money'
 import type { Currency } from '@/lib/finances/money'
 
-// Small pickers shared by the quick entry and the Finances forms.
+// Small pickers shared by the Finances forms.
 
 /** `YYYY-MM-DD` ⇄ a local Date. */
 export function parseDay(day: string) {

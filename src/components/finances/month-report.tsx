@@ -11,8 +11,9 @@ import { CATEGORIES, category } from '@/lib/finances/categories'
 import { formatMoney } from '@/lib/finances/money'
 import type { CurrencyTotals, Line } from '@/lib/finances/summary'
 
-// A month at a glance, per currency: what came in, went out and is left,
-// and where it went (a circle chart + the categories, with budgets).
+// A month at a glance, per currency: what carried over from the months
+// before, what came in, went out and is left (carried + in − out), and
+// where it went (a circle chart + the categories, with budgets).
 
 const chartConfig = Object.fromEntries(
   CATEGORIES.map((c) => [c.key, { label: c.label, color: c.color }]),
@@ -50,7 +51,7 @@ function CurrencyReport({
   showCurrency: boolean
 }) {
   const money = (cents: number) => formatMoney(cents, totals.currency)
-  const left = totals.income - totals.spent
+  const left = totals.carried + totals.income - totals.spent
   const data = totals.expenses.map((l) => ({
     category: l.category,
     amount: l.cents / 100,
@@ -63,7 +64,21 @@ function CurrencyReport({
           {totals.currency}
         </h2>
       )}
-      <dl className="grid grid-cols-3 gap-2 text-center">
+      <dl
+        className={cn(
+          'grid gap-2 text-center',
+          totals.carried !== 0 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3',
+        )}
+      >
+        {totals.carried !== 0 && (
+          <Stat
+            label="Carried over"
+            value={formatMoney(totals.carried, totals.currency, {
+              signed: true,
+            })}
+            className={cn(totals.carried < 0 && 'text-destructive')}
+          />
+        )}
         <Stat label="In" value={money(totals.income)} />
         <Stat label="Out" value={money(totals.spent)} />
         <Stat

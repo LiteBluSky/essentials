@@ -42,6 +42,10 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
         keys: [['s']],
         action: `Ask ${ASSISTANT_NAME}… (tasks, notes, questions; ↑/↓ past requests; Esc goes back)`,
       },
+      {
+        keys: [['Shift', 'S']],
+        action: `Hide the ${ASSISTANT_NAME} panel (wide screens)`,
+      },
       { keys: [mod(SHORTCUTS.newFolder.label)], action: 'New folder' },
       { keys: [['1'], ['…'], ['4']], action: 'Open recent note 1–4' },
       { keys: [['5'], ['…'], ['8']], action: 'Open most viewed note 5–8' },

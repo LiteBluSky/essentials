@@ -13,6 +13,7 @@ import {
   useDesktopAssistant,
 } from '@/components/assistant-sidebar'
 import { DictateButton } from '@/components/dictate-button'
+import { WebSearchToggle } from '@/components/web-search-toggle'
 import { MobileDock } from '@/components/mobile-dock'
 import { ReferenceText } from '@/components/reference'
 import { ReferenceAutocomplete } from '@/components/reference-autocomplete'
@@ -78,6 +79,8 @@ function AssistantField({ enabled }: { enabled: boolean }) {
   const navigate = useNavigate()
   const ref = useRef<HTMLTextAreaElement>(null)
   const [text, setText] = useState('')
+  // Web search for the next request only (off again once it's sent).
+  const [webSearch, setWebSearch] = useState(false)
   const history = useRequestHistory()
   const dictation = useDictation({
     onText: setText,
@@ -103,12 +106,13 @@ function AssistantField({ enabled }: { enabled: boolean }) {
 
   const undo = useUndoRun()
   const ask = useMutation({
-    mutationFn: (sentence: string) =>
+    mutationFn: ({ sentence, web }: { sentence: string; web: boolean }) =>
       askAssistant({
         data: {
           text: sentence,
           now: new Date().toISOString(),
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          webSearch: web,
         },
       }),
     onSuccess: async ({
@@ -126,7 +130,9 @@ function AssistantField({ enabled }: { enabled: boolean }) {
           // Every query of the app (the Calendar's isn't a tree).
           (app) =>
             queryClient.invalidateQueries({
-              queryKey: [app === 'subscriptions' ? 'finances' : app],
+              queryKey: [
+                app === 'subscriptions' || app === 'budgets' ? 'finances' : app,
+              ],
             }),
         ),
       )
@@ -260,7 +266,8 @@ function AssistantField({ enabled }: { enabled: boolean }) {
     const sentence = text.trim()
     if (!sentence || ask.isPending) return
     dictation.stop()
-    ask.mutate(sentence)
+    ask.mutate({ sentence, web: webSearch })
+    setWebSearch(false)
   }
 
   // Laid out exactly like Chat's box (ChatComposer): the field, then a row
@@ -334,6 +341,11 @@ function AssistantField({ enabled }: { enabled: boolean }) {
               disabled={ask.isPending}
               size="icon-sm"
             />
+            <WebSearchToggle
+              on={webSearch}
+              onChange={setWebSearch}
+              disabled={ask.isPending}
+            />
             <InputGroupButton
               variant="default"
               size="icon-sm"
@@ -370,7 +382,8 @@ const CHANGE_ITEM: Record<ChangeSummary['app'], string> = {
   contacts: 'contact',
   calendar: 'calendar strip',
   finances: 'money entry',
-  subscriptions: 'subscription',
+  subscriptions: 'recurring',
+  budgets: 'budget',
 }
 
 const APP_LABEL = {

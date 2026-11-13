@@ -8,21 +8,22 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   KeyboardIcon,
+  PlusIcon,
   SearchIcon,
   SparklesIcon,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { AppFooter } from '@/components/app-footer'
 import { AppNav } from '@/components/app-nav'
 import { JarvisSidebar } from '@/components/assistant-sidebar'
 import { AdviceDialog } from '@/components/finances/advice-dialog'
+import { AmountDialog } from '@/components/finances/amount-dialog'
 import { BudgetsDialog } from '@/components/finances/budgets-dialog'
 import { EntriesList } from '@/components/finances/entries-list'
 import { EntryDialog } from '@/components/finances/entry-dialog'
 import { FinancesMenu } from '@/components/finances/finances-menu'
 import { MonthReport } from '@/components/finances/month-report'
-import { QuickEntry } from '@/components/finances/quick-entry'
 import { ShortcutsDialog } from '@/components/finances/shortcuts-dialog'
 import { SubscriptionsDialog } from '@/components/finances/subscriptions-dialog'
 import { GlobalSearch } from '@/components/global-search'
@@ -43,7 +44,7 @@ import { ASSISTANT_NAME } from '@/lib/assistant'
 import { APP_NAME } from '@/lib/config'
 import { UNCATEGORIZED } from '@/lib/finances/categories'
 import { addMonth, monthLabel, monthOf } from '@/lib/finances/money'
-import { monthLines, totalsByCurrency } from '@/lib/finances/summary'
+import { monthTotals } from '@/lib/finances/summary'
 import { assistantEnabledQueryOptions } from '@/server/assistant.functions'
 import {
   categorizeFinanceEntries,
@@ -52,7 +53,7 @@ import {
 
 // The Finances app: type what you spent or got ("12.50 coffee", "+1800
 // payroll") and see the month at a glance: in, out, left, and a circle of
-// where it went. Subscriptions are charged on their own; past months keep
+// where it went. Recurring expenses and income are added on their own; past months keep
 // only their totals per category. The AI is only used when asked (the
 // auto-categorize toggle, "Categorize", Advice).
 export const Route = createFileRoute('/finances')({
@@ -78,7 +79,6 @@ function FinancesPage() {
   const { data } = useSuspenseQuery(financesQueryOptions)
   const { data: aiAvailable } = useSuspenseQuery(assistantEnabledQueryOptions)
   const [month, setMonth] = useState(data.month)
-  const inputRef = useRef<HTMLInputElement>(null)
 
   const [editing, setEditing] = useState<FinanceEntry | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
@@ -88,7 +88,10 @@ function FinancesPage() {
   const [helpOpen, setHelpOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // The amount pop-up: null = closed.
+  const [adding, setAdding] = useState<'expense' | 'income' | null>(null)
   const dialogOpen =
+    adding !== null ||
     editorOpen ||
     subsOpen ||
     budgetsOpen ||
@@ -99,7 +102,7 @@ function FinancesPage() {
 
   const past = month < data.month
   const totals = useMemo(
-    () => totalsByCurrency(monthLines(month, data.entries, data.reports)),
+    () => monthTotals(month, data.entries, data.reports),
     [month, data],
   )
   const entries = useMemo(
@@ -143,7 +146,7 @@ function FinancesPage() {
       if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
       if (isTyping(e.target)) return
       const actions: Record<string, (() => void) | undefined> = {
-        a: () => inputRef.current?.focus(),
+        a: () => setAdding('expense'),
         m: () => setMonth((m) => addMonth(m, 1)),
         M: () => setMonth((m) => addMonth(m, -1)),
         t: () => setMonth(data.month),
@@ -169,6 +172,15 @@ function FinancesPage() {
       <header className="flex items-center justify-between gap-4 max-lg:flex-col max-lg:items-stretch">
         <AppNav />
         <div className="flex justify-between gap-2">
+          <Button
+            aria-label="Add an expense or income"
+            className={ICON_ON_PHONES}
+            onClick={() => setAdding('expense')}
+          >
+            <PlusIcon data-icon="inline-start" />
+            <span className="max-lg:hidden">Add</span>
+            <Kbd className="max-lg:hidden">a</Kbd>
+          </Button>
           {aiAvailable && (
             <Button variant="outline" onClick={() => setAdviceOpen(true)}>
               <SparklesIcon data-icon="inline-start" />
@@ -210,8 +222,6 @@ function FinancesPage() {
         </div>
       </header>
 
-      <QuickEntry today={data.today} inputRef={inputRef} />
-
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-lg font-medium">{monthLabel(month)}</h1>
         <ButtonGroup aria-label="Month">
@@ -250,7 +260,7 @@ function FinancesPage() {
             <EmptyDescription>
               {past
                 ? 'Nothing was recorded that month.'
-                : 'Type what you spend above, like “12.50 coffee”, or “+1800 payroll” for money in.'}
+                : 'Press Add (or a) to note what you spend, or what comes in.'}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -279,6 +289,12 @@ function FinancesPage() {
             </section>
           )}
 
+      <AmountDialog
+        open={adding !== null}
+        onOpenChange={(open) => !open && setAdding(null)}
+        kind={adding ?? 'expense'}
+        today={data.today}
+      />
       <EntryDialog
         entry={editing}
         open={editorOpen}
@@ -307,3 +323,6 @@ function FinancesPage() {
     </main>
   )
 }
+
+// Icon-only below lg, like the other apps' New buttons.
+const ICON_ON_PHONES = 'max-lg:w-8 max-lg:p-0!'

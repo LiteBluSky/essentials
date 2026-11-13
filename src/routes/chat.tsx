@@ -123,21 +123,25 @@ function ChatPage() {
     void navigate({ search: id === undefined ? {} : { c: id } })
 
   const send = useMutation({
-    mutationFn: (text: string) =>
+    mutationFn: ({ text, webSearch }: { text: string; webSearch: boolean }) =>
       sendChatMessage({
         data: {
           conversationId: conversationId ?? null,
           text,
           now: new Date().toISOString(),
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          webSearch,
         },
       }),
   })
 
-  const onSend = async (text: string) => {
+  const onSend = async (text: string, webSearch: boolean) => {
     setPending({ text })
     try {
-      const { conversationId: id, result } = await send.mutateAsync(text)
+      const { conversationId: id, result } = await send.mutateAsync({
+        text,
+        webSearch,
+      })
       // Load the saved conversation before dropping the pending bubble.
       await queryClient.fetchQuery({
         ...chatMessagesQueryOptions(id),

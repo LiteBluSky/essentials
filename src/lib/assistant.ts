@@ -19,6 +19,8 @@ export const assistantInput = z.object({
   /** The browser's clock and timezone, to read "tomorrow at 3". */
   now: z.iso.datetime(),
   timeZone: z.string().min(1).max(100),
+  /** Let Jarvis search the web for this one request (off by default). */
+  webSearch: z.boolean().default(false),
 })
 export type AssistantInput = z.infer<typeof assistantInput>
 
@@ -52,6 +54,7 @@ export type ChangeSummary = {
     | 'calendar'
     | 'finances'
     | 'subscriptions'
+    | 'budgets'
   target: 'item' | 'folder'
   op: 'create' | 'update' | 'delete'
   id: number
