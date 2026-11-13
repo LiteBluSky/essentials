@@ -71,7 +71,7 @@ export function useTreeKeyboard({
   onNew: (folderId: number | null) => void
   onCut: (linkId: number) => void
   /** Paste onto the focused row, or at the top level when none is focused. */
-  onPaste: (target: { kind: 'folder' | 'link'; id: number } | null) => void
+  onPaste: (target: { kind: 'folder' | 'link'; id: number } | null) => boolean
   /** Returns whether there was a cut to cancel. */
   onCancelCut: () => boolean
   onToggleFavorite: (linkId: number) => void
@@ -297,10 +297,13 @@ export function useTreeKeyboard({
           return
         }
         case 'p':
-          handled()
-          cb.onPaste(
-            current ? { kind: isFolder ? 'folder' : 'link', id } : null,
+          // Nothing cut: left to the profile switcher.
+          if (
+            cb.onPaste(
+              current ? { kind: isFolder ? 'folder' : 'link', id } : null,
+            )
           )
+            handled()
           return
         case 'Escape':
           if (cb.onCancelCut()) handled()

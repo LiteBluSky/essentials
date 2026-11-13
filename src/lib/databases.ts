@@ -38,9 +38,21 @@ export const databaseInput = z.object({
 })
 export type DatabaseInput = z.infer<typeof databaseInput>
 
+/** An edit: an empty token keeps the saved one, unless `clearToken`. */
+export const databaseUpdate = databaseInput.extend({
+  id: z.number().int().positive(),
+  clearToken: z.boolean(),
+})
+export type DatabaseUpdate = z.infer<typeof databaseUpdate>
+
 /** Which database to use: a remote one's id, or null for the local file. */
 export const switchDatabaseInput = z.object({
   id: z.number().int().positive().nullable(),
 })
 
 export const databaseById = z.object({ id: z.number().int().positive() })
+
+/** Copy from: a remote database's id, or null for the local file. */
+export const copyDatabaseInput = z.object({
+  id: z.number().int().positive().nullable(),
+})

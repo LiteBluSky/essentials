@@ -22,6 +22,7 @@ import { MonthGrid } from '@/components/calendar/month-grid'
 import { ShortcutsDialog } from '@/components/calendar/shortcuts-dialog'
 import { StripsDialog } from '@/components/calendar/strips-dialog'
 import { GlobalSearch } from '@/components/global-search'
+import { ProfileButton } from '@/components/profile-switcher'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
@@ -350,6 +351,7 @@ function CalendarPage() {
               <KeyboardIcon />
             </Button>
             <ThemeToggle />
+            <ProfileButton />
           </ButtonGroup>
         </div>
       </header>

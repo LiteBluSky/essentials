@@ -51,8 +51,9 @@ export function useCutNote({
     setCutId(noteId)
   }
 
-  const paste = (target: PasteTarget) => {
-    if (cutId === null) return
+  // false when nothing is cut (then `p` is free for the profile switcher).
+  const paste = (target: PasteTarget): boolean => {
+    if (cutId === null) return false
     const note = notes.find((l) => l.id === cutId)
     let drop: DropTarget | undefined = { kind: 'root' }
     if (target?.kind === 'folder') {
@@ -63,7 +64,7 @@ export function useCutNote({
       drop = sibling && { kind: 'note', note: sibling }
     }
     cancel()
-    if (!note || !drop) return
+    if (!note || !drop) return true
 
     // Into a folder (last), after a note, or at the end of the top level.
     const next = resolveMove(
@@ -72,10 +73,11 @@ export function useCutNote({
       drop,
       drop.kind === 'note' ? 'after' : 'inside',
     )
-    if (!next) return
+    if (!next) return true
     move.mutate(next)
     if (next.parentId !== null) onExpand(next.parentId)
     toast.add({ title: `Moved “${noteLabel(note)}”`, type: 'success' })
+    return true
   }
 
   return { cutId, cut, paste, cancel }

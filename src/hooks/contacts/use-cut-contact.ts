@@ -51,8 +51,9 @@ export function useCutContact({
     setCutId(contactId)
   }
 
-  const paste = (target: PasteTarget) => {
-    if (cutId === null) return
+  // false when nothing is cut (then `p` is free for the profile switcher).
+  const paste = (target: PasteTarget): boolean => {
+    if (cutId === null) return false
     const contact = contacts.find((l) => l.id === cutId)
     let drop: DropTarget | undefined = { kind: 'root' }
     if (target?.kind === 'folder') {
@@ -63,7 +64,7 @@ export function useCutContact({
       drop = sibling && { kind: 'contact', contact: sibling }
     }
     cancel()
-    if (!contact || !drop) return
+    if (!contact || !drop) return true
 
     // Into a folder (last), after a contact, or at the end of the top level.
     const next = resolveMove(
@@ -72,10 +73,11 @@ export function useCutContact({
       drop,
       drop.kind === 'contact' ? 'after' : 'inside',
     )
-    if (!next) return
+    if (!next) return true
     move.mutate(next)
     if (next.parentId !== null) onExpand(next.parentId)
     toast.add({ title: `Moved “${contact.name}”`, type: 'success' })
+    return true
   }
 
   return { cutId, cut, paste, cancel }

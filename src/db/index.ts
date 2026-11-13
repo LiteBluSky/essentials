@@ -65,6 +65,11 @@ export function activeDatabase(): ActiveDatabase {
   return active
 }
 
+/** A rename of the database in use (same connection). */
+export function renameActive(name: string) {
+  active = { ...active, name }
+}
+
 /** Points `db` at another database (the caller saves the choice). */
 export function setActive(next: Db, info: ActiveDatabase) {
   const previous = current

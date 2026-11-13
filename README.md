@@ -28,7 +28,10 @@ work / personal) or back to local at any time. Create one with
 `turso db create personal`, then paste `turso db show personal --url` and a
 token from `turso db tokens create personal` into **Add Turso database**.
 Its tables are created when it's added. Each database has its own data;
-switching copies nothing (use each app's export / import to move things).
+switching copies nothing. To bring data over, switch to the database you
+want to fill (user icon in the header, or `p`), then press **Copy** on the
+other one in Settings → Database: it replaces everything in the current
+database with a copy of that one.
 Settings themselves always stay in the local file.
 
 > **No login.** The server listens on all interfaces, so anyone who can reach

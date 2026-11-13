@@ -19,7 +19,7 @@ import {
 import { APPS } from '@/lib/apps'
 import type { AppPath } from '@/lib/apps'
 
-function isTyping(target: EventTarget | null) {
+export function isTyping(target: EventTarget | null) {
   return (
     target instanceof HTMLElement &&
     (target.isContentEditable ||
@@ -28,7 +28,7 @@ function isTyping(target: EventTarget | null) {
 }
 
 /** A dialog, menu or popover is open: the page's keys are off. */
-function popupOpen() {
+export function popupOpen() {
   return !!document.querySelector(
     '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]',
   )

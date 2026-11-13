@@ -8,6 +8,7 @@ import { TanStackDevtools } from '@tanstack/react-devtools'
 import { useEffect } from 'react'
 
 import { AppSwitcher } from '@/components/app-switcher'
+import { ProfileSwitcher } from '@/components/profile-switcher'
 import { Toaster } from '@/components/ui/toast'
 import { registerServiceWorker } from '@/hooks/use-install-app'
 import { APP_NAME } from '@/lib/config'
@@ -68,6 +69,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <Toaster>
           {children}
           <AppSwitcher />
+          <ProfileSwitcher />
         </Toaster>
         <TanStackDevtools
           config={{

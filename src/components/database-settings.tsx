@@ -1,8 +1,26 @@
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CloudIcon, HardDriveIcon, PlusIcon, Trash2Icon } from 'lucide-react'
+import {
+  CloudIcon,
+  CopyIcon,
+  HardDriveIcon,
+  PencilIcon,
+  PlusIcon,
+  Trash2Icon,
+  XIcon,
+} from 'lucide-react'
 import { useState } from 'react'
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -16,6 +34,12 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from '@/components/ui/input-group'
+import {
   Item,
   ItemActions,
   ItemContent,
@@ -27,12 +51,14 @@ import {
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
 import { databaseInput } from '@/lib/databases'
-import type { DatabaseInput } from '@/lib/databases'
+import type { DatabaseInput, DatabaseView } from '@/lib/databases'
 import { submitOnModEnter } from '@/lib/submit-shortcut'
 import {
+  copyDatabase,
   createDatabase,
   databasesQueryOptions,
   deleteDatabase,
+  editDatabase,
   switchDatabase,
 } from '@/server/databases.functions'
 
@@ -45,7 +71,8 @@ export function DatabaseSettings() {
   const query = useQuery(databasesQueryOptions)
   const view = query.data
   const queryClient = useQueryClient()
-  const [adding, setAdding] = useState(false)
+  // The form below the list: a new database, or the one being edited.
+  const [editing, setEditing] = useState<DatabaseView | 'new' | null>(null)
 
   const switchTo = useMutation({
     mutationFn: (id: number | null) => switchDatabase({ data: { id } }),
@@ -58,6 +85,27 @@ export function DatabaseSettings() {
         type: 'error',
       }),
   })
+
+  // The database to copy from, once its Copy button is pressed.
+  const [copyFrom, setCopyFrom] = useState<{
+    id: number | null
+    name: string
+  } | null>(null)
+  const copy = useMutation({
+    mutationFn: (id: number | null) => copyDatabase({ data: { id } }),
+    // Every app's data changed: start over from the server.
+    onSuccess: () => window.location.reload(),
+    onError: (error) => {
+      setCopyFrom(null)
+      toast.add({
+        title: "Couldn't copy the data",
+        description: error.message,
+        type: 'error',
+      })
+    },
+  })
+  const activeName =
+    view?.databases.find((d) => d.id === view.activeId)?.name ?? 'Local'
 
   const remove = useMutation({
     mutationFn: (id: number) => deleteDatabase({ data: { id } }),
@@ -94,6 +142,7 @@ export function DatabaseSettings() {
             pending={switchTo.isPending && switchTo.variables === null}
             disabled={switchTo.isPending}
             onUse={() => switchTo.mutate(null)}
+            onCopy={() => setCopyFrom({ id: null, name: 'Local' })}
           />
           {view.databases.map((database) => (
             <DatabaseRow
@@ -109,6 +158,10 @@ export function DatabaseSettings() {
               pending={switchTo.isPending && switchTo.variables === database.id}
               disabled={switchTo.isPending}
               onUse={() => switchTo.mutate(database.id)}
+              onCopy={() =>
+                setCopyFrom({ id: database.id, name: database.name })
+              }
+              onEdit={() => setEditing(database)}
               onRemove={() => remove.mutate(database.id)}
             />
           ))}
@@ -120,20 +173,58 @@ export function DatabaseSettings() {
           <Spinner />
         </div>
       )}
-      {adding ? (
-        <AddDatabaseForm onDone={() => setAdding(false)} />
+      {editing ? (
+        <DatabaseForm
+          // Fresh form state per database.
+          key={editing === 'new' ? 'new' : editing.id}
+          database={editing === 'new' ? null : editing}
+          onDone={() => setEditing(null)}
+        />
       ) : (
         <div>
           <Button
             type="button"
             variant="outline"
-            onClick={() => setAdding(true)}
+            onClick={() => setEditing('new')}
           >
             <PlusIcon data-icon="inline-start" />
             Add Turso database
           </Button>
         </div>
       )}
+      <AlertDialog
+        open={copyFrom !== null}
+        onOpenChange={(open) => {
+          if (!open && !copy.isPending) setCopyFrom(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Copy “{copyFrom?.name}” into “{activeName}”?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Everything in “{activeName}” (bookmarks, notes, tasks, contacts,
+              calendar, chats and the assistant history) is replaced with a copy
+              of “{copyFrom?.name}”. “{copyFrom?.name}” stays as it is. This
+              can’t be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={copy.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={copy.isPending}
+              onClick={() => copyFrom && copy.mutate(copyFrom.id)}
+            >
+              {copy.isPending && <Spinner data-icon="inline-start" />}
+              Replace and copy
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </FieldSet>
   )
 }
@@ -146,6 +237,8 @@ function DatabaseRow({
   pending,
   disabled,
   onUse,
+  onCopy,
+  onEdit,
   onRemove,
 }: {
   icon: React.ReactNode
@@ -155,6 +248,8 @@ function DatabaseRow({
   pending: boolean
   disabled: boolean
   onUse: () => void
+  onCopy: () => void
+  onEdit?: () => void
   onRemove?: () => void
 }) {
   return (
@@ -179,6 +274,31 @@ function DatabaseRow({
           >
             {pending && <Spinner data-icon="inline-start" />}
             Use
+          </Button>
+        )}
+        {!active && (
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            aria-label={`Copy ${name}'s data into the database in use`}
+            title="Copy its data into the database in use (replaces it)"
+            disabled={disabled}
+            onClick={onCopy}
+          >
+            <CopyIcon />
+          </Button>
+        )}
+        {onEdit && (
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            aria-label={`Edit ${name}`}
+            title="Edit"
+            onClick={onEdit}
+          >
+            <PencilIcon />
           </Button>
         )}
         {onRemove && !active && (
@@ -220,32 +340,53 @@ const FIELDS: Array<{
   },
 ]
 
-function AddDatabaseForm({ onDone }: { onDone: () => void }) {
+/** Add a database, or edit one (`database`): its token is never shown, so
+ * an empty token field keeps it (✕ removes it). */
+function DatabaseForm({
+  database,
+  onDone,
+}: {
+  database: DatabaseView | null
+  onDone: () => void
+}) {
   const queryClient = useQueryClient()
-  const add = useMutation({
-    mutationFn: (data: DatabaseInput) => createDatabase({ data }),
-    onSuccess: async () => {
+  // Edit: the saved token is to be removed.
+  const [clearToken, setClearToken] = useState(false)
+  const save = useMutation({
+    mutationFn: (data: DatabaseInput) =>
+      database
+        ? editDatabase({ data: { ...data, id: database.id, clearToken } })
+        : createDatabase({ data }).then(() => ({ reload: false })),
+    onSuccess: async ({ reload }) => {
+      // The one in use got a new connection: every app's data may differ.
+      if (reload) return window.location.reload()
       await queryClient.invalidateQueries(databasesQueryOptions)
       toast.add({
-        title: 'Database added',
-        description: 'Press Use to switch to it.',
+        title: database ? 'Database saved' : 'Database added',
+        description: database ? undefined : 'Press Use to switch to it.',
         type: 'success',
       })
       onDone()
     },
     onError: (error) =>
       toast.add({
-        title: "Couldn't add it",
+        title: database ? "Couldn't save it" : "Couldn't add it",
         description: error.message,
         type: 'error',
       }),
   })
 
   const form = useForm({
-    defaultValues: { name: '', url: '', authToken: '' },
+    defaultValues: {
+      name: database?.name ?? '',
+      url: database?.url ?? '',
+      authToken: '',
+    },
     validators: { onSubmit: databaseInput },
-    onSubmit: ({ value }) => add.mutateAsync(value).catch(() => {}),
+    onSubmit: ({ value }) => save.mutateAsync(value).catch(() => {}),
   })
+
+  const tokenHint = clearToken ? null : (database?.tokenHint ?? null)
 
   return (
     <form
@@ -268,24 +409,63 @@ function AddDatabaseForm({ onDone }: { onDone: () => void }) {
               const isInvalid =
                 field.state.meta.isTouched && !field.state.meta.isValid
               const id = `database-${spec.name}`
+              const isToken = spec.name === 'authToken'
               return (
                 <Field data-invalid={isInvalid}>
                   <FieldLabel htmlFor={id}>{spec.label}</FieldLabel>
-                  <Input
-                    id={id}
-                    type={spec.name === 'authToken' ? 'password' : 'text'}
-                    autoComplete={
-                      spec.name === 'authToken' ? 'new-password' : 'off'
-                    }
-                    autoFocus={spec.name === 'name'}
-                    placeholder={spec.placeholder}
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    aria-invalid={isInvalid}
-                  />
-                  {spec.description && (
-                    <FieldDescription>{spec.description}</FieldDescription>
+                  {isToken ? (
+                    <InputGroup>
+                      <InputGroupInput
+                        id={id}
+                        type="password"
+                        autoComplete="new-password"
+                        placeholder={
+                          tokenHint
+                            ? `•••• ${tokenHint} (saved, type to replace)`
+                            : spec.placeholder
+                        }
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(e) => {
+                          field.handleChange(e.target.value)
+                          setClearToken(false)
+                        }}
+                        aria-invalid={isInvalid}
+                      />
+                      {tokenHint && (
+                        <InputGroupAddon align="inline-end">
+                          <InputGroupButton
+                            size="icon-xs"
+                            aria-label="Remove the saved token"
+                            title="Remove"
+                            onClick={() => {
+                              field.handleChange('')
+                              setClearToken(true)
+                            }}
+                          >
+                            <XIcon />
+                          </InputGroupButton>
+                        </InputGroupAddon>
+                      )}
+                    </InputGroup>
+                  ) : (
+                    <Input
+                      id={id}
+                      autoComplete="off"
+                      autoFocus={spec.name === 'name'}
+                      placeholder={spec.placeholder}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      aria-invalid={isInvalid}
+                    />
+                  )}
+                  {isToken && clearToken ? (
+                    <FieldDescription>Removed when you save.</FieldDescription>
+                  ) : (
+                    spec.description && (
+                      <FieldDescription>{spec.description}</FieldDescription>
+                    )
                   )}
                   {isInvalid && <FieldError errors={field.state.meta.errors} />}
                 </Field>
@@ -303,7 +483,7 @@ function AddDatabaseForm({ onDone }: { onDone: () => void }) {
           children={(isSubmitting) => (
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting && <Spinner data-icon="inline-start" />}
-              {isSubmitting ? 'Connecting…' : 'Add'}
+              {isSubmitting ? 'Connecting…' : database ? 'Save' : 'Add'}
             </Button>
           )}
         />

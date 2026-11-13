@@ -7,10 +7,15 @@ import {
   activeDatabase,
   connectRemote,
   localDb,
+  renameActive,
   setActive,
 } from '@/db'
 import { databases, settings } from '@/db/schema'
-import type { DatabaseInput, DatabasesView } from '@/lib/databases'
+import type {
+  DatabaseInput,
+  DatabaseUpdate,
+  DatabasesView,
+} from '@/lib/databases'
 
 // Server-only. The list of remote databases and the choice live in the
 // local file (`localDb`), never in a remote one.
@@ -47,6 +52,40 @@ export async function addDatabase(input: DatabaseInput) {
     .values(input)
     .returning({ id: databases.id })
   return row
+}
+
+/** Changes a remote database's name, URL or token. A new URL / token must
+ * connect first; if it's the one in use, the data switches to the new
+ * connection. */
+export async function updateDatabase(input: DatabaseUpdate) {
+  const source = await localDb
+    .select()
+    .from(databases)
+    .where(eq(databases.id, input.id))
+    .get()
+  if (!source) throw new Error('That database was removed')
+  const authToken = input.clearToken ? '' : input.authToken || source.authToken
+  const changed = input.url !== source.url || authToken !== source.authToken
+  const inUse = activeDatabase().id === source.id
+  if (changed) {
+    const remote = await connectRemote(input.url, authToken).catch(
+      (error: unknown) => {
+        throw new Error(`Couldn't connect: ${errorMessage(error)}`)
+      },
+    )
+    if (inUse) {
+      setActive(remote, { id: source.id, name: input.name })
+    } else {
+      remote.$client.close()
+    }
+  } else if (inUse) {
+    renameActive(input.name)
+  }
+  await localDb
+    .update(databases)
+    .set({ name: input.name, url: input.url, authToken })
+    .where(eq(databases.id, source.id))
+  return { reload: changed && inUse }
 }
 
 /** Switches the data to a remote database (null = the local file) and

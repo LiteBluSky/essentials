@@ -20,6 +20,7 @@ import { TreeDndProvider } from '@/components/notes/tree-dnd'
 import { AppNav } from '@/components/app-nav'
 import { AssistantBox } from '@/components/assistant-box'
 import { GlobalSearch } from '@/components/global-search'
+import { ProfileButton } from '@/components/profile-switcher'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
@@ -231,6 +232,7 @@ function Home() {
               <KeyboardIcon />
             </Button>
             <ThemeToggle />
+            <ProfileButton />
           </ButtonGroup>
         </div>
       </header>

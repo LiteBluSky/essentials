@@ -295,9 +295,14 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       (add checks the connection and creates the tables, Use switches every
       app and reloads, remove forgets one); choice kept across restarts,
       unreachable at startup falls back to local and says so
+- [x] Profile switcher: user icon in every header + `p`, a command palette
+      of the databases (switching only; set up in Settings); tree `p`
+      pastes only when something is cut
+- [x] Edit a database in Settings (name, URL, token; reconnects if in use)
 - [ ] Verify against a real Turso database (add, switch, restart, back to
       local)
-- [ ] Optional: copy the current data into another database when switching
+- [x] Copy: replace the data in the database in use with another one's
+      (Settings → Database, confirmed, all or nothing)
 
 ## 20. References (`@`)
 

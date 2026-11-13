@@ -51,8 +51,9 @@ export function useCutTask({
     setCutId(taskId)
   }
 
-  const paste = (target: PasteTarget) => {
-    if (cutId === null) return
+  // false when nothing is cut (then `p` is free for the profile switcher).
+  const paste = (target: PasteTarget): boolean => {
+    if (cutId === null) return false
     const task = tasks.find((l) => l.id === cutId)
     let drop: DropTarget | undefined = { kind: 'root' }
     if (target?.kind === 'folder') {
@@ -63,7 +64,7 @@ export function useCutTask({
       drop = sibling && { kind: 'task', task: sibling }
     }
     cancel()
-    if (!task || !drop) return
+    if (!task || !drop) return true
 
     // Into a folder (last), after a task, or at the end of the top level.
     const next = resolveMove(
@@ -72,10 +73,11 @@ export function useCutTask({
       drop,
       drop.kind === 'task' ? 'after' : 'inside',
     )
-    if (!next) return
+    if (!next) return true
     move.mutate(next)
     if (next.parentId !== null) onExpand(next.parentId)
     toast.add({ title: `Moved “${task.title}”`, type: 'success' })
+    return true
   }
 
   return { cutId, cut, paste, cancel }

@@ -32,6 +32,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       { keys: [mod(SHORTCUTS.search.label), ['/']], action: 'Search this app' },
       { keys: [['z']], action: 'Search everything (all apps)' },
       { keys: [['f']], action: 'Switch app (type its name, or pick it)' },
+      { keys: [['p']], action: 'Switch profile (database)' },
       {
         keys: [['@']],
         action: 'In a text box: link to a bookmark, note, task or contact',
@@ -68,7 +69,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
         action: 'Delete hovered or focused row (d again confirms)',
       },
       { keys: [['x']], action: 'Cut contact' },
-      { keys: [['p']], action: 'Paste cut contact here' },
+      { keys: [['p']], action: 'Paste cut contact here (when one is cut)' },
       { keys: [['Esc']], action: 'Cancel cut' },
       { keys: [['q']], action: 'Clear search' },
     ],

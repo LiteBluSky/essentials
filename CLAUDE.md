@@ -90,7 +90,8 @@ Each app is self-contained and namespaced; only the shell is shared.
   (`components/settings-dialog.tsx`,
   `lib/settings.ts`, `server/settings.*.ts`), the database switch
   (`components/database-settings.tsx`, `lib/databases.ts`,
-  `server/databases.*.ts`), `ui/`.
+  `server/databases.*.ts`, `server/database-copy.server.ts`,
+  `components/profile-switcher.tsx`), `ui/`.
 - Apps don't import from each other. The tree code (keyboard hook, DnD,
   folder form/select) is duplicated per app on purpose for now (see
   TASKS.md); keep the copies behaving alike.
@@ -240,7 +241,8 @@ Each app is one page laid out the same way: header (the **app navbar** on
 the left — an icon per app, its name in a tooltip, the current one
 highlighted — then New
 folder, New <item>, and a `ButtonGroup` of global search, the ⋮
-import/export menu, shortcuts help and theme menu; below 500px the buttons wrap under the
+import/export menu, shortcuts help, theme menu and the profile switcher
+(user icon, `ProfileButton`); below 500px the buttons wrap under the
 navbar), the app's quick list, search box, then the tree. Folders are
 `Collapsible` rows (expanded state persisted in localStorage per app), each
 row has a hover `DropdownMenu`. Create/edit happens in a `Dialog`, delete
@@ -726,11 +728,19 @@ the form, with its own actions): Local (the `DATABASE_PATH` file, as
 always) plus any number of remote libSQL databases — one entry per Turso
 database (name, `libsql://…` URL, token; a group token can be reused), so
 several Turso databases can be switched between. Adding one connects and
-creates its tables first (`createDatabase`); **Use** switches every app
+creates its tables first (`createDatabase`); the pencil edits one (name,
+URL, token: an empty token keeps the saved one, ✕ removes it; a new URL or
+token must connect first, and if it's the one in use the data moves to the
+new connection and the page reloads: `editDatabase`); **Use** switches every app
 (`switchDatabase`, server-wide, remembered across restarts) and reloads
 the page; the trash button forgets one (not the one in use; its data stays
-in Turso). Each database holds its own data — nothing is copied (each
-app's export / import moves data). Settings, the database list and the
+in Turso). Each database holds its own data; switching copies nothing.
+**Copy** (the copy button on every row but the one in use, confirmed in an
+`AlertDialog`) replaces all the data in the database in use with that
+one's, ids included (`copyDatabase` → `database-copy.server.ts`: every
+table but `settings` / `databases`, in `TABLES` order, parents first, as
+one `batch` on the raw client, so it's all or nothing), then reloads. Add
+new data tables to `TABLES`. Settings, the database list and the
 assistant / ntfy keys always stay in the local file. Reminders, the
 assistant log and chats follow the database in use.
 
@@ -804,6 +814,15 @@ assistant log and chats follow the database in use.
   the global search, listing `APPS` with the next app highlighted; type to
   filter, ↑/↓ (Ctrl+J/K) and Enter, or press the app's number (1–6).
   That's why Bookmarks' favourite key is `F`.
+- `p` opens the **profile switcher** on every app
+  (`components/profile-switcher.tsx`, mounted once in `__root.tsx` like the
+  app switcher, also opened by the header's user icon): a Command dialog
+  listing Local and the databases from Settings → Database, the next one
+  highlighted, current marked; type, ↑/↓ and Enter, or its number, switches
+  (`switchDatabase`, then the page reloads). Only switching: adding,
+  editing and removing stay in Settings. In Bookmarks / Notes / Tasks /
+  Contacts a tree's `p` pastes first when something is cut (`paste`
+  returns false when nothing is, leaving the key to the switcher).
 - `@` in a free-text field opens the reference suggestions (see
   References); listed in every app's shortcuts help.
 - `s` focuses the "Tell me…" field (when shown); `Esc` in it blurs it so the

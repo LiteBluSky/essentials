@@ -24,6 +24,7 @@ import { ShortcutsDialog } from '@/components/chat/shortcuts-dialog'
 import { ChatComposer, ChatThread } from '@/components/chat/chat-thread'
 import type { PendingMessage } from '@/components/chat/chat-thread'
 import { GlobalSearch } from '@/components/global-search'
+import { ProfileButton } from '@/components/profile-switcher'
 import { ThemeToggle } from '@/components/theme-toggle'
 import {
   AlertDialog,
@@ -303,6 +304,7 @@ function ChatPage() {
               <KeyboardIcon />
             </Button>
             <ThemeToggle />
+            <ProfileButton />
           </ButtonGroup>
         </div>
       </header>

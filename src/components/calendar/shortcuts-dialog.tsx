@@ -71,6 +71,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
     shortcuts: [
       { keys: [['z']], action: 'Search everything (all apps)' },
       { keys: [['f']], action: 'Switch app (type its name, or pick it)' },
+      { keys: [['p']], action: 'Switch profile (database)' },
       { keys: [['Shift', 'H']], action: 'Previous app' },
       { keys: [['Shift', 'L']], action: 'Next app' },
       { keys: [['?']], action: 'Show keyboard shortcuts' },
