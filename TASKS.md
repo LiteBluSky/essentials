@@ -352,7 +352,7 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       (`MobileDock`, under dialogs), with the mic on the left and bigger
       buttons; the quick entry can be dictated too
 - [x] Desktop (xl+): Jarvis is a chat panel on the right (one carried-on
-      conversation, New / Open in Chat / Hide)
+      conversation, New / Open in Chat / Hide); also on Finances and Calendar
 - [ ] Verify the Jarvis panel in a real browser (layout at 1280px+, toasts,
       collapse, `s`)
 - [ ] Verify in a real browser (quick entry on the phone, chart, dialogs)

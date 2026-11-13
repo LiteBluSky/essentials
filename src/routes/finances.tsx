@@ -15,6 +15,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { AppFooter } from '@/components/app-footer'
 import { AppNav } from '@/components/app-nav'
+import { JarvisSidebar } from '@/components/assistant-sidebar'
 import { AdviceDialog } from '@/components/finances/advice-dialog'
 import { BudgetsDialog } from '@/components/finances/budgets-dialog'
 import { EntriesList } from '@/components/finances/entries-list'
@@ -300,6 +301,7 @@ function FinancesPage() {
         month={month}
       />
       <AppFooter />
+      <JarvisSidebar enabled={!dialogOpen} />
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </main>

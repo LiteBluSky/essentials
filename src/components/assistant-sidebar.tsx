@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import {
   MessagesSquareIcon,
@@ -21,7 +26,10 @@ import {
 } from '@/components/ui/tooltip'
 import { ASSISTANT_NAME } from '@/lib/assistant'
 import { cn } from '@/lib/utils'
-import { assistantHistoryQueryOptions } from '@/server/assistant.functions'
+import {
+  assistantEnabledQueryOptions,
+  assistantHistoryQueryOptions,
+} from '@/server/assistant.functions'
 import {
   chatConversationsQueryOptions,
   chatMessagesQueryOptions,
@@ -68,6 +76,14 @@ function write(key: string, value: string | null) {
   } catch {
     // Not kept; fine.
   }
+}
+
+/** Just the panel, for apps without the Ask Jarvis field (Finances,
+ * Calendar); nothing without an API key. Their loader prefetches
+ * `assistantEnabledQueryOptions`. */
+export function JarvisSidebar({ enabled }: { enabled: boolean }) {
+  const { data: available } = useSuspenseQuery(assistantEnabledQueryOptions)
+  return available ? <AssistantSidebar enabled={enabled} /> : null
 }
 
 export function AssistantSidebar({ enabled }: { enabled: boolean }) {

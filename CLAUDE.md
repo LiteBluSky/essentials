@@ -581,7 +581,9 @@ and pages until New; the id is in `assistant:conversation`, open/closed in
 the page re-centres left of it (`body` padding-right in `styles.css`) and
 toasts move left of it. `AssistantBox` renders both the field
 (`xl:hidden`) and the panel (`max-xl:hidden`), so there's no flash on load;
-only the visible one takes `s`.
+only the visible one takes `s`. Finances and Calendar, which have no Ask
+Jarvis field, render just the panel (`JarvisSidebar`, nothing without an
+API key; their loaders prefetch `assistantEnabledQueryOptions`).
 
 The field is laid out exactly like Chat's box (`ChatComposer`) at every
 width: the textarea (same placeholder), then a bottom row with the `s`

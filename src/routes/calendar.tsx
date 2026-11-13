@@ -11,6 +11,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { AppNav } from '@/components/app-nav'
+import { JarvisSidebar } from '@/components/assistant-sidebar'
 import { CalendarMenu } from '@/components/calendar/calendar-menu'
 import {
   DeleteStripDialog,
@@ -34,6 +35,7 @@ import type { Strip } from '@/lib/calendar/layout'
 import { APP_NAME } from '@/lib/config'
 import { requestOpen } from '@/lib/global-search'
 import type { CalendarEvent } from '@/db/schema'
+import { assistantEnabledQueryOptions } from '@/server/assistant.functions'
 import { calendarQueryOptions } from '@/server/calendar.functions'
 
 // The Calendar app: a month of coloured strips, each over a day or a range
@@ -42,7 +44,10 @@ import { calendarQueryOptions } from '@/server/calendar.functions'
 // it (a task opens in Tasks). Fills the whole page.
 export const Route = createFileRoute('/calendar')({
   loader: ({ context }) =>
-    context.queryClient.ensureQueryData(calendarQueryOptions),
+    Promise.all([
+      context.queryClient.ensureQueryData(calendarQueryOptions),
+      context.queryClient.ensureQueryData(assistantEnabledQueryOptions),
+    ]),
   head: () => ({ meta: [{ title: `Calendar · ${APP_NAME}` }] }),
   component: CalendarPage,
 })
@@ -411,6 +416,7 @@ function CalendarPage() {
           }
         }}
       />
+      <JarvisSidebar enabled={!dialogOpen} />
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </main>
