@@ -1,6 +1,6 @@
 {
   "name": "essentials",
-  "version": "2.12.0",
+  "version": "2.12.1",
   "private": true,
   "packageManager": "pnpm@10.10.0",
   "type": "module",
