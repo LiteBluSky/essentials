@@ -18,6 +18,7 @@ import {
 import { useEffect, useRef, useState } from 'react'
 import { z } from 'zod'
 
+import { AppFooter } from '@/components/app-footer'
 import { AppNav } from '@/components/app-nav'
 import { ChatMenu } from '@/components/chat/chat-menu'
 import { ShortcutsDialog } from '@/components/chat/shortcuts-dialog'
@@ -59,6 +60,7 @@ import type { ChatConversation } from '@/db/schema'
 import { useAppSwitch } from '@/hooks/use-app-switch'
 import { useConfirmKey } from '@/hooks/use-confirm-key'
 import { APP_NAME } from '@/lib/config'
+import { databasesQueryOptions } from '@/server/databases.functions'
 import {
   assistantEnabledQueryOptions,
   assistantHistoryQueryOptions,
@@ -79,6 +81,7 @@ export const Route = createFileRoute('/chat')({
   loader: ({ context, deps }) =>
     Promise.all([
       context.queryClient.ensureQueryData(assistantEnabledQueryOptions),
+      context.queryClient.ensureQueryData(databasesQueryOptions),
       context.queryClient.ensureQueryData(chatConversationsQueryOptions),
       deps.c !== undefined &&
         context.queryClient.ensureQueryData(chatMessagesQueryOptions(deps.c)),
@@ -437,6 +440,7 @@ function ChatPage() {
           )}
         </AlertDialogContent>
       </AlertDialog>
+      <AppFooter />
     </main>
   )
 }

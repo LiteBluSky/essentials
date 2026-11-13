@@ -17,6 +17,7 @@ import { NoteTree } from '@/components/notes/note-tree'
 import { QuickNotes } from '@/components/notes/quick-notes'
 import { ShortcutsDialog } from '@/components/notes/shortcuts-dialog'
 import { TreeDndProvider } from '@/components/notes/tree-dnd'
+import { AppFooter } from '@/components/app-footer'
 import { AppNav } from '@/components/app-nav'
 import { AssistantBox } from '@/components/assistant-box'
 import { GlobalSearch } from '@/components/global-search'
@@ -55,6 +56,7 @@ import {
   findFolder,
   quickNotes,
 } from '@/lib/notes/tree'
+import { databasesQueryOptions } from '@/server/databases.functions'
 import { assistantEnabledQueryOptions } from '@/server/assistant.functions'
 import { notesTreeQueryOptions } from '@/server/notes.functions'
 
@@ -63,6 +65,7 @@ export const Route = createFileRoute('/notes')({
     Promise.all([
       context.queryClient.ensureQueryData(notesTreeQueryOptions),
       context.queryClient.ensureQueryData(assistantEnabledQueryOptions),
+      context.queryClient.ensureQueryData(databasesQueryOptions),
     ]),
   head: () => ({ meta: [{ title: `Notes · ${APP_NAME}` }] }),
   component: Home,
@@ -191,7 +194,7 @@ function Home() {
   const noMatches = !visible.folders.length && !visible.notes.length
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-8">
+    <main className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-4 px-4 py-8">
       {/* Below 500px the actions drop under the app switcher. */}
       <header className="flex items-center justify-between gap-4 max-[500px]:flex-col max-[500px]:items-stretch">
         <AppNav />
@@ -350,6 +353,7 @@ function Home() {
         onOpenChange={globalSearch.setOpen}
       />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
+      <AppFooter />
     </main>
   )
 }

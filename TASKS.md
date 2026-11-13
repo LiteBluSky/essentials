@@ -319,6 +319,11 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [ ] Verify in a real browser (caret placement in the note editor, Esc in
       a dialog, chat box near the bottom)
 
+## 21. Footer
+
+- [x] Footer on every app but Calendar: the database in use (Local / the
+      remote's name) on the left, the running version on the right
+
 ## History of the notes app (before the merge)
 
 ### Notes 0. Scaffold (from the bookmarks app)

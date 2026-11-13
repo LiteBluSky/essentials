@@ -250,6 +250,14 @@ confirms in an `AlertDialog`. Theme: Light/Dark/System dropdown
 (`src/lib/theme.ts`, shared by all apps; an inline head script applies it
 before first paint). Page titles are `<App> · ${APP_NAME}`.
 
+**Footer** (`components/app-footer.tsx`, every app but Calendar, last in
+its `<main>`): the database in use on the left (Local, or the remote's
+name; its URL / the local path as a tooltip; `databasesQueryOptions`,
+prefetched by each app's loader) and the running version on the right
+(`APP_VERSION` in `lib/config.ts`: package.json's version, injected by
+Vite's `define` as `__APP_VERSION__`). `mt-auto` keeps it at the bottom,
+so the page's `<main>` is `min-h-dvh` (Chat: `h-dvh`).
+
 **Installable app (PWA)**: the manifest is a server route
 (`src/routes/manifest[.]webmanifest.ts`, so the name follows
 `VITE_APP_NAME`); icons are in `public/` (`icon-192/512.png`,

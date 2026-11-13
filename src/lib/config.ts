@@ -1,3 +1,6 @@
 // App-wide settings. Set VITE_APP_NAME in .env.local to rename the app
 // (build-time — rebuild after changing it).
 export const APP_NAME = import.meta.env.VITE_APP_NAME?.trim() || 'Essentials'
+
+// The running version, from package.json (injected by Vite at build time).
+export const APP_VERSION = __APP_VERSION__

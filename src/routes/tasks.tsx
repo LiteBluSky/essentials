@@ -28,6 +28,7 @@ import { ShortcutsDialog } from '@/components/tasks/shortcuts-dialog'
 import { TaskList, TaskTree } from '@/components/tasks/task-tree'
 import { TreeDndProvider } from '@/components/tasks/tree-dnd'
 import { UpNext } from '@/components/tasks/up-next'
+import { AppFooter } from '@/components/app-footer'
 import { AppNav } from '@/components/app-nav'
 import { AssistantBox } from '@/components/assistant-box'
 import { GlobalSearch } from '@/components/global-search'
@@ -74,6 +75,7 @@ import {
   UP_NEXT_KEYS,
   upNext,
 } from '@/lib/tasks/tree'
+import { databasesQueryOptions } from '@/server/databases.functions'
 import { assistantEnabledQueryOptions } from '@/server/assistant.functions'
 import { tasksTreeQueryOptions } from '@/server/tasks.functions'
 
@@ -90,6 +92,7 @@ export const Route = createFileRoute('/tasks')({
     Promise.all([
       context.queryClient.ensureQueryData(tasksTreeQueryOptions),
       context.queryClient.ensureQueryData(assistantEnabledQueryOptions),
+      context.queryClient.ensureQueryData(databasesQueryOptions),
     ]),
   head: () => ({ meta: [{ title: `Tasks · ${APP_NAME}` }] }),
   component: Home,
@@ -273,7 +276,7 @@ function Home() {
     folderPath(tree, folderId).join(' / ')
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-8">
+    <main className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-4 px-4 py-8">
       {/* Below 500px the actions drop under the app switcher. */}
       <header className="flex items-center justify-between gap-4 max-[500px]:flex-col max-[500px]:items-stretch">
         <AppNav />
@@ -543,6 +546,7 @@ function Home() {
         onShowDay={(date) => setDay(todayName(date))}
       />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
+      <AppFooter />
     </main>
   )
 }
