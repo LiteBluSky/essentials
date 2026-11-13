@@ -120,6 +120,13 @@
       "when": 1794587474365,
       "tag": "0016_ordinary_corsair",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1794591761486,
+      "tag": "0017_lame_microchip",
+      "breakpoints": true
     }
   ]
 }

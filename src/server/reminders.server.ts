@@ -11,6 +11,7 @@ import {
   parseBirthday,
 } from '@/lib/contacts/birthday'
 import { leadLabel } from '@/lib/tasks/tree'
+import { sendPaymentReminders } from './finances-due.server'
 import { readSettings } from './settings.server'
 
 // Phone reminders: an open task is pushed through ntfy (https://ntfy.sh, or
@@ -285,7 +286,8 @@ export async function sendStripReminders(
   return sent
 }
 
-/** `sendDueReminders` on every profile: the local file and each remote
+/** Every reminder (tasks, birthdays, strips, due recurring money) on
+ * every profile: the local file and each remote
  * database in Settings → Database, in use or not. One that can't be
  * reached is skipped (and tried again next tick). With several, each
  * reminder names the database it's from. */
@@ -302,6 +304,7 @@ export async function sendAllReminders(now = new Date()) {
       sent += await sendDueReminders(now, data, label)
       sent += await sendBirthdays(now, data, label)
       sent += await sendStripReminders(now, data, label)
+      sent += await sendPaymentReminders(push, now, data, label)
     } catch (error) {
       console.error(`Reminders from "${profile.name}" failed:`, error)
     }

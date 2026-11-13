@@ -7,6 +7,7 @@ import {
   primaryKey,
   sqliteTable,
   text,
+  uniqueIndex,
 } from 'drizzle-orm/sqlite-core'
 
 import type { Pattern } from '../lib/finances/schedule'
@@ -515,9 +516,10 @@ export const financeMonths = sqliteTable(
   (t) => [primaryKey({ columns: [t.month, t.kind, t.category, t.currency] })],
 )
 
-// Recurring money ("subscriptions" in the code): an expense or income
-// entry is added automatically on each day of its schedule (see
-// `src/lib/finances/schedule.ts`); `chargedDay` is the last one added.
+// Recurring money ("subscriptions" in the code): on each day of its
+// schedule (see `src/lib/finances/schedule.ts`) a charge waits in
+// `finance_pending` for the user to accept; `chargedDay` is the last one
+// queued.
 export const financeSubscriptions = sqliteTable('finance_subscriptions', {
   id: integer().primaryKey({ autoIncrement: true }),
   kind: text({ enum: ['expense', 'income'] })
@@ -547,6 +549,31 @@ export const financeSubscriptions = sqliteTable('finance_subscriptions', {
   ...timestamps,
 })
 
+// A recurring expense / income that fell due and waits to be accepted
+// (then it becomes an entry) or skipped (deleted). A copy of the recurring
+// one as it was that day; `notifiedAt` = pushed to the phone.
+export const financePending = sqliteTable(
+  'finance_pending',
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    subscriptionId: integer('subscription_id').notNull(),
+    kind: text({ enum: ['expense', 'income'] }).notNull(),
+    cents: integer().notNull(),
+    currency: text().notNull().default('EUR'),
+    title: text().notNull().default(''),
+    category: text().notNull().default('subscriptions'),
+    day: text().notNull(),
+    notifiedAt: integer('notified_at', { mode: 'timestamp' }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('finance_pending_subscription_day_idx').on(
+      t.subscriptionId,
+      t.day,
+    ),
+  ],
+)
+
 // Optional monthly budget per expense category, in euros.
 export const financeBudgets = sqliteTable('finance_budgets', {
   category: text().primaryKey(),
@@ -557,3 +584,4 @@ export type FinanceEntry = typeof financeEntries.$inferSelect
 export type FinanceMonth = typeof financeMonths.$inferSelect
 export type FinanceSubscription = typeof financeSubscriptions.$inferSelect
 export type FinanceBudget = typeof financeBudgets.$inferSelect
+export type FinancePending = typeof financePending.$inferSelect

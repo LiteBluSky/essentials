@@ -72,6 +72,7 @@ import {
   sendChatMessage,
 } from '@/server/chat.functions'
 import { ASSISTANT_NAME } from '@/lib/assistant'
+import { focusChatComposer, isNewChatKey } from '@/lib/shortcuts'
 
 // The Chat app: talk to the assistant about anything stored in the other
 // apps. `?c=<id>` is the open conversation (none = a new one).
@@ -258,6 +259,19 @@ function ChatPage() {
           switchApp(e.key === 'H' ? -1 : 1)
           break
       }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  })
+
+  // Ctrl+Shift+O: a new chat, even while typing (lib/shortcuts.ts).
+  useEffect(() => {
+    if (dialogOpen || !enabled) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || !isNewChatKey(e)) return
+      e.preventDefault()
+      openConversation()
+      focusChatComposer()
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)

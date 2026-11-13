@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { MOD_LABEL, SHORTCUTS } from '@/lib/shortcuts'
+import { MOD_LABEL, SHORTCUTS, NEW_CHAT_KEYS } from '@/lib/shortcuts'
 import { ASSISTANT_NAME } from '@/lib/assistant'
 
 // Each entry: alternative key combos (joined with "or"), each a list of keys
@@ -45,6 +45,10 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       {
         keys: [['Shift', 'S']],
         action: `Hide the ${ASSISTANT_NAME} panel (wide screens)`,
+      },
+      {
+        keys: [NEW_CHAT_KEYS],
+        action: `New chat with ${ASSISTANT_NAME}`,
       },
       { keys: [mod(SHORTCUTS.newFolder.label)], action: 'New folder' },
       { keys: [['1'], ['…'], ['4']], action: 'Open recent note 1–4' },

@@ -134,7 +134,7 @@ export const FINANCE_TOOLS: Array<ToolDef> = [
   {
     name: 'list_finances',
     description:
-      "The user's money for a month (YYYY-MM, default this month): totals per category and currency (left = carried over from earlier months + in − out), this month's entries with ids, recurring expenses / income and budgets. Past months only keep totals (their entries are gone).",
+      "The user's money for a month (YYYY-MM, default this month): totals per category and currency (left = carried over from earlier months + in − out), this month's entries with ids, recurring expenses / income, what fell due and waits for the user to accept it (to_accept: not counted until they do, in Finances) and budgets. Closed months only keep totals (their entries are gone). The user closes each past month themselves in Finances; until the last one is closed (month_to_close) nothing can be added to this month, only to that month.",
     parameters: {
       type: 'object',
       properties: { month: { type: 'string' } },
@@ -174,7 +174,7 @@ export const FINANCE_TOOLS: Array<ToolDef> = [
   {
     name: 'add_recurring',
     description:
-      'Add recurring money: an expense (rent, Netflix, gym, phone plan…) or income (salary, rent received…), added automatically as an entry on each day of its schedule. Like Actual Budget: every N days / weeks / months / years from start_day; a monthly one can fall on chosen days of the month instead (e.g. salary on the last working day: every month, days [{type:"workday", nth:-1}]; the 1st and 15th: [{type:"day", day:1},{type:"day", day:15}]; the 2nd Friday: [{type:"weekday", weekday:5, nth:2}]). Optional: move a weekend day to the Friday before / Monday after, end on a day or after a number of times.',
+      'Add recurring money: an expense (rent, Netflix, gym, phone plan…) or income (salary, rent received…), on each day of its schedule the user is notified and accepts it in Finances, which adds it as an entry. Like Actual Budget: every N days / weeks / months / years from start_day; a monthly one can fall on chosen days of the month instead (e.g. salary on the last working day: every month, days [{type:"workday", nth:-1}]; the 1st and 15th: [{type:"day", day:1},{type:"day", day:15}]; the 2nd Friday: [{type:"weekday", weekday:5, nth:2}]). Optional: move a weekend day to the Friday before / Monday after, end on a day or after a number of times.',
     parameters: {
       type: 'object',
       properties: RECURRING_PROPS,
@@ -185,7 +185,7 @@ export const FINANCE_TOOLS: Array<ToolDef> = [
   {
     name: 'delete_recurring',
     description:
-      'Stop a recurring expense or income (an id from list_finances); the entries it already added stay. Only when asked to.',
+      'Stop a recurring expense or income (an id from list_finances); the entries already accepted stay, what still waits to be accepted is dropped. Only when asked to.',
     parameters: {
       type: 'object',
       properties: { id: { type: 'integer' } },
@@ -196,7 +196,7 @@ export const FINANCE_TOOLS: Array<ToolDef> = [
   {
     name: 'update_recurring',
     description:
-      "Change a recurring expense or income (an id from list_finances): give only what changes. Changing the schedule re-plans what is still to come; what it already added stays (switching expense / income also fixes this month's entries it added).",
+      "Change a recurring expense or income (an id from list_finances): give only what changes. Changing the schedule re-plans what is still to come; what was already accepted stays (switching expense / income also fixes this month's entries it added).",
     parameters: {
       type: 'object',
       properties: { id: { type: 'integer' }, ...RECURRING_PROPS },
@@ -387,6 +387,17 @@ export async function runFinanceTool(
           times: s.endAfter,
           next: upcoming(s, data.today, s.chargedDay)[0] ?? null,
           category: s.category,
+        })),
+        // A past month the user still has to close (in Finances) before
+        // anything can be added to this month; null = none.
+        month_to_close: data.openMonth,
+        // Due recurring money the user hasn't accepted yet (not counted).
+        to_accept: data.pending.map((p) => ({
+          kind: p.kind,
+          amount: p.cents / 100,
+          currency: p.currency,
+          title: p.title,
+          day: p.day,
         })),
         budgets: data.budgets.map((b) => ({
           category: b.category,

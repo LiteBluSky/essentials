@@ -386,6 +386,7 @@ export function ChatComposer({
 
   return (
     <form
+      data-chat-composer
       className="mx-auto w-full max-w-3xl"
       onSubmit={(e) => {
         e.preventDefault()

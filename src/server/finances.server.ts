@@ -1,11 +1,12 @@
 import { format } from 'date-fns'
-import { and, asc, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
 
 import { db } from '@/db'
 import {
   financeBudgets,
   financeEntries,
   financeMonths,
+  financePending,
   financeSubscriptions,
 } from '@/db/schema'
 import {
@@ -22,12 +23,10 @@ import {
 } from '@/lib/finances/money'
 import type { EntryInput, SubscriptionInput } from '@/lib/finances/schemas'
 import { monthTotals } from '@/lib/finances/summary'
-import {
-  describeSchedule,
-  dueDays,
-  monthlyAmount,
-} from '@/lib/finances/schedule'
+import { describeSchedule, monthlyAmount } from '@/lib/finances/schedule'
 import { ASSISTANT_NAME } from '@/lib/assistant'
+import { listPending, queueDue } from './finances-due.server'
+import { assertCanAdd, openMonth } from './finances-months.server'
 import { logRequest } from './assistant-log.server'
 import { saveTurn } from './chat.server'
 import { callModel, llmConfig } from './llm.server'
@@ -36,131 +35,56 @@ import { WEB_SEARCH_PROMPT } from './prompts.server'
 // Server-only: the Finances app. Only import from *.functions.ts (and the
 // assistant's tools). "Today" is the server's local day (like the strip
 // reminders; Docker: set TZ). Whenever the data loads, recurring expenses
-// and income due by today are added and every month before this one is folded into its
-// report (per category and currency) and its entries deleted.
+// and income due by today are queued to be accepted (finances-due.server.ts).
+// Past months are closed by the user (finances-months.server.ts).
 
 export function today() {
   return format(new Date(), 'yyyy-MM-dd')
 }
 
-/** Adds an entry for each day a recurring expense / income fell on by
- * `day`. */
-async function chargeSubscriptions(day: string) {
-  const subs = await db.select().from(financeSubscriptions)
-  for (const sub of subs) {
-    const due = dueDays(sub, sub.chargedDay, day)
-    if (due.length === 0) continue
-    await db.transaction(async (tx) => {
-      await tx.insert(financeEntries).values(
-        due.map((charge) => ({
-          kind: sub.kind,
-          cents: sub.cents,
-          currency: sub.currency,
-          title: sub.name,
-          category: sub.category,
-          day: charge,
-          subscriptionId: sub.id,
-        })),
-      )
-      await tx
-        .update(financeSubscriptions)
-        .set({ chargedDay: due[due.length - 1] })
-        .where(eq(financeSubscriptions.id, sub.id))
-    })
-  }
-}
-
-/** Folds the entries of every month before `month` into the reports and
- * deletes them. */
-async function rollUp(month: string) {
-  const first = `${month}-01`
-  const old = await db
-    .select()
-    .from(financeEntries)
-    .where(lt(financeEntries.day, first))
-  if (old.length === 0) return
-  const lines = new Map<
-    string,
-    {
-      month: string
-      kind: 'expense' | 'income'
-      category: string
-      currency: string
-      cents: number
-      count: number
-    }
-  >()
-  for (const e of old) {
-    const m = monthOf(e.day)
-    const key = `${m}|${e.kind}|${e.category}|${e.currency}`
-    const line = lines.get(key)
-    if (line) {
-      line.cents += e.cents
-      line.count++
-    } else {
-      lines.set(key, {
-        month: m,
-        kind: e.kind,
-        category: e.category,
-        currency: e.currency,
-        cents: e.cents,
-        count: 1,
-      })
-    }
-  }
-  await db.transaction(async (tx) => {
-    for (const line of lines.values()) {
-      await tx
-        .insert(financeMonths)
-        .values(line)
-        .onConflictDoUpdate({
-          target: [
-            financeMonths.month,
-            financeMonths.kind,
-            financeMonths.category,
-            financeMonths.currency,
-          ],
-          set: {
-            cents: sql`${financeMonths.cents} + ${line.cents}`,
-            count: sql`${financeMonths.count} + ${line.count}`,
-          },
-        })
-    }
-    await tx.delete(financeEntries).where(lt(financeEntries.day, first))
-  })
-}
-
-/** Charges what's due, closes past months, then loads everything: this
- * month's (and later) entries, every past month's report, the
- * subscriptions and the budgets. */
+/** Queues what's due, then loads everything: the entries (this month's,
+ * later ones and any past month not closed yet), every closed month's
+ * report, the subscriptions, the charges waiting to be accepted, the
+ * budgets and the past month to close (`openMonth`, null if none). */
 export async function loadFinances() {
   const day = today()
   const month = monthOf(day)
-  await chargeSubscriptions(day)
-  await rollUp(month)
-  const [entries, reports, subscriptions, budgets] = await Promise.all([
-    db
-      .select()
-      .from(financeEntries)
-      .where(gte(financeEntries.day, `${month}-01`))
-      .orderBy(desc(financeEntries.day), desc(financeEntries.id)),
-    db
-      .select()
-      .from(financeMonths)
-      .orderBy(desc(financeMonths.month), desc(financeMonths.cents)),
-    db
-      .select()
-      .from(financeSubscriptions)
-      .orderBy(
-        asc(sql`${financeSubscriptions.name} collate nocase`),
-        asc(financeSubscriptions.id),
-      ),
-    db.select().from(financeBudgets),
-  ])
-  return { today: day, month, entries, reports, subscriptions, budgets }
+  await queueDue(day)
+  const [entries, reports, subscriptions, pending, budgets] = await Promise.all(
+    [
+      db
+        .select()
+        .from(financeEntries)
+        .orderBy(desc(financeEntries.day), desc(financeEntries.id)),
+      db
+        .select()
+        .from(financeMonths)
+        .orderBy(desc(financeMonths.month), desc(financeMonths.cents)),
+      db
+        .select()
+        .from(financeSubscriptions)
+        .orderBy(
+          asc(sql`${financeSubscriptions.name} collate nocase`),
+          asc(financeSubscriptions.id),
+        ),
+      listPending(),
+      db.select().from(financeBudgets),
+    ],
+  )
+  return {
+    today: day,
+    month,
+    entries,
+    reports,
+    subscriptions,
+    pending,
+    budgets,
+    openMonth: await openMonth(),
+  }
 }
 
 export async function insertEntry(input: EntryInput) {
+  await assertCanAdd(input.day)
   const [row] = await db
     .insert(financeEntries)
     .values(input)
@@ -169,6 +93,7 @@ export async function insertEntry(input: EntryInput) {
 }
 
 export async function editEntry(id: number, input: EntryInput) {
+  await assertCanAdd(input.day)
   await db.update(financeEntries).set(input).where(eq(financeEntries.id, id))
 }
 
@@ -204,13 +129,20 @@ export async function editSubscription(id: number, input: SubscriptionInput) {
         .update(financeEntries)
         .set({ kind: input.kind, category: input.category })
         .where(eq(financeEntries.subscriptionId, id))
+      await tx
+        .update(financePending)
+        .set({ kind: input.kind, category: input.category })
+        .where(eq(financePending.subscriptionId, id))
     }
   })
 }
 
-/** Stops it; what it already charged stays. */
+/** Stops it; what was accepted stays, what still waits is dropped. */
 export async function removeSubscription(id: number) {
-  await db.delete(financeSubscriptions).where(eq(financeSubscriptions.id, id))
+  await db.transaction(async (tx) => {
+    await tx.delete(financeSubscriptions).where(eq(financeSubscriptions.id, id))
+    await tx.delete(financePending).where(eq(financePending.subscriptionId, id))
+  })
 }
 
 export async function setBudget(categoryKey: string, cents: number | null) {
@@ -370,7 +302,7 @@ export async function getAdvice(
     ...months.map((m) => describeMonth(m, data)),
     '',
     subs.length
-      ? `Recurring (added automatically): ${subs
+      ? `Recurring (the user accepts each one when it falls due): ${subs
           .map(
             (s) =>
               `${s.kind === 'income' ? 'income' : 'expense'} ${s.name} ${formatMoney(s.cents, s.currency)}, ${describeSchedule(s)} (${category(s.category).label})`,
@@ -385,6 +317,14 @@ export async function getAdvice(
             .reduce((sum, s) => sum + monthlyAmount(s), 0),
         )} in.`
       : 'Nothing recurring.',
+    data.pending.length
+      ? `Due and waiting to be accepted (not counted yet): ${data.pending
+          .map(
+            (p) =>
+              `${p.day} ${p.kind === 'income' ? '+' : '-'}${formatMoney(p.cents, p.currency)} ${p.title}`,
+          )
+          .join('; ')}.`
+      : '',
     data.budgets.length
       ? `Monthly budgets: ${data.budgets
           .map((b) => `${category(b.category).label} ${formatMoney(b.cents)}`)
@@ -404,7 +344,7 @@ export async function getAdvice(
   const system = [
     `You are ${ASSISTANT_NAME}, a friendly money coach inside the user's personal app. The user knows nothing about personal finance: explain simply, no jargon (or explain it in a few words), no lecturing.`,
     'Base everything on their numbers below. Give: a short recap of the month (where the money went, what was left), what is going well, the 2–3 most useful things to improve, each with a concrete step and how much it could save, and a simple saving plan (e.g. pay yourself first, an emergency fund of 3–6 months of spending, the 50/30/20 split) fitted to their income. If they ask about buying or saving for something, say whether it fits and how long it would take to save for it.',
-    'What is left at the end of a month carries over into the next (an overspend too). Mention recurring expenses (subscriptions) worth checking. Note that past months only keep totals per category. Amounts in different currencies are never converted. Never invent numbers; if there is little data, say what to track to get better advice.',
+    'What is left at the end of a month carries over into the next (an overspend too). Mention recurring expenses (subscriptions) worth checking. Note that closed months only keep totals per category. Amounts in different currencies are never converted. Never invent numbers; if there is little data, say what to track to get better advice.',
     "Answer briefly in the user's language, in markdown, with short headings or bullets.",
     `Category names: ${CATEGORIES.map((c) => c.label).join(', ')}.`,
   ].join('\n')

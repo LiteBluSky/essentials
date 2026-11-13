@@ -248,6 +248,8 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       box; hidden where unsupported
 - [x] Every Ask Jarvis request is saved as a Chat conversation ("Open in
       Chat" on the answer toast)
+- [x] Ctrl+Shift+O starts a new chat with Jarvis (Chat, the desktop panel,
+      else opens one in Chat), even while typing
 - [ ] Verify on the phone: dictation into the field, ntfy reminder arrives
 - [x] Tasks: drop the Upcoming and Today lists; "Up next" shows one day's
       open tasks (today + anything left over, else the next day with any)
@@ -374,6 +376,16 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       (Anthropic's `web_search` server tool, OpenRouter's `web` plugin)
 - [ ] Verify in a real browser: the recurring form, the amount pop-up on
       a phone keyboard, carry-over, the web search toggle
+- [x] Recurring money is accepted, not added on its own: each due day
+      waits in "To accept" (Accept / Skip, `finance_pending`, migration 0017) and is pushed to the phone at 09:00 that day
+- [x] Closing a month is the user's step: while last month is open
+      nothing can be added to this one (server-side, Jarvis too); "Close
+      <month>" folds it into its totals
+- [x] Finance tables included in Settings → Database → Copy (`TABLES`)
+- [ ] Optional: Jarvis can accept / skip due charges and close a month
+      (with Undo)
+- [ ] Verify in a real browser: To accept, the Close banner, the 09:00
+      push on the phone
 - [ ] Accounts: which account holds how much (entries tagged with an
       account, transfers between them, balances) — needs a design (see
       below)

@@ -23,6 +23,8 @@ import {
   removeSubscription,
   setBudget,
 } from './finances.server'
+import { acceptPending, skipPending } from './finances-due.server'
+import { closeMonth } from './finances-months.server'
 
 // No auth by design (see CLAUDE.md). The AI is only called by
 // `categorizeFinanceEntries` and `askFinanceAdvice`, i.e. when the user
@@ -84,3 +86,20 @@ export const saveBudget = createServerFn({ method: 'POST' })
 export const askFinanceAdvice = createServerFn({ method: 'POST' })
   .validator(adviceInput)
   .handler(({ data }) => getAdvice(data.question, data.month, data.webSearch))
+
+/** A recurring expense / income that fell due: accept = add it as an
+ * entry on its day; skip = drop it. */
+export const acceptPendingCharge = createServerFn({ method: 'POST' })
+  .validator(byId)
+  .handler(async ({ data }) => ({ entryId: await acceptPending(data.id) }))
+
+export const skipPendingCharge = createServerFn({ method: 'POST' })
+  .validator(byId)
+  .handler(async ({ data }) => {
+    await skipPending(data.id)
+  })
+
+/** Closes the oldest past month still open (folds it into its totals). */
+export const closeFinanceMonth = createServerFn({ method: 'POST' }).handler(
+  async () => ({ month: await closeMonth() }),
+)

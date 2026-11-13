@@ -17,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ASSISTANT_NAME } from '@/lib/assistant'
+import { NEW_CHAT_KEYS } from '@/lib/shortcuts'
 
 // Each entry: alternative key combos (joined with "or"), each a list of keys
 // pressed together or in sequence.
@@ -42,6 +43,10 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
     title: 'Anywhere',
     shortcuts: [
       { keys: [['s']], action: `Message ${ASSISTANT_NAME}` },
+      {
+        keys: [NEW_CHAT_KEYS],
+        action: `New chat with ${ASSISTANT_NAME}`,
+      },
       { keys: [['z']], action: 'Search everything (all apps)' },
       { keys: [['f']], action: 'Switch app (type its name, or pick it)' },
       { keys: [['Shift', 'T']], action: 'Next theme (light, dark, system)' },

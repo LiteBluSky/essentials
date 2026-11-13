@@ -17,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ASSISTANT_NAME } from '@/lib/assistant'
+import { NEW_CHAT_KEYS } from '@/lib/shortcuts'
 
 // Each entry: alternative key combos (joined with "or"), each a list of keys
 // pressed together or in sequence.
@@ -53,6 +54,10 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       {
         keys: [['Shift', 'S']],
         action: `Hide the ${ASSISTANT_NAME} panel (wide screens)`,
+      },
+      {
+        keys: [NEW_CHAT_KEYS],
+        action: `New chat with ${ASSISTANT_NAME}`,
       },
       { keys: [['Shift', 'T']], action: 'Next theme (light, dark, system)' },
       { keys: [['p']], action: 'Switch profile (database)' },

@@ -39,3 +39,26 @@ export function useShortcuts(
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [enabled])
 }
+
+/** Ctrl+Shift+O (⌘⇧O): a new chat with the assistant, from anywhere (even
+ * while typing): Chat's page starts one, the desktop panel starts one, and
+ * elsewhere (no panel) it opens a new chat in Chat. */
+export function isNewChatKey(e: KeyboardEvent) {
+  return (
+    (e.ctrlKey || e.metaKey) &&
+    e.shiftKey &&
+    !e.altKey &&
+    e.key.toLowerCase() === 'o'
+  )
+}
+
+export const NEW_CHAT_KEYS = [MOD_LABEL, 'Shift', 'O']
+
+/** Focus the chat message box once it's rendered. */
+export function focusChatComposer(within: ParentNode = document) {
+  requestAnimationFrame(() =>
+    within
+      .querySelector<HTMLTextAreaElement>('[data-chat-composer] textarea')
+      ?.focus(),
+  )
+}

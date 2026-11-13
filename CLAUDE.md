@@ -159,11 +159,11 @@ One SQLite file holds every app. Bookmark tables keep their original names.
   converted), `title` (`''` = none), `category` (a key of `CATEGORIES` in
   `src/lib/finances/categories.ts`; `uncategorized` by default), `day`
   (local `YYYY-MM-DD`), `subscriptionId` (set on a subscription's charge),
-  timestamps. Only this month's (and later) rows exist: see `finance_months`.
-- `finance_months` — a past month's report: `month` (`YYYY-MM`), `kind`,
+  timestamps. Only rows of months not closed yet exist: see `finance_months`.
+- `finance_months` — a closed month's report: `month` (`YYYY-MM`), `kind`,
   `category`, `currency` (the primary key together), `cents`, `count`.
-  `loadFinances` folds every entry before the current month (server's
-  local day) into it and deletes those entries.
+  The user closes each past month (`closeMonth`,
+  `finances-months.server.ts`): its entries are folded in and deleted.
 - `finance_subscriptions` — **recurring** expenses and income ("Recurring"
   in the UI): `kind` (`expense` | `income`), `name`, `cents`, `currency`,
   `category` (default `subscriptions`), and a schedule like Actual
@@ -172,10 +172,16 @@ One SQLite file holds every app. Bookmark tables keep their original names.
   (JSON, monthly only: `day` 1–31 / -1 last, `weekday` nth, `workday` nth;
   none = the start's day), `weekend` (`before` / `after` moves a weekend
   day to Friday / Monday), `endDay` or `endAfter` (times);
-  `chargedDay` (the last one added), timestamps. `loadFinances` inserts
-  each day that fell due as an entry of its kind. Switching an existing
-  one's kind also fixes this month's entries it added. Deleting one keeps
-  its entries.
+  `chargedDay` (the last one queued), timestamps. Never added on its own:
+  each day that falls due is queued in `finance_pending` (`queueDue`, by
+  `loadFinances` and the reminder tick) for the user to accept. Switching
+  an existing one's kind also fixes the entries / pending charges it
+  made. Deleting one keeps its entries and drops what still waits.
+- `finance_pending` — a recurring charge that fell due, waiting: a copy of
+  it that day (`subscriptionId`, `kind`, `cents`, `currency`, `title`,
+  `category`, `day`; unique per subscription + day), `notifiedAt` (pushed),
+  timestamps. Accept = an entry on its day, Skip = deleted
+  (`finances-due.server.ts`). Not counted anywhere until accepted.
 - `finance_budgets` — optional monthly budget per expense `category`
   (primary key), `cents` in euros.
 - `assistant_log` — one row per "Tell me…" request or chat turn (`source`
@@ -851,18 +857,30 @@ call. **The AI is never called otherwise.**
   budget: red when over), then income per category; one block per
   currency (euros first). This month (and later) also lists its entries
   (`entries-list.tsx`; a click edits: `entry-dialog.tsx`, delete confirms
-  with `d` `d`). Past months show only totals (`monthLines` /
-  `totalsByCurrency` in `src/lib/finances/summary.ts`: entries for current
-  months, `finance_months` for past ones).
-- **Month end**: whenever the data loads (`loadFinances`, server's local
-  day, like the strip reminders), due recurring entries are inserted,
-  then every entry before this month is folded into `finance_months` and
-  deleted. Adding an entry dated in a past month folds it in on the next
-  load.
+  with `d` `d`). Closed months show only totals (`monthLines` /
+  `totalsByCurrency` in `src/lib/finances/summary.ts`: entries for open
+  months, `finance_months` for closed ones).
+- **Closing a month** is the user's step, never automatic
+  (`finances-months.server.ts`): once a new month starts (server's local
+  day), the oldest past month with entries or pending charges is open
+  (`openMonth`, in the data) and a banner (`close-month.tsx`) offers
+  "Close <month>" (confirmed; refused while it has pending charges), which
+  folds its entries into `finance_months` and deletes them. Until then
+  `assertCanAdd` (in `insertEntry`, `editEntry`, `acceptPending`, so for
+  Jarvis too) refuses anything dated this month or later, the Add pop-up
+  saves on the open month's last day, and a closed month takes nothing new.
+- **To accept** (`pending-list.tsx`, above the month): recurring charges
+  that fell due, oldest first, with Skip / Accept. From
+  `PAYMENT_REMIND_HOUR` (09:00, server's local time) on their day each is
+  pushed once ("−€12.99 today · accept it in Finances", a tap opens
+  `/finances`; `sendPaymentReminders`, run by the reminder tick for every
+  profile, which queues first, so it works without opening the app); one
+  from a day the server was off goes out late, since it still waits.
 - **Carry-over**: what a month left (or overspent) carries into the next,
   per currency (`carriedInto` / `monthTotals` in `summary.ts`): the month
   view shows Carried over, In, Out and Left = carried + in − out.
-- **Recurring** (`u`, ⋮ menu; `subscriptions-dialog.tsx`): income first,
+- **Recurring** (`u`, ⋮ menu; `subscriptions-dialog.tsx`; each due day
+  waits in To accept): income first,
   then expenses, each with its schedule in words and the next day, the
   monthly totals in and out; click to edit, "Stop it" deletes; the form
   below: Expense / Income, name, amount, currency, category, first time,
@@ -880,7 +898,8 @@ call. **The AI is never called otherwise.**
   Chat conversation ("Carry on in Chat"); logged as `source: 'finances'`.
 - **Jarvis** (`agent-finances.server.ts`, `FINANCE_TOOLS` in `ALL_TOOLS`):
   `add_money_entry` (picks a category itself), `list_finances` (with the
-  carry-over and full schedules), `update_money_entry`,
+  carry-over, full schedules, `to_accept` and `month_to_close`; Jarvis
+  can't accept charges or close months), `update_money_entry`,
   `delete_money_entry`, `add_recurring` / `update_recurring` /
   `delete_recurring` (schedules as above), `set_budget`; recorded as
   `finances` / `subscriptions` / `budgets` items in `changes.server.ts`
@@ -1027,6 +1046,11 @@ names its database).
   References); listed in every app's shortcuts help.
 - `s` focuses the "Tell me…" field (when shown); `Esc` in it blurs it so the
   tree keys work again.
+- **Ctrl+Shift+O** (⌘⇧O; `isNewChatKey` in `lib/shortcuts.ts`) starts a
+  new chat with Jarvis from anywhere, even while typing (not with a dialog
+  open): on Chat a new chat, on desktop a new conversation in the panel
+  (opening it), below `xl` it opens a new chat in Chat; the message box
+  gets focus (`focusChatComposer`, `[data-chat-composer]`).
 - `?` (or the header keyboard button) opens the app's shortcuts help
   (`src/components/<app>/shortcuts-dialog.tsx`) — keep its list in sync
   when adding or changing a shortcut.

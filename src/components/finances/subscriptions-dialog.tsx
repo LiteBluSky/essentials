@@ -69,7 +69,7 @@ import { CategorySelect, CurrencySelect, DayPicker, parseDay } from './pickers'
 
 /**
  * Recurring money ("subscriptions" in the code): expenses (rent, Netflix…)
- * and income (salary…) added automatically on each day of their schedule,
+ * and income (salary…): on each day of their schedule one waits to be accepted,
  * so the month's money always counts them. Click one to edit it; deleting
  * stops it (what it already added stays).
  */
@@ -108,7 +108,8 @@ export function SubscriptionsDialog({
         <DialogHeader>
           <DialogTitle>Recurring</DialogTitle>
           <DialogDescription>
-            Bills, subscriptions and income, added automatically on their days.
+            Bills, subscriptions and income. On their day you get a notification
+            (9:00) and accept each one here.
             {into > 0 && ` About ${formatMoney(into)} in`}
             {into > 0 && out > 0 && ' and'}
             {out > 0 && `${into > 0 ? '' : ' About'} ${formatMoney(out)} out`}

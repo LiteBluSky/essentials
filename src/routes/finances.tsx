@@ -12,6 +12,7 @@ import {
   SearchIcon,
   SparklesIcon,
 } from 'lucide-react'
+import { endOfMonth, format } from 'date-fns'
 import { useEffect, useMemo, useState } from 'react'
 
 import { AppFooter } from '@/components/app-footer'
@@ -20,10 +21,13 @@ import { JarvisSidebar } from '@/components/assistant-sidebar'
 import { AdviceDialog } from '@/components/finances/advice-dialog'
 import { AmountDialog } from '@/components/finances/amount-dialog'
 import { BudgetsDialog } from '@/components/finances/budgets-dialog'
+import { CloseMonth } from '@/components/finances/close-month'
 import { EntriesList } from '@/components/finances/entries-list'
+import { parseDay } from '@/components/finances/pickers'
 import { EntryDialog } from '@/components/finances/entry-dialog'
 import { FinancesMenu } from '@/components/finances/finances-menu'
 import { MonthReport } from '@/components/finances/month-report'
+import { PendingList } from '@/components/finances/pending-list'
 import { ShortcutsDialog } from '@/components/finances/shortcuts-dialog'
 import { SubscriptionsDialog } from '@/components/finances/subscriptions-dialog'
 import { GlobalSearch } from '@/components/global-search'
@@ -53,7 +57,8 @@ import {
 
 // The Finances app: type what you spent or got ("12.50 coffee", "+1800
 // payroll") and see the month at a glance: in, out, left, and a circle of
-// where it went. Recurring expenses and income are added on their own; past months keep
+// where it went. Recurring expenses and income wait to be accepted when
+// they fall due (a phone push at 9:00); past months keep
 // only their totals per category. The AI is only used when asked (the
 // auto-categorize toggle, "Categorize", Advice).
 export const Route = createFileRoute('/finances')({
@@ -88,6 +93,7 @@ function FinancesPage() {
   const [helpOpen, setHelpOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [closing, setClosing] = useState(false)
   // The amount pop-up: null = closed.
   const [adding, setAdding] = useState<'expense' | 'income' | null>(null)
   const dialogOpen =
@@ -98,9 +104,14 @@ function FinancesPage() {
     adviceOpen ||
     helpOpen ||
     searchOpen ||
-    settingsOpen
+    settingsOpen ||
+    closing
 
   const past = month < data.month
+  // While a past month is open, new entries go on its last day.
+  const addDay = data.openMonth
+    ? format(endOfMonth(parseDay(`${data.openMonth}-01`)), 'yyyy-MM-dd')
+    : data.today
   const totals = useMemo(
     () => monthTotals(month, data.entries, data.reports),
     [month, data],
@@ -222,6 +233,22 @@ function FinancesPage() {
         </div>
       </header>
 
+      {data.openMonth && (
+        <CloseMonth
+          month={data.openMonth}
+          waiting={
+            data.pending.filter((p) => monthOf(p.day) === data.openMonth).length
+          }
+          onShow={() => data.openMonth && setMonth(data.openMonth)}
+          confirming={closing}
+          onConfirmingChange={setClosing}
+        />
+      )}
+
+      {data.pending.length > 0 && (
+        <PendingList pending={data.pending} today={data.today} />
+      )}
+
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-lg font-medium">{monthLabel(month)}</h1>
         <ButtonGroup aria-label="Month">
@@ -258,7 +285,7 @@ function FinancesPage() {
           <EmptyHeader>
             <EmptyTitle>Nothing in {monthLabel(month)}</EmptyTitle>
             <EmptyDescription>
-              {past
+              {past && month !== data.openMonth
                 ? 'Nothing was recorded that month.'
                 : 'Press Add (or a) to note what you spend, or what comes in.'}
             </EmptyDescription>
@@ -268,7 +295,7 @@ function FinancesPage() {
         <MonthReport totals={totals} budgets={budgets} />
       )}
 
-      {past
+      {past && entries.length === 0
         ? totals.length > 0 && (
             <p className="text-sm text-muted-foreground">
               Past months keep only their totals per category.
@@ -293,7 +320,7 @@ function FinancesPage() {
         open={adding !== null}
         onOpenChange={(open) => !open && setAdding(null)}
         kind={adding ?? 'expense'}
-        today={data.today}
+        today={addDay}
       />
       <EntryDialog
         entry={editing}

@@ -25,6 +25,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { ASSISTANT_NAME } from '@/lib/assistant'
+import { focusChatComposer, isNewChatKey } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
 import {
   assistantEnabledQueryOptions,
@@ -142,6 +143,27 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [enabled, desktop])
+
+  // Ctrl+Shift+O, even while typing: a new conversation in the panel
+  // (opening it), or below `xl` (no panel) a new chat in Chat.
+  useEffect(() => {
+    if (!enabled) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || !isNewChatKey(e)) return
+      e.preventDefault()
+      if (!desktop) {
+        void navigate({ to: '/chat', search: {} }).then(() =>
+          focusChatComposer(),
+        )
+        return
+      }
+      toggle(true)
+      startOver(null)
+      if (panel.current) focusChatComposer(panel.current)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  })
 
   const send = useMutation({
     mutationFn: ({ text, webSearch }: { text: string; webSearch: boolean }) =>
