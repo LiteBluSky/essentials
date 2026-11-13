@@ -21,6 +21,7 @@ import { noteInput } from '@/lib/notes/schemas'
 import { MAX_REMIND_MINUTES, taskInput } from '@/lib/tasks/schemas'
 import { DEFAULT_DUE_HOUR, remindLabel } from '@/lib/tasks/tree'
 import { CALENDAR_TOOLS, runCalendarTool } from './agent-calendar.server'
+import { FINANCE_TOOLS, runFinanceTool } from './agent-finances.server'
 import { ACTION_TOOLS, toAction } from './assistant.server'
 import { runAction } from './assistant-actions.server'
 import * as bookmarksDb from './bookmarks.server'
@@ -298,6 +299,7 @@ export const ALL_TOOLS = [
   ...ACTION_TOOLS,
   ...EDIT_TOOLS,
   ...CALENDAR_TOOLS,
+  ...FINANCE_TOOLS,
 ]
 
 const searchArgs = z.object({
@@ -542,7 +544,9 @@ function changed(
   // Calendar strips have no references (they never come through here).
   return summary.target === 'item' &&
     summary.op !== 'delete' &&
-    summary.app !== 'calendar'
+    summary.app !== 'calendar' &&
+    summary.app !== 'finances' &&
+    summary.app !== 'subscriptions'
     ? { changed: summary, ref: refFor(summary.app, summary.label, summary.id) }
     : { changed: summary }
 }
@@ -705,6 +709,8 @@ export async function runTool(
   const bad = { error: `Bad arguments for ${name}` }
   const calendar = await runCalendarTool(name, args, ctx)
   if (calendar !== undefined) return calendar
+  const finances = await runFinanceTool(name, args, ctx)
+  if (finances !== undefined) return finances
   switch (name) {
     case 'search': {
       const parsed = searchArgs.safeParse(args)

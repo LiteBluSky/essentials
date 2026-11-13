@@ -4,6 +4,7 @@ import {
   index,
   integer,
   real,
+  primaryKey,
   sqliteTable,
   text,
 } from 'drizzle-orm/sqlite-core'
@@ -357,7 +358,15 @@ export const assistantChanges = sqliteTable(
     id: integer().primaryKey({ autoIncrement: true }),
     runId: text('run_id').notNull(),
     app: text({
-      enum: ['bookmarks', 'notes', 'tasks', 'contacts', 'calendar'],
+      enum: [
+        'bookmarks',
+        'notes',
+        'tasks',
+        'contacts',
+        'calendar',
+        'finances',
+        'subscriptions',
+      ],
     }).notNull(),
     target: text({ enum: ['item', 'folder'] }).notNull(),
     op: text({ enum: ['create', 'update', 'delete'] }).notNull(),
@@ -433,8 +442,9 @@ export type AssistantChange = typeof assistantChanges.$inferSelect
 
 // A coloured strip over one day or a range of days (`startDay`..`endDay`,
 // inclusive, local `YYYY-MM-DD`: no times, no timezone). The title is
-// optional ('' = none); `color` is a key of `CALENDAR_COLORS`. No folders,
-// no reminders.
+// optional ('' = none); `color` is a key of `CALENDAR_COLORS`. No folders.
+// A reminder is pushed the day before it starts (`remindedDay` = the
+// `startDay` it was pushed for, so moving the strip re-arms it).
 export const calendarEvents = sqliteTable(
   'calendar_events',
   {
@@ -443,6 +453,7 @@ export const calendarEvents = sqliteTable(
     color: text().notNull(),
     startDay: text('start_day').notNull(),
     endDay: text('end_day').notNull(),
+    remindedDay: text('reminded_day'),
     ...timestamps,
   },
   (t) => [index('calendar_events_start_idx').on(t.startDay)],
@@ -463,3 +474,67 @@ export const databases = sqliteTable('databases', {
 })
 
 export type DatabaseSource = typeof databases.$inferSelect
+
+// ---- Finances -------------------------------------------------------------
+
+// Money in and out this month (and any later days), in whole cents per
+// currency (no conversion). `category` is a key of `CATEGORIES`
+// (`uncategorized` until picked or set by the AI); `day` a local
+// `YYYY-MM-DD`; `subscriptionId` marks a subscription's charge. Once a month
+// is over its entries are folded into `finance_months` and deleted.
+export const financeEntries = sqliteTable(
+  'finance_entries',
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    kind: text({ enum: ['expense', 'income'] }).notNull(),
+    cents: integer().notNull(),
+    currency: text().notNull().default('EUR'),
+    title: text().notNull().default(''),
+    category: text().notNull().default('uncategorized'),
+    day: text().notNull(),
+    subscriptionId: integer('subscription_id'),
+    ...timestamps,
+  },
+  (t) => [index('finance_entries_day_idx').on(t.day)],
+)
+
+// A past month's report: what went in / out per category and currency.
+export const financeMonths = sqliteTable(
+  'finance_months',
+  {
+    month: text().notNull(),
+    kind: text({ enum: ['expense', 'income'] }).notNull(),
+    category: text().notNull(),
+    currency: text().notNull(),
+    cents: integer().notNull(),
+    count: integer().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.month, t.kind, t.category, t.currency] })],
+)
+
+// Charged automatically (an expense entry) on `startDay` and then the same
+// day every month / year; `chargedDay` is the last charge.
+export const financeSubscriptions = sqliteTable('finance_subscriptions', {
+  id: integer().primaryKey({ autoIncrement: true }),
+  name: text().notNull(),
+  cents: integer().notNull(),
+  currency: text().notNull().default('EUR'),
+  category: text().notNull().default('subscriptions'),
+  every: text({ enum: ['month', 'year'] })
+    .notNull()
+    .default('month'),
+  startDay: text('start_day').notNull(),
+  chargedDay: text('charged_day'),
+  ...timestamps,
+})
+
+// Optional monthly budget per expense category, in euros.
+export const financeBudgets = sqliteTable('finance_budgets', {
+  category: text().primaryKey(),
+  cents: integer().notNull(),
+})
+
+export type FinanceEntry = typeof financeEntries.$inferSelect
+export type FinanceMonth = typeof financeMonths.$inferSelect
+export type FinanceSubscription = typeof financeSubscriptions.$inferSelect
+export type FinanceBudget = typeof financeBudgets.$inferSelect

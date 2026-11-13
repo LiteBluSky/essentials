@@ -4,6 +4,8 @@ import { db, listProfiles, profileHandle, withDatabase } from '@/db'
 import {
   assistantChanges,
   calendarEvents,
+  financeEntries,
+  financeSubscriptions,
   folders as bookmarkFolders,
   contactFolders,
   contacts,
@@ -24,11 +26,18 @@ import type { ChangeSummary } from '@/lib/assistant'
 // back: a created thing is deleted, an edit restored, a deletion re-inserted
 // with its original ids (and the Bin copies it made removed).
 
-export type App = 'bookmarks' | 'notes' | 'tasks' | 'contacts' | 'calendar'
+export type App =
+  | 'bookmarks'
+  | 'notes'
+  | 'tasks'
+  | 'contacts'
+  | 'calendar'
+  | 'finances'
+  | 'subscriptions'
 
 // The tables per app. They share the columns used here (id, folderId /
-// parentId), so one table type stands in for all of them. The Calendar has
-// no folders (its strips are only ever `item` changes).
+// parentId), so one table type stands in for all of them. The Calendar and
+// Finances have no folders (their rows are only ever `item` changes).
 type ItemTable = typeof notes
 type FolderTable = typeof noteFolders
 const ITEMS = {
@@ -37,6 +46,8 @@ const ITEMS = {
   tasks,
   contacts,
   calendar: calendarEvents,
+  finances: financeEntries,
+  subscriptions: financeSubscriptions,
 } as unknown as Record<App, ItemTable>
 const FOLDERS = {
   bookmarks: bookmarkFolders,

@@ -11,7 +11,8 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { readTheme, setTheme } from '@/lib/theme'
+import { toast } from '@/components/ui/toast'
+import { nextTheme, readTheme, setTheme } from '@/lib/theme'
 import type { Theme } from '@/lib/theme'
 
 const OPTIONS = [
@@ -20,11 +21,42 @@ const OPTIONS = [
   { value: 'system', label: 'System', icon: MonitorIcon },
 ] as const
 
+function isTyping(target: EventTarget | null) {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable ||
+      ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+  )
+}
+
+function popupOpen() {
+  return !!document.querySelector(
+    '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]',
+  )
+}
+
 export function ThemeToggle() {
   // "system" until hydrated; the inline head script has already applied the
   // real theme to <html>, so this only affects which radio item is checked.
   const [theme, setThemeState] = useState<Theme>('system')
   useEffect(() => setThemeState(readTheme()), [])
+
+  // Shift+T cycles the theme, on every app (each header has this toggle).
+  // Off while typing or while a dialog / menu is open, like the other keys.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
+      if (e.key !== 'T' || isTyping(e.target) || popupOpen()) return
+      e.preventDefault()
+      const next = nextTheme(readTheme())
+      setTheme(next)
+      setThemeState(next)
+      const label = OPTIONS.find((o) => o.value === next)?.label
+      toast.add({ title: `Theme: ${label}` })
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   return (
     <DropdownMenu>

@@ -323,6 +323,9 @@ open tasks to Spanish"_, _"delete the old Incidencias folder"_). Every reply
 that changed something has an **Undo** button that puts it all back,
 deletes included. Conversations are saved; delete them from the list.
 
+Everything you ask Jarvis in the field above each app is saved as a chat
+too, so you can read the answer again or carry on from it in Chat.
+
 The **Tell me** field can edit and delete too (its toast offers Undo), and
 ⋮ → Assistant history has an Undo on every request that changed
 something.
@@ -336,6 +339,17 @@ profile.
 Only what you type (and, in Chat, the items it looks up to answer) is sent
 to the provider. ⋮ menu → **Assistant history…** lists every request with its result, tokens and cost
 (reported by OpenRouter, or worked out from Anthropic's prices).
+
+**Finances** — type what you spent and press Enter: `12.50 coffee`,
+`+1800 payroll` (a `+` means money in), `$20 book`. Everything else
+(currency, category, day) is optional; euros by default. Each month shows
+what came in, went out and is left, with a circle chart of where it went.
+Subscriptions (⋮ → Subscriptions) are charged automatically on their day;
+budgets per category are optional. When a month is over its entries are
+deleted and only the totals per category are kept. The AI is only used
+when you ask: the ✨ Auto-categorize toggle, ⋮ → Categorize, or
+**Advice** (a plain-language recap and tips, also saved as a chat).
+Jarvis can add expenses from any app ("Jarvis, spent 12 on lunch").
 
 **Phone reminders** — when a task with a due date falls due, the server
 pushes it to your phone through [ntfy](https://ntfy.sh):
@@ -354,7 +368,9 @@ every 10 minutes after that until the task is completed (changing the due
 date or the reminder re-arms it); the server checks every minute, so it must be
 running. Tasks in every database are reminded (Local and each one in
 Settings → Database, whether in use or not), and the reminder says which
-database it's from. Works over plain http on the
+database it's from. Calendar strips are reminded the day before they
+start, at 09:00 in the server's timezone (in Docker set `TZ`, e.g.
+`TZ=Europe/Madrid`, in the `.env` next to `compose.yaml`). Works over plain http on the
 LAN: the push goes server → ntfy → phone.
 
 There's no login, so anyone on your network can change these settings,

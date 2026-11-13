@@ -13,11 +13,13 @@ export function DictateButton({
   value,
   disabled,
   size = 'icon-xs',
+  className,
 }: {
   dictation: Dictation
   value: string
   disabled?: boolean
   size?: 'icon-xs' | 'icon-sm'
+  className?: string
 }) {
   if (!dictation.supported) return null
   const { listening } = dictation
@@ -25,6 +27,7 @@ export function DictateButton({
     <InputGroupButton
       type="button"
       size={size}
+      className={className}
       variant={listening ? 'secondary' : 'ghost'}
       aria-label={listening ? 'Stop dictating' : 'Dictate'}
       aria-pressed={listening}

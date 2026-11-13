@@ -10,6 +10,7 @@ import { tellPrompt } from './assistant.server'
 import { describe } from './assistant-actions.server'
 import { clearHistory, loadHistory, logRequest } from './assistant-log.server'
 import { undoRunEverywhere } from './changes.server'
+import { saveTurn } from './chat.server'
 import { assistantConfigured, currentModel } from './llm.server'
 
 // The assistant ("Tell me…"), shared by every app. No auth by design (see
@@ -54,6 +55,21 @@ export const askAssistant = createServerFn({ method: 'POST' })
       failure = error instanceof Error ? error.message : String(error)
     }
 
+    // Every request that reached the model is also a Chat conversation, so
+    // it can be seen again (and carried on). Never breaks the request.
+    let conversationId: number | null = null
+    if (run) {
+      try {
+        const { message } = await saveTurn(null, data.text, {
+          ...run,
+          error: failure ?? run.error,
+        })
+        conversationId = message.conversationId
+      } catch (error) {
+        console.error("Couldn't save the request to Chat:", error)
+      }
+    }
+
     const usage = run?.usage ?? null
     const model = usage ?? (await currentModel())
     const result = run?.result
@@ -83,7 +99,7 @@ export const askAssistant = createServerFn({ method: 'POST' })
       runId: result?.runId ?? null,
     })
     if (failure !== null || !result) throw new Error(failure ?? 'Failed')
-    return result
+    return { ...result, conversationId }
   })
 
 /** Undoes everything a run (a Tell me request or chat turn) changed. */

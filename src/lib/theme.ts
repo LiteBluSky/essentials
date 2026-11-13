@@ -39,3 +39,10 @@ export function setTheme(theme: Theme) {
     (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
   document.documentElement.classList.toggle('dark', dark)
 }
+
+const THEME_ORDER: Array<Theme> = ['light', 'dark', 'system']
+
+/** The theme after this one (Shift+T): light → dark → system → light. */
+export function nextTheme(theme: Theme): Theme {
+  return THEME_ORDER[(THEME_ORDER.indexOf(theme) + 1) % THEME_ORDER.length]
+}

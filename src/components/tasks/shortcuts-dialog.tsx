@@ -32,6 +32,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       { keys: [mod(SHORTCUTS.search.label), ['/']], action: 'Search this app' },
       { keys: [['z']], action: 'Search everything (all apps)' },
       { keys: [['f']], action: 'Switch app (type its name, or pick it)' },
+      { keys: [['Shift', 'T']], action: 'Next theme (light, dark, system)' },
       { keys: [['p']], action: 'Switch profile (database)' },
       {
         keys: [['@']],

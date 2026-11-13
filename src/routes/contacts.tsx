@@ -179,8 +179,8 @@ function Home() {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-4 px-4 py-8">
-      {/* Below 500px the actions drop under the app switcher. */}
-      <header className="flex items-center justify-between gap-4 max-[500px]:flex-col max-[500px]:items-stretch">
+      {/* On phones the actions drop under the app select, spread across. */}
+      <header className="flex items-center justify-between gap-4 max-sm:flex-col max-sm:items-stretch">
         <AppNav />
         <div className="flex justify-between gap-2">
           <div className="flex gap-2">

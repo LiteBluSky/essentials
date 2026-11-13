@@ -30,6 +30,8 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       { keys: [['l'], ['→']], action: 'Next day' },
       { keys: [['k'], ['↑']], action: 'Same day last week' },
       { keys: [['j'], ['↓']], action: 'Same day next week' },
+      { keys: [['b'], ['Home']], action: 'Beginning of the week' },
+      { keys: [['e'], ['End']], action: 'End of the week' },
       { keys: [['M'], ['PgUp']], action: 'Previous month' },
       { keys: [['m'], ['PgDn']], action: 'Next month' },
       { keys: [['t']], action: 'Today' },
@@ -71,6 +73,7 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
     shortcuts: [
       { keys: [['z']], action: 'Search everything (all apps)' },
       { keys: [['f']], action: 'Switch app (type its name, or pick it)' },
+      { keys: [['Shift', 'T']], action: 'Next theme (light, dark, system)' },
       { keys: [['p']], action: 'Switch profile (database)' },
       { keys: [['Shift', 'H']], action: 'Previous app' },
       { keys: [['Shift', 'L']], action: 'Next app' },

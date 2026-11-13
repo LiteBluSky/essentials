@@ -1,7 +1,8 @@
 // Vim keys for react-day-picker grids (the month and the dialog's range
-// picker): h/j/k/l and m/M are re-sent to the focused day as the keys
-// DayPicker already handles (arrows, PageDown / PageUp), so focus, month
-// changes and selection all stay DayPicker's own.
+// picker): h/j/k/l, m/M and b/e are re-sent to the focused day as the keys
+// DayPicker already handles (arrows, PageDown / PageUp, Home / End = start /
+// end of the week), so focus, month changes and selection all stay
+// DayPicker's own.
 
 export const DAY_KEY_ALIASES: Record<string, string> = {
   h: 'ArrowLeft',
@@ -10,6 +11,8 @@ export const DAY_KEY_ALIASES: Record<string, string> = {
   j: 'ArrowDown',
   m: 'PageDown',
   M: 'PageUp',
+  b: 'Home',
+  e: 'End',
 }
 
 /** Re-sends a vim key to a day button as DayPicker's key. True if it was one. */

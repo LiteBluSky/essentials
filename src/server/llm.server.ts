@@ -178,11 +178,13 @@ async function callOpenAi(
     body: JSON.stringify({
       model: config.model,
       messages: [{ role: 'system', content: system }, ...toOpenAi(turns)],
-      tools: tools.map((tool) => ({ type: 'function', function: tool })),
       // Not 'required': the newest Claude models reject a forced tool call.
       // The prompts ask for one instead. No temperature either: Anthropic's
-      // current API version rejects it.
-      tool_choice: 'auto',
+      // current API version rejects it. (A plain call has no tools.)
+      ...(tools.length > 0 && {
+        tools: tools.map((tool) => ({ type: 'function', function: tool })),
+        tool_choice: 'auto',
+      }),
       // OpenRouter reports the request's cost in `usage.cost`.
       ...(openRouter && { usage: { include: true } }),
     }),
@@ -293,11 +295,14 @@ async function callAnthropic(
     messages: toAnthropic(turns),
     // tool_choice stays auto (forcing a call is rejected by the newest
     // models); the prompts say when to call a tool.
-    tools: tools.map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      input_schema: tool.parameters as Anthropic.Beta.BetaTool['input_schema'],
-    })),
+    ...(tools.length > 0 && {
+      tools: tools.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        input_schema:
+          tool.parameters as Anthropic.Beta.BetaTool['input_schema'],
+      })),
+    }),
     // Look-ups and short answers: little thinking needed.
     ...(TAKES_EFFORT.test(config.model) && {
       output_config: { effort: 'low' as const },

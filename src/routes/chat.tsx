@@ -272,15 +272,18 @@ function ChatPage() {
 
   return (
     <main className="mx-auto flex h-dvh w-full max-w-5xl flex-col gap-4 px-4 py-4 sm:py-8">
-      <header className="flex items-center justify-between gap-4 max-[500px]:flex-col max-[500px]:items-stretch">
+      <header className="flex items-center justify-between gap-4 max-sm:flex-col max-sm:items-stretch">
         <AppNav />
         <div className="flex justify-between gap-2">
           <Button
+            aria-label="New chat"
+            // Just the icon on phones, like the other apps' New buttons.
+            className="max-sm:w-8 max-sm:p-0!"
             onClick={() => openConversation()}
             disabled={!enabled || conversationId === undefined}
           >
             <MessageSquarePlusIcon data-icon="inline-start" />
-            New chat
+            <span className="max-sm:hidden">New chat</span>
             <Kbd className="max-sm:hidden">a</Kbd>
           </Button>
           <ButtonGroup aria-label="Settings">

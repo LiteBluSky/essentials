@@ -44,7 +44,14 @@ export type AssistantFound = {
 /** A change the assistant made to something that existed (or a folder /
  * bookmark it created), for messages and Undo. */
 export type ChangeSummary = {
-  app: 'bookmarks' | 'notes' | 'tasks' | 'contacts' | 'calendar'
+  app:
+    | 'bookmarks'
+    | 'notes'
+    | 'tasks'
+    | 'contacts'
+    | 'calendar'
+    | 'finances'
+    | 'subscriptions'
   target: 'item' | 'folder'
   op: 'create' | 'update' | 'delete'
   id: number
@@ -63,4 +70,6 @@ export type AssistantResult = {
   runId?: string | null
   /** The model's own reply, if any. */
   answer?: string
+  /** The Chat conversation an Ask Jarvis request was saved as. */
+  conversationId?: number | null
 }

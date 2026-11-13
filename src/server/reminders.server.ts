@@ -1,8 +1,9 @@
+import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { and, eq, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm'
 
 import { db, forgetIdle, listProfiles, profileHandle } from '@/db'
 import type { Db } from '@/db'
-import { contacts, taskFolders, tasks } from '@/db/schema'
+import { calendarEvents, contacts, taskFolders, tasks } from '@/db/schema'
 import {
   BIRTHDAY_HOUR,
   ageIn,
@@ -224,6 +225,66 @@ export async function sendBirthdays(
   return sent
 }
 
+/** Calendar strips are reminded the day before they start, from this hour
+ * (the server's local time: set TZ in Docker). */
+export const STRIP_REMIND_HOUR = 9
+
+/** Pushes "tomorrow" for every calendar strip starting tomorrow (server's
+ * local day) once it's past `STRIP_REMIND_HOUR`, once per start day
+ * (`remindedDay`, so moving a strip re-arms it); a missed day is skipped.
+ * Returns how many went out. */
+export async function sendStripReminders(
+  now = new Date(),
+  data: Db = db,
+  label?: string,
+) {
+  if (now.getHours() < STRIP_REMIND_HOUR) return 0
+  const tomorrow = format(addDays(now, 1), 'yyyy-MM-dd')
+  const due = await data
+    .select()
+    .from(calendarEvents)
+    .where(
+      and(
+        eq(calendarEvents.startDay, tomorrow),
+        or(
+          isNull(calendarEvents.remindedDay),
+          ne(calendarEvents.remindedDay, calendarEvents.startDay),
+        ),
+      ),
+    )
+  let sent = 0
+  for (const strip of due) {
+    const days =
+      differenceInCalendarDays(
+        parseISO(strip.endDay),
+        parseISO(strip.startDay),
+      ) + 1
+    try {
+      await push({
+        title: strip.title || 'Calendar',
+        message: [
+          days > 1
+            ? `Tomorrow, until ${format(parseISO(strip.endDay), 'EEE d MMM')} (${days} days)`
+            : 'Tomorrow',
+          label,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+        tags: 'date',
+        path: '/calendar',
+      })
+      await data
+        .update(calendarEvents)
+        .set({ remindedDay: strip.startDay })
+        .where(eq(calendarEvents.id, strip.id))
+      sent++
+    } catch (error) {
+      console.error(`Reminder for strip ${strip.id} failed:`, error)
+    }
+  }
+  return sent
+}
+
 /** `sendDueReminders` on every profile: the local file and each remote
  * database in Settings → Database, in use or not. One that can't be
  * reached is skipped (and tried again next tick). With several, each
@@ -240,6 +301,7 @@ export async function sendAllReminders(now = new Date()) {
       const label = labelled ? profile.name : undefined
       sent += await sendDueReminders(now, data, label)
       sent += await sendBirthdays(now, data, label)
+      sent += await sendStripReminders(now, data, label)
     } catch (error) {
       console.error(`Reminders from "${profile.name}" failed:`, error)
     }

@@ -192,6 +192,8 @@ const APP_ITEM: Record<ChangeSummary['app'], string> = {
   tasks: 'task',
   contacts: 'contact',
   calendar: 'calendar strip',
+  finances: 'money entry',
+  subscriptions: 'subscription',
 }
 
 function ChangedMarker({ change }: { change: ChangeSummary }) {
@@ -229,7 +231,9 @@ function ChangedMarker({ change }: { change: ChangeSummary }) {
           onClick={() =>
             change.app === 'calendar'
               ? void navigate({ to: '/calendar' })
-              : open({ app: change.app, id: change.id, kind: change.target })
+              : change.app === 'finances' || change.app === 'subscriptions'
+                ? void navigate({ to: '/finances' })
+                : open({ app: change.app, id: change.id, kind: change.target })
           }
         >
           Open

@@ -3,7 +3,7 @@
 A personal, local-only set of small apps in one: **Bookmarks** (links),
 **Notes** (markdown), **Tasks** (to-dos) and **Contacts** (people), each organised into folders and subfolders and shown as
 a file tree, plus a **Calendar** (coloured strips over days, and the tasks
-due) and an optional **Chat** (ask an LLM about all of it), with a
+due), **Finances** (money in and out, per category, month by month) and an optional **Chat** (ask an LLM about all of it), with a
 navbar to switch between them. The display name is
 configurable (`VITE_APP_NAME`, default "Essentials", read via `APP_NAME` in
 `src/lib/config.ts`) — never hardcode the product name in UI, titles or
@@ -69,8 +69,8 @@ Each app is self-contained and namespaced; only the shell is shared.
 - **Registry**: `src/lib/apps.ts` (`APPS`: path, name, lucide icon) drives
   the navbar (`src/components/app-nav.tsx`) and app switching
   (`src/hooks/use-app-switch.ts`). `/` redirects to the first app.
-- **Per app** (`<app>` = `bookmarks`, `notes`, `tasks`, `contacts`; Chat and
-  Calendar are the exceptions: no folders or tree, see their sections): route `src/routes/<app>.tsx`,
+- **Per app** (`<app>` = `bookmarks`, `notes`, `tasks`, `contacts`; Chat,
+  Calendar and Finances are the exceptions: no folders or tree, see their sections): route `src/routes/<app>.tsx`,
   UI in `src/components/<app>/`, hooks in `src/hooks/<app>/`, pure helpers
   and Zod schemas in `src/lib/<app>/`, server code in
   `src/server/<app>.functions.ts` + `<app>.server.ts`, its own tables, its
@@ -151,9 +151,28 @@ One SQLite file holds every app. Bookmark tables keep their original names.
 - `calendar_events` — the Calendar's strips: `title` (`''` = none),
   `color` (a key of `CALENDAR_COLORS` in `src/lib/calendar/colors.ts`),
   `startDay` / `endDay` (inclusive local days as `YYYY-MM-DD` text: no
-  times, no timezone), timestamps. No folders, no reminders, no bin.
+  times, no timezone), `remindedDay` (the `startDay` its day-before
+  reminder was pushed for; moving the strip re-arms it), timestamps. No
+  folders, no bin.
+- `finance_entries` — money in / out (`kind` `expense` | `income`),
+  `cents` (whole cents, > 0), `currency` (`CURRENCIES`, default `EUR`; never
+  converted), `title` (`''` = none), `category` (a key of `CATEGORIES` in
+  `src/lib/finances/categories.ts`; `uncategorized` by default), `day`
+  (local `YYYY-MM-DD`), `subscriptionId` (set on a subscription's charge),
+  timestamps. Only this month's (and later) rows exist: see `finance_months`.
+- `finance_months` — a past month's report: `month` (`YYYY-MM`), `kind`,
+  `category`, `currency` (the primary key together), `cents`, `count`.
+  `loadFinances` folds every entry before the current month (server's
+  local day) into it and deletes those entries.
+- `finance_subscriptions` — `name`, `cents`, `currency`, `category`
+  (default `subscriptions`), `every` (`month` | `year`), `startDay` (first
+  charge; then the same day each month / year, `chargeDay`), `chargedDay`
+  (the last charge made), timestamps. `loadFinances` inserts each charge
+  that fell due as an entry. Deleting one keeps its charges.
+- `finance_budgets` — optional monthly budget per expense `category`
+  (primary key), `cents` in euros.
 - `assistant_log` — one row per "Tell me…" request or chat turn (`source`
-  `tell` | `chat`): `text`, `provider`,
+  `tell` | `chat`; `finances` for Finances' own AI calls): `text`, `provider`,
   `model`, `ok`, `result` (one line per item done, or the error),
   `inputTokens` / `outputTokens`, `costUsd` (null when unknown),
   `durationMs`, `createdAt`. Kept until cleared from the history dialog.
@@ -245,8 +264,10 @@ the left — an icon per app, its name in a tooltip, the current one
 highlighted — then New
 folder, New <item>, and a `ButtonGroup` of global search, the ⋮
 import/export menu, shortcuts help, theme menu and the profile switcher
-(user icon, `ProfileButton`); below 500px the buttons wrap under the
-navbar, and below `sm` New folder / New <item> are icon-only
+(user icon, `ProfileButton`); on phones (below `sm`, every app) the
+header stacks: the app select spans the full width, then the buttons
+spread edge to edge (`justify-between`; Calendar adds its month row the
+same way, and Tasks' view toggles spread too), and New folder / New <item> (and Chat's New chat) are icon-only
 (`ICON_ON_PHONES`, label in `aria-label`)), the app's quick list, search box, then the tree. Folders are
 `Collapsible` rows (expanded state persisted in localStorage per app), each
 row has a hover `DropdownMenu`. Create/edit happens in a `Dialog`, delete
@@ -534,7 +555,7 @@ row with a run.
 ### Assistant ("Tell me…", every app)
 
 The assistant is called **Jarvis** (`ASSISTANT_NAME` in
-`src/lib/assistant.ts`): the field's placeholder is "Ask Jarvis…", Chat's
+`src/lib/assistant.ts`): the field's placeholder is "Ask Jarvis anything… (@ links to an item)", Chat's
 box, empty state, history and Settings use the name, and `APP_PROMPT`
 tells the model it is Jarvis and that "Jarvis, …" is the user addressing
 it (never part of what to create or search). Use the constant, never the
@@ -547,6 +568,23 @@ Ask Jarvis and Chat, each text once, newest first) and ↓ on the last line
 forward, then back to the draft, like a terminal. Loaded on the first ↑
 (`fetchQuery`, refetched only after a request invalidated it); a send
 resets it. While the `@` list is open it keeps ↑/↓.
+
+The field is laid out exactly like Chat's box (`ChatComposer`) at every
+width: the textarea (same placeholder), then a bottom row with the `s`
+hint and the mic, and the filled ↑ send button on the right. Keep the two
+alike.
+
+**On phones** (below `sm`) the field, like Finances' quick entry, is
+floating at the bottom of the screen in a `MobileDock`
+(`components/mobile-dock.tsx`), like Chat's box: no border or solid band,
+the page fades out under it (a gradient; taps pass through the faded
+part) and the field itself is opaque; `z-40`, so over the page but under
+dialogs, menus and popovers (`z-50`). The dock puts its
+height in `--dock-height` on `<html>`, which `styles.css` uses (phones
+only) as the `<main>`'s bottom padding (`main:has([data-mobile-dock])`),
+inside its `min-h-dvh`: a short page fits the screen with no scroll, a
+long one scrolls clear of it, and
+to lift the toasts above it.
 
 `AssistantBox` (`src/components/assistant-box.tsx`) is a field right under
 each app's header (not focused on load: `s` or a tap goes in): type or
@@ -615,6 +653,13 @@ if the browser blocks that tab, since it's no longer right after the
 click, a toast offers "Open link"), any others are toasts with **Open**,
 and no match is a "Couldn't find" toast.
 
+**Saved as chats**: every Ask Jarvis request that reached the model is
+also saved as a new Chat conversation (`saveTurn` in `chat.server.ts`,
+shared with `sendMessage`; failures as an error answer), so it can be read
+again and carried on in Chat; `AssistantResult.conversationId` gives the
+answer toast an "Open in Chat" button. They expire like any chat
+(`CHAT_TTL_DAYS`); the history keeps the log.
+
 **History** (`AssistantHistoryDialog`, every app's ⋮ menu → "Assistant
 history…"): every request, failed ones too, is logged in `assistant_log`
 by `askAssistant` (`assistant-log.server.ts`; logging never breaks the
@@ -655,7 +700,7 @@ contacts, with Undo.
 
 ### Chat (`/chat`)
 
-The fifth navbar app (`APPS`), for asking about anything stored. One
+The last navbar app (`APPS`), for asking about anything stored. One
 conversation per `?c=<id>` (none = new); the list on the left (a dropdown
 below `md`), latest first, with a hover delete (confirm, `d` `d`). The
 thread uses shadcn's `message`, `bubble`, `marker` and `message-scroller`
@@ -684,13 +729,18 @@ box (Enter sends, Shift+Enter new line, Esc leaves it), `z` global search,
 ### Calendar (`/calendar`)
 
 A month view of coloured **strips**, each over one day or a range of days
-— no times or durations, no reminders: just "something's on then". Fills
+— no times or durations: just "something's on then". Fills
 the whole page (not centred like the other apps). The grid is shadcn's
 `Calendar` (react-day-picker v10) stretched out (`month-grid.tsx`): weeks
 start on Monday, always 6 weeks (`fixedWeeks`), the caption hidden (the
 month and its prev / Today / next buttons are in the header). Custom
 `Day` cells hold the strips and `DayButton` is the day number (DayPicker
-keeps its keyboard focus handling). **Lanes** (`layoutWeeks` in
+keeps its keyboard focus handling; its focus ring is hidden and drawn as
+an outline on the whole day cell instead). Today is the same square cell
+(no rounding) with its colours inverted (`bg-primary`, the number in
+`primary-foreground`), not a filled circle. Weekends are a touch greyer (`bg-muted`),
+their weekday headings darker, and the line between Friday and Saturday
+is a little bolder (2px). **Lanes** (`layoutWeeks` in
 `src/lib/calendar/layout.ts`, pure): per week, strips sorted by start
 (longer first, events before tasks) get the first free lane; every day of
 the week gets as many lanes as that week needs, so a strip is drawn once
@@ -709,6 +759,12 @@ off on that side.
   `calendar:color` in localStorage) and Days (a range `Calendar`). Only the
   days are required. Clicking a strip edits it (change any of it,
   Delete confirms, `d` `d`).
+- **Reminders**: with ntfy set up, every strip is pushed the day before
+  it starts ("Tomorrow", or "Tomorrow, until Sun 16 Nov (3 days)"; a tap
+  opens `/calendar`), from `STRIP_REMIND_HOUR` (09:00) in the server's
+  local time (Docker: `TZ` in `compose.yaml`), once per start day
+  (`sendStripReminders` in `reminders.server.ts`, run by the same
+  `/api/reminders` tick). A missed day is skipped.
 - **Tasks** with a due date show as neutral outlined strips on their due
   day (open: ○, done: ✓ struck through), only after hydration (the
   browser's day); clicking one opens it in Tasks (`requestOpen` +
@@ -736,10 +792,64 @@ off on that side.
   `AssistantBox` (the grid gets the room). Its ⋮ menu
   (`calendar-menu.tsx`) has Settings, Assistant history and Install.
 
+### Finances (`/finances`)
+
+Money in and out, kept as small as the rest: **type the amount and what
+it was, Enter** (`QuickEntry`, `components/finances/quick-entry.tsx`).
+`parseEntry` (`src/lib/finances/money.ts`, pure) reads "12.50 coffee",
+"coffee 12,50", "+1800 payroll" (`+` = income, `-` = expense), "$20 book" /
+"20 usd book" (a symbol or code sets the currency). Under the field,
+everything optional, reset after each entry: the −/+ toggle (expense /
+income), currency (`EUR` by default), category (Uncategorized), day
+(today), and **Auto-categorize** (✨, only with an API key; remembered in
+`finances:auto`): an entry saved without a category but with a
+description is then sent to the AI for one (`categorizeFinanceEntries`,
+one plain call, after saving, so saving never waits). The ⋮ menu's
+"Categorize N with Jarvis" does the month's uncategorized entries in one
+call. **The AI is never called otherwise.**
+
+- **Month view**: In / Out / Left, then a shadcn chart donut
+  (`month-report.tsx`, recharts `Pie`, colours from `CATEGORIES`) of
+  spending per category with the list next to it (% and, for euros, the
+  budget: red when over), then income per category; one block per
+  currency (euros first). This month (and later) also lists its entries
+  (`entries-list.tsx`; a click edits: `entry-dialog.tsx`, delete confirms
+  with `d` `d`). Past months show only totals (`monthLines` /
+  `totalsByCurrency` in `src/lib/finances/summary.ts`: entries for current
+  months, `finance_months` for past ones).
+- **Month end**: whenever the data loads (`loadFinances`, server's local
+  day, like the strip reminders), due subscription charges are inserted,
+  then every entry before this month is folded into `finance_months` and
+  deleted. Adding an entry dated in a past month folds it in on the next
+  load.
+- **Subscriptions** (`u`, ⋮ menu; `subscriptions-dialog.tsx`): list with
+  the next charge and the monthly total, click to edit, "Stop it" deletes;
+  add form below (name, amount, currency, every month / year, next charge,
+  category).
+- **Budgets** (`b`, ⋮ menu; `budgets-dialog.tsx`): optional euro amount
+  per expense category, saved on blur / Enter, empty = none.
+- **Advice** (`r` or the header button, with an API key; `advice-dialog.tsx`
+  → `getAdvice`): one plain call with the month asked about and the five
+  before it, subscriptions, budgets and this month's entries, plus an
+  optional question ("can I afford…"). The prompt assumes the user knows
+  nothing about finance. The answer is shown as markdown and saved as a
+  Chat conversation ("Carry on in Chat"); logged as `source: 'finances'`.
+- **Jarvis** (`agent-finances.server.ts`, `FINANCE_TOOLS` in `ALL_TOOLS`):
+  `add_money_entry` (picks a category itself), `list_finances`,
+  `update_money_entry`, `delete_money_entry`, `add_subscription`,
+  `delete_subscription`; recorded as `finances` / `subscriptions` items in
+  `changes.server.ts` (Undo). So "Jarvis, spent 12 on lunch" works from any
+  app's field.
+- Not in the global search or `@` references; no `AssistantBox` (the
+  quick entry is the field). `callModel` takes an empty tool list for
+  plain calls.
+
 **Navbar** (`components/app-nav.tsx`, every app): one icon button per
 app (`APPS`), the current one highlighted (`secondary`, `aria-current`),
-its name in a shadcn `Tooltip` on hover and as the `aria-label`. No labels
-and no scrolling, at any width.
+its name in a shadcn `Tooltip` on hover and as the `aria-label`; no
+labels, no scrolling. On phones (below `sm`) it's a shadcn `Select`
+instead: the trigger shows the current app's icon and name, the list every
+app's icon and name; picking one navigates there.
 
 ### Settings (every app's ⋮ menu)
 
@@ -823,16 +933,21 @@ names its database).
   motions without favourites (`F`, `1`–`9`): `o`/Enter shows the contact,
   `a` new contact, `r` edit, `d` delete, `x`/`p` cut and paste
   (`src/hooks/contacts/use-cut-contact.ts`).
+- Finances (`src/routes/finances.tsx`; help in
+  `components/finances/shortcuts-dialog.tsx`): `a` focuses the quick
+  entry (Enter saves, Esc leaves), `m`/`M` next / previous month, `t` this
+  month, `u` subscriptions, `b` budgets, `r` advice, `z`, `f`, `?`,
+  `Shift+H/L`.
 - Calendar (`src/routes/calendar.tsx`; help in
   `components/calendar/shortcuts-dialog.tsx`): `h`/`l` day, `k`/`j` week
-  (arrows too), `m`/`M` (PageDown/PageUp) month — sent to DayPicker as
-  the keys it already handles — `t` today, Enter/Space start / finish a
+  (arrows too), `m`/`M` (PageDown/PageUp) month, `b`/`e` (Home/End)
+  beginning / end of the week — sent to DayPicker as the keys it already handles — `t` today, Enter/Space start / finish a
   range, `a` new strip, `i` the strip list, `o` that day's tasks (navigates to
   `/tasks?day=YYYY-MM-DD`; Tasks' `validateSearch` takes it into its
   day filter and drops it from the URL, so the chip / `q` clear it), Esc
   cancels the range, `z`, `f`, `?`, `Shift+H/L`. In the strip dialog,
   `h`/`l` (`k`/`j`) step through the colours (8 a row) and pick them, and
-  the range picker takes `h`/`j`/`k`/`l` and `m`/`M` too (`sendDayKey` in
+  the range picker takes `h`/`j`/`k`/`l`, `m`/`M` and `b`/`e` too (`sendDayKey` in
   `components/calendar/day-keys.ts`, shared with the month grid);
   Ctrl+Enter saves from anywhere in it (caught in capture on the form).
 - Delete confirmations (every app): `d` presses Delete, so `d` `d`
@@ -848,7 +963,7 @@ names its database).
   mounted once in `__root.tsx` with its own listener; off while typing or
   while any dialog / menu / listbox is open): the same Dialog + Command as
   the global search, listing `APPS` with the next app highlighted; type to
-  filter, ↑/↓ (Ctrl+J/K) and Enter, or press the app's number (1–6).
+  filter, ↑/↓ (Ctrl+J/K) and Enter, or press the app's number (1–7).
   That's why Bookmarks' favourite key is `F`.
 - `p` opens the **profile switcher** on every app
   (`components/profile-switcher.tsx`, mounted once in `__root.tsx` like the
@@ -859,6 +974,9 @@ names its database).
   editing and removing stay in Settings. In Bookmarks / Notes / Tasks /
   Contacts a tree's `p` pastes first when something is cut (`paste`
   returns false when nothing is, leaving the key to the switcher).
+- `Shift+T` cycles the theme (Light → Dark → System, with a toast) on
+  every app: a listener in `ThemeToggle` (each header has one; off while
+  typing or while a dialog / menu is open), `nextTheme` in `lib/theme.ts`.
 - `@` in a free-text field opens the reference suggestions (see
   References); listed in every app's shortcuts help.
 - `s` focuses the "Tell me…" field (when shown); `Esc` in it blurs it so the

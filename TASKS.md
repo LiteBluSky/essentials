@@ -246,6 +246,8 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       (`CHAT_TTL_DAYS`, purged when the conversation list loads)
 - [x] Dictation button (browser Web Speech API) in Ask Jarvis and the chat
       box; hidden where unsupported
+- [x] Every Ask Jarvis request is saved as a Chat conversation ("Open in
+      Chat" on the answer toast)
 - [ ] Verify on the phone: dictation into the field, ntfy reminder arrives
 - [x] Tasks: drop the Upcoming and Today lists; "Up next" shows one day's
       open tasks (today + anything left over, else the next day with any)
@@ -292,6 +294,10 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] `i`: list of every strip (vim keys: go to, edit, delete, filter)
 - [x] Jarvis can list, create, change and delete strips (with Undo)
 - [x] Ctrl+Enter saves every form from any field
+- [x] Strips are reminded the day before (ntfy, 09:00 server time,
+      `remindedDay`, migration 0015; `TZ` in compose)
+- [x] Today: square cell with inverted colours; the focus ring covers the
+      whole day instead of the number
 - [ ] Verify in a real browser (drag, strips across weeks, phone width)
 - [ ] Optional: strips in the global search and the assistant's tools
 
@@ -329,6 +335,24 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 
 - [x] Footer on every app but Calendar: the database in use (Local / the
       remote's name) on the left, the running version on the right
+
+## 23. Finances app
+
+- [x] `finance_entries` / `finance_months` / `finance_subscriptions` /
+      `finance_budgets` (migration 0015)
+- [x] `/finances`: quick entry ("12.50 coffee", "+1800 payroll"), optional
+      kind / currency / category / day, month view with a donut per category
+- [x] Past months folded into per-category totals (entries deleted)
+- [x] Subscriptions charged automatically; optional budgets
+- [x] AI only on request: auto-categorize toggle, "Categorize N", Advice
+      (saved as a chat)
+- [x] Jarvis can add, list, change and delete entries and subscriptions
+      (with Undo)
+- [x] Phones: the quick entry and Ask Jarvis are pinned to the bottom
+      (`MobileDock`, under dialogs), with the mic on the left and bigger
+      buttons; the quick entry can be dictated too
+- [ ] Verify in a real browser (quick entry on the phone, chart, dialogs)
+- [ ] Optional: entries in the global search; CSV export of the reports
 
 ## History of the notes app (before the merge)
 

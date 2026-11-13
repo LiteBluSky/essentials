@@ -5,6 +5,7 @@ import { chatConversations, chatMessages } from '@/db/schema'
 import { chatCutoff } from '@/lib/chat'
 import type { ChatInput, ChatTurnResult } from '@/lib/chat'
 import { runAgent } from './agent.server'
+import type { AgentRun } from './agent.server'
 import { APP_PROMPT } from './prompts.server'
 import { describe } from './assistant-actions.server'
 import { logRequest } from './assistant-log.server'
@@ -94,6 +95,51 @@ function changesLine(changed: ChatTurnResult['result']['changed']) {
 }
 
 /**
+ * Saves a turn: the user's message and the run's answer (or its error) with
+ * what it created / found / changed and its run id, starting a conversation
+ * when `conversationId` is null. Also used by Ask Jarvis, so every request
+ * can be seen (and carried on) in Chat.
+ */
+export async function saveTurn(
+  conversationId: number | null,
+  text: string,
+  run: AgentRun,
+) {
+  if (conversationId === null) {
+    const [row] = await db
+      .insert(chatConversations)
+      .values({ title: titleFrom(text) })
+      .returning({ id: chatConversations.id })
+    conversationId = row.id
+  }
+  await db
+    .insert(chatMessages)
+    .values({ conversationId, role: 'user', content: text })
+
+  const { result, error } = run
+  const answer = run.answer || describe(result) || 'Done.'
+  const runId = result.runId ?? null
+  const hasActions =
+    result.created.length || result.found.length || result.changed.length
+  const [message] = await db
+    .insert(chatMessages)
+    .values({
+      conversationId,
+      role: 'assistant',
+      content: error ?? answer,
+      actions: hasActions ? JSON.stringify(result) : null,
+      error: error !== null,
+      runId,
+    })
+    .returning()
+  await db
+    .update(chatConversations)
+    .set({ updatedAt: new Date() })
+    .where(eq(chatConversations.id, conversationId))
+  return { message }
+}
+
+/**
  * Sends a message: saves it (starting a conversation if needed), runs the
  * tool loop and saves the answer (or the error) with what was created /
  * found / changed and the run id for Undo. Every turn is logged with its
@@ -135,38 +181,12 @@ export async function sendMessage(input: ChatInput): Promise<ChatTurnResult> {
     timeZone: input.timeZone,
   })
 
-  if (conversationId === null) {
-    const [row] = await db
-      .insert(chatConversations)
-      .values({ title: titleFrom(input.text) })
-      .returning({ id: chatConversations.id })
-    conversationId = row.id
-  }
-  await db
-    .insert(chatMessages)
-    .values({ conversationId, role: 'user', content: input.text })
-
+  const { message } = await saveTurn(conversationId, input.text, run)
+  conversationId = message.conversationId
   const { result, error } = run
   const done = describe(result)
   const answer = run.answer || done || 'Done.'
   const runId = result.runId ?? null
-  const hasActions =
-    result.created.length || result.found.length || result.changed.length
-  const [message] = await db
-    .insert(chatMessages)
-    .values({
-      conversationId,
-      role: 'assistant',
-      content: error ?? answer,
-      actions: hasActions ? JSON.stringify(result) : null,
-      error: error !== null,
-      runId,
-    })
-    .returning()
-  await db
-    .update(chatConversations)
-    .set({ updatedAt: new Date() })
-    .where(eq(chatConversations.id, conversationId))
 
   const model = run.usage ?? (await currentModel())
   await logRequest({

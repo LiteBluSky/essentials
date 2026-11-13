@@ -67,9 +67,13 @@ export function MonthGrid({
           month_caption: 'sr-only',
           month_grid: 'h-full w-full table-fixed border-collapse',
           weekdays: '',
-          weekday: 'pb-1 text-xs font-normal text-muted-foreground select-none',
+          // Sat and Sun (weeks start on Monday) stand out a little.
+          weekday:
+            'pb-1 text-xs font-normal text-muted-foreground select-none nth-[n+6]:font-medium nth-[n+6]:text-foreground',
           week: '',
           day: '',
+          // Today is drawn by DayCell: a square cell, colours inverted.
+          today: '',
         }}
         components={{ Day: DayCell, DayButton: DayNumber }}
       />
@@ -92,11 +96,22 @@ function DayCell({ day, modifiers, className, children, ...props }: DayProps) {
         // Grid lines as inset shadows, so cells stay exactly equal widths
         // and a strip spanning n days is n × 100% wide.
         'h-px p-0 align-top shadow-[inset_-1px_-1px_0_var(--color-border)] select-none first:shadow-[inset_1px_0_0_var(--color-border),inset_-1px_-1px_0_var(--color-border)]',
+        // Friday's right edge, between the weekdays and the weekend, a
+        // little bolder.
+        day.date.getDay() === 5 &&
+          'shadow-[inset_-2px_-1px_0_var(--color-border)]',
         // Weekends a touch greyer (muted is darker than the page in light
         // mode, lighter in dark); the other months' days greyer still.
         weekend && (modifiers.outside ? 'bg-muted/80' : 'bg-muted/50'),
         !weekend && modifiers.outside && 'bg-muted/30',
         selected && 'bg-primary/15',
+        // Keyboard focus is on the day number, but shown on the whole day.
+        'outline-ring -outline-offset-2 has-[[data-day-number]:focus-visible]:outline-2',
+        // Today: the same square cell, colours inverted.
+        modifiers.today &&
+          (selected
+            ? 'bg-primary/80 text-primary-foreground outline-primary-foreground'
+            : 'bg-primary text-primary-foreground outline-primary-foreground'),
       )}
       onPointerDown={(e) => onDayPointerDown(iso, e)}
     >
@@ -123,12 +138,16 @@ function DayNumber({ day, modifiers, className, ...props }: DayButtonProps) {
   return (
     <Button
       ref={ref}
-      variant={modifiers.today ? 'default' : 'ghost'}
+      data-day-number
+      variant="ghost"
       size="icon-xs"
       className={cn(
         className,
-        'rounded-full font-normal tabular-nums',
+        // Its focus ring is drawn on the whole day (DayCell).
+        'rounded-full font-normal tabular-nums focus-visible:border-transparent focus-visible:ring-0',
         modifiers.outside && !modifiers.today && 'text-muted-foreground',
+        modifiers.today &&
+          'text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground aria-expanded:bg-primary-foreground/15 aria-expanded:text-primary-foreground dark:hover:bg-primary-foreground/15',
       )}
       {...props}
     />

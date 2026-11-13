@@ -19,7 +19,8 @@ services:
       NTFY_URL: ${NTFY_URL:-}
       NTFY_TOKEN: ${NTFY_TOKEN:-}
       PUBLIC_URL: ${PUBLIC_URL:-}
-      # Birthday notifications go out at 9:00 in this timezone.
+      # Your timezone (e.g. Europe/Madrid): birthday notifications go out at
+      # 9:00 and calendar strips are reminded the day before at 9:00.
       TZ: ${TZ:-UTC}
     ports:
       - '8008:8008'

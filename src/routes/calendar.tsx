@@ -192,7 +192,8 @@ function CalendarPage() {
 
   // Keys (not while typing or with a dialog open; listed in
   // calendar/shortcuts-dialog.tsx). DayPicker moves between days with the
-  // arrows / PageUp / PageDown; h/j/k/l and m/M are sent as those.
+  // arrows / PageUp / PageDown / Home / End; h/j/k/l, m/M and b/e are
+  // sent as those.
   const switchApp = useAppSwitch()
   useEffect(() => {
     if (dialogOpen) return
@@ -283,9 +284,9 @@ function CalendarPage() {
 
   return (
     <main className="flex h-dvh w-full flex-col gap-3 p-3 sm:p-4">
-      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 max-sm:flex-col max-sm:items-stretch">
         <AppNav />
-        <div className="flex items-center gap-3 max-[500px]:order-last max-[500px]:w-full">
+        <div className="flex items-center gap-3 max-sm:order-last max-sm:justify-between">
           <ButtonGroup aria-label="Month">
             <Button
               variant="outline"
@@ -316,7 +317,7 @@ function CalendarPage() {
             {hydrated ? format(month, 'MMMM yyyy') : ''}
           </h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex justify-between gap-2">
           <Button
             onClick={() => {
               const today = isoDay(new Date())
