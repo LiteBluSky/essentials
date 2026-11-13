@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -76,6 +77,71 @@ export function setActive(next: Db, info: ActiveDatabase) {
   current = next
   active = info
   if (previous !== localDb && previous !== next) previous.$client.close()
+  // Its idle connection (if any) isn't needed while it's in use.
+  if (info.id !== null) closeIdle(info.id)
+}
+
+/** A profile: the local file (`id` null) or a remote database. */
+export type Profile = { id: number | null; name: string; active: boolean }
+
+/** Every profile, Local first, the one in use flagged. */
+export async function listProfiles(): Promise<Array<Profile>> {
+  const remotes = await localDb
+    .select({ id: schema.databases.id, name: schema.databases.name })
+    .from(schema.databases)
+    .orderBy(schema.databases.createdAt)
+  return [
+    { id: null, name: 'Local', active: active.id === null },
+    ...remotes.map((r) => ({ ...r, active: r.id === active.id })),
+  ]
+}
+
+/** Connections to the remote databases not in use (reminders, the
+ * assistant looking in another profile), kept between requests; reopened
+ * when the URL or token changes. */
+const idle = new Map<number, { url: string; authToken: string; data: Db }>()
+
+function closeIdle(id: number) {
+  idle.get(id)?.data.$client.close()
+  idle.delete(id)
+}
+
+/** A handle on a profile's data whether it's in use or not: the local
+ * file, the connection in use, or an idle one (opened and migrated the
+ * first time). Throws if the database is gone or unreachable. */
+export async function profileHandle(id: number | null): Promise<Db> {
+  if (id === null) return localDb
+  if (id === active.id) return current
+  const source = await localDb
+    .select()
+    .from(schema.databases)
+    .where(eq(schema.databases.id, id))
+    .get()
+  if (!source) {
+    closeIdle(id)
+    throw new Error('That database was removed')
+  }
+  const kept = idle.get(id)
+  if (kept && kept.url === source.url && kept.authToken === source.authToken) {
+    return kept.data
+  }
+  closeIdle(id)
+  const data = await connectRemote(source.url, source.authToken)
+  idle.set(id, { url: source.url, authToken: source.authToken, data })
+  return data
+}
+
+/** Closes idle connections to databases no longer in the list. */
+export function forgetIdle(keep: Array<number>) {
+  for (const id of idle.keys()) if (!keep.includes(id)) closeIdle(id)
+}
+
+/** Within `fn` (and everything it awaits), `db` is `handle` instead of the
+ * database in use: lets the assistant work in another profile through the
+ * usual server code. */
+const scope = new AsyncLocalStorage<Db>()
+export function withDatabase<T>(handle: Db, fn: () => Promise<T>) {
+  return scope.run(handle, fn)
 }
 
 // Start on the database picked in Settings, if it's reachable.
@@ -113,14 +179,16 @@ if (saved) {
 
 /**
  * The data: every app's tables, in the database in use (the local file, or
- * a remote one picked in Settings). A stand-in that forwards to it, so a
- * switch takes effect everywhere without re-importing.
+ * a remote one picked in Settings), or the one `withDatabase` scoped. A
+ * stand-in that forwards to it, so a switch takes effect everywhere without
+ * re-importing.
  */
 export const db = new Proxy({} as Db, {
   get(_, prop) {
-    const value = Reflect.get(current, prop, current) as unknown
+    const target = scope.getStore() ?? current
+    const value = Reflect.get(target, prop, target) as unknown
     return typeof value === 'function'
-      ? (value as (...args: Array<unknown>) => unknown).bind(current)
+      ? (value as (...args: Array<unknown>) => unknown).bind(target)
       : value
   },
 })

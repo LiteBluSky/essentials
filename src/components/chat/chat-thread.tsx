@@ -220,8 +220,9 @@ function ChangedMarker({ change }: { change: ChangeSummary }) {
       <MarkerContent>
         {verb} {what} “{change.label}”
         {change.detail ? ` · ${change.detail}` : ''}
+        {change.database ? ` · in ${change.database}` : ''}
       </MarkerContent>
-      {change.op !== 'delete' && (
+      {change.op !== 'delete' && !change.database && (
         <Button
           size="xs"
           variant="outline"
@@ -261,15 +262,22 @@ function CreatedMarker({ item }: { item: AssistantItem }) {
           ? ` · due ${format(item.dueAt, 'EEE d MMM HH:mm')}`
           : ''}
         {item.folder ? ` · in ${item.folder}` : ''}
+        {item.database ? ` · ${item.database}` : ''}
       </MarkerContent>
-      <Button size="xs" variant="outline" onClick={() => open(item)}>
-        Open
-      </Button>
+      {!item.database && (
+        <Button size="xs" variant="outline" onClick={() => open(item)}>
+          Open
+        </Button>
+      )}
     </Marker>
   )
 }
 
-function FoundMarker({ found: { query, match } }: { found: AssistantFound }) {
+function FoundMarker({
+  found: { query, match, database },
+}: {
+  found: AssistantFound
+}) {
   const open = useOpen()
   if (!match) {
     return (
@@ -289,8 +297,9 @@ function FoundMarker({ found: { query, match } }: { found: AssistantFound }) {
       <MarkerContent>
         {match.label}
         {match.path ? ` · ${match.path}` : ''}
+        {database ? ` · in ${database}` : ''}
       </MarkerContent>
-      {match.url ? (
+      {database && !match.url ? null : match.url ? (
         <Button
           size="xs"
           variant="outline"

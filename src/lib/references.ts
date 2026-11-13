@@ -64,6 +64,16 @@ export function plainReferences(text: string) {
   )
 }
 
+/** The text with each reference's id dropped (`@note(Name)`), so it's
+ * looked up by name: for text taken to another profile, where the ids mean
+ * other items. */
+export function referencesByName(text: string) {
+  return text.replace(
+    REFERENCE,
+    (_all, type: string, name: string) => `@${type}(${name.trim()})`,
+  )
+}
+
 /** What the autocomplete inserts for an item. */
 export function formatReference(type: ReferenceType, name: string, id: number) {
   const clean = name.replace(/[()]/g, '').replace(/\s+/g, ' ').trim()

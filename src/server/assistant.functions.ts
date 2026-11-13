@@ -9,7 +9,7 @@ import type { AgentRun } from './agent.server'
 import { tellPrompt } from './assistant.server'
 import { describe } from './assistant-actions.server'
 import { clearHistory, loadHistory, logRequest } from './assistant-log.server'
-import { undoRun } from './changes.server'
+import { undoRunEverywhere } from './changes.server'
 import { assistantConfigured, currentModel } from './llm.server'
 
 // The assistant ("Tell me…"), shared by every app. No auth by design (see
@@ -89,7 +89,7 @@ export const askAssistant = createServerFn({ method: 'POST' })
 /** Undoes everything a run (a Tell me request or chat turn) changed. */
 export const undoAssistantRun = createServerFn({ method: 'POST' })
   .validator(z.object({ runId: z.string().uuid() }))
-  .handler(({ data }) => undoRun(data.runId))
+  .handler(({ data }) => undoRunEverywhere(data.runId))
 
 /** The assistant history: the latest requests and totals over all of them. */
 export const getAssistantHistory = createServerFn({ method: 'GET' }).handler(

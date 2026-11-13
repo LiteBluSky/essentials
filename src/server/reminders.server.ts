@@ -1,8 +1,8 @@
 import { and, eq, isNotNull, isNull, lt, or, sql } from 'drizzle-orm'
 
-import { activeDatabase, connectRemote, db, localDb } from '@/db'
+import { db, forgetIdle, listProfiles, profileHandle } from '@/db'
 import type { Db } from '@/db'
-import { databases, taskFolders, tasks } from '@/db/schema'
+import { taskFolders, tasks } from '@/db/schema'
 import { leadLabel } from '@/lib/tasks/tree'
 import { readSettings } from './settings.server'
 
@@ -150,63 +150,25 @@ export async function sendDueReminders(
   return sent
 }
 
-/** Connections to the remote databases not in use, kept between ticks
- * (reopened when the URL or token changes, closed once it's in use or
- * removed). */
-const idle = new Map<number, { url: string; authToken: string; data: Db }>()
-
-function closeIdle(id: number) {
-  idle.get(id)?.data.$client.close()
-  idle.delete(id)
-}
-
-async function idleConnection(id: number, url: string, authToken: string) {
-  const open = idle.get(id)
-  if (open && open.url === url && open.authToken === authToken) {
-    return open.data
-  }
-  closeIdle(id)
-  // connectRemote also brings an old schema up to date.
-  const data = await connectRemote(url, authToken)
-  idle.set(id, { url, authToken, data })
-  return data
-}
-
-/** `sendDueReminders` on every database: the local file and each remote one
- * in Settings → Database, in use or not. One that can't be reached is
- * skipped (and tried again next tick). With several, each reminder names
- * the database it's from. */
+/** `sendDueReminders` on every profile: the local file and each remote
+ * database in Settings → Database, in use or not. One that can't be
+ * reached is skipped (and tried again next tick). With several, each
+ * reminder names the database it's from. */
 export async function sendAllReminders(now = new Date()) {
   if (!(await ntfyConfig())) return 0
-  const remotes = await localDb.select().from(databases)
-  const activeId = activeDatabase().id
-  const labelled = remotes.length > 0
-  for (const id of idle.keys()) {
-    if (id === activeId || !remotes.some((r) => r.id === id)) closeIdle(id)
-  }
-  const sources: Array<{ name: string; data: () => Promise<Db> }> = [
-    {
-      name: 'Local',
-      data: () => Promise.resolve(activeId === null ? db : localDb),
-    },
-    ...remotes.map((r) => ({
-      name: r.name,
-      data: () =>
-        r.id === activeId
-          ? Promise.resolve(db)
-          : idleConnection(r.id, r.url, r.authToken),
-    })),
-  ]
+  const profiles = await listProfiles()
+  forgetIdle(profiles.flatMap((p) => (p.id === null ? [] : [p.id])))
+  const labelled = profiles.length > 1
   let sent = 0
-  for (const source of sources) {
+  for (const profile of profiles) {
     try {
       sent += await sendDueReminders(
         now,
-        await source.data(),
-        labelled ? source.name : undefined,
+        await profileHandle(profile.id),
+        labelled ? profile.name : undefined,
       )
     } catch (error) {
-      console.error(`Reminders from "${source.name}" failed:`, error)
+      console.error(`Reminders from "${profile.name}" failed:`, error)
     }
   }
   return sent

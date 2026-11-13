@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gt, inArray, isNull, max } from 'drizzle-orm'
 
-import { db } from '@/db'
+import { db, listProfiles, profileHandle, withDatabase } from '@/db'
 import {
   assistantChanges,
   calendarEvents,
@@ -209,6 +209,28 @@ function revive(row: Record<string, unknown>) {
 }
 
 export type UndoResult = { undone: number; skipped: Array<string> }
+
+/** `undoRun` in every profile: a run that worked across profiles recorded
+ * each change in the profile it happened in. One that can't be reached is
+ * reported as skipped. */
+export async function undoRunEverywhere(runId: string): Promise<UndoResult> {
+  const total: UndoResult = { undone: 0, skipped: [] }
+  for (const profile of await listProfiles()) {
+    try {
+      const handle = await profileHandle(profile.id)
+      const one = await withDatabase(handle, () => undoRun(runId))
+      total.undone += one.undone
+      total.skipped.push(...one.skipped)
+    } catch (error) {
+      if (!profile.active) {
+        console.error(`Undo in "${profile.name}" failed:`, error)
+        continue
+      }
+      throw error
+    }
+  }
+  return total
+}
 
 /** Undoes a run's changes (those not undone yet), newest first. */
 export async function undoRun(runId: string): Promise<UndoResult> {

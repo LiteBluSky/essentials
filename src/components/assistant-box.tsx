@@ -136,13 +136,16 @@ function AssistantField({ enabled }: { enabled: boolean }) {
           title: itemTitle(item),
           description: itemDetail(item),
           type: 'success',
-          actionProps: {
-            children: 'Open',
-            onClick: () => {
-              requestOpen({ app: item.app, kind: 'item', id: item.id })
-              void navigate({ to: `/${item.app}` })
+          // Made in another profile: its id means nothing here.
+          ...(!item.database && {
+            actionProps: {
+              children: 'Open',
+              onClick: () => {
+                requestOpen({ app: item.app, kind: 'item', id: item.id })
+                void navigate({ to: `/${item.app}` })
+              },
             },
-          },
+          }),
         })
       }
     },
@@ -162,7 +165,10 @@ function AssistantField({ enabled }: { enabled: boolean }) {
     void navigate({ to: `/${match.app}` })
   }
 
-  const showFound = ({ query, match }: AssistantFound, openNow: boolean) => {
+  const showFound = (
+    { query, match, database }: AssistantFound,
+    openNow: boolean,
+  ) => {
     if (!match) {
       toast.add({
         title: `Couldn't find “${query}”`,
@@ -171,7 +177,18 @@ function AssistantField({ enabled }: { enabled: boolean }) {
       })
       return
     }
-    const where = [APP_LABEL[match.app], match.path].filter(Boolean).join(' › ')
+    const where = [
+      database && `In ${database}`,
+      APP_LABEL[match.app],
+      match.path,
+    ]
+      .filter(Boolean)
+      .join(' › ')
+    if (database && !match.url) {
+      // In another profile: say where, nothing to open here.
+      toast.add({ title: match.label, description: where })
+      return
+    }
     if (match.url) {
       // A link opens in a new tab, unless the browser blocks a tab opened
       // this long after the click: then it's a button in the toast. (Not
@@ -297,7 +314,7 @@ function AssistantField({ enabled }: { enabled: boolean }) {
 function changeLines(changed: Array<ChangeSummary>) {
   const lines = changed.map(
     (c) =>
-      `${c.op === 'delete' ? 'Deleted' : c.op === 'create' ? 'Added' : 'Changed'} ${c.target === 'folder' ? 'folder' : c.app === 'calendar' ? 'calendar strip' : APP_LABEL[c.app].toLowerCase().replace(/s$/, '')} “${c.label}”${c.detail ? ` · ${c.detail}` : ''}`,
+      `${c.op === 'delete' ? 'Deleted' : c.op === 'create' ? 'Added' : 'Changed'} ${c.target === 'folder' ? 'folder' : c.app === 'calendar' ? 'calendar strip' : APP_LABEL[c.app].toLowerCase().replace(/s$/, '')} “${c.label}”${c.detail ? ` · ${c.detail}` : ''}${c.database ? ` · in ${c.database}` : ''}`,
   )
   return lines.length > 5
     ? [...lines.slice(0, 5), `…and ${lines.length - 5} more`].join('\n')
@@ -318,7 +335,7 @@ function itemTitle(item: AssistantItem) {
 }
 
 function itemDetail(item: AssistantItem) {
-  const where = `${item.app === 'tasks' ? 'Tasks' : 'Notes'} › ${item.folder ?? UNSORTED_FOLDER}`
+  const where = `${item.database ? `${item.database} › ` : ''}${item.app === 'tasks' ? 'Tasks' : 'Notes'} › ${item.folder ?? UNSORTED_FOLDER}`
   return item.app === 'tasks' && item.dueAt
     ? `Due ${format(item.dueAt, 'EEE d MMM HH:mm')} · ${where}`
     : where

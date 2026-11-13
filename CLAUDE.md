@@ -509,7 +509,20 @@ the run's id, returned as `result.runId` with `result.changed`
 changes newest first: a create is deleted (a created folder only if still
 empty), an update's row put back (dates revived), a delete re-inserted with
 its original ids and its Bin copies removed; each change is undone once
-(`undoneAt`), and what can't be is reported. `useUndoRun` refreshes every
+(`undoneAt`), and what can't be is reported.
+**Profiles**: with any remote database set up, `runAgent` adds the
+`use_database { database }` tool and a prompt line naming the profiles
+(nothing otherwise, so no extra context). Switching makes the run's next
+tool calls go to that profile: `withDatabase` (`src/db/index.ts`, an
+`AsyncLocalStorage` the `db` Proxy reads first) runs the usual tools
+there over `profileHandle` (idle connections kept, shared with
+reminders). That's how it looks elsewhere when something isn't found here
+and copies / moves items between profiles (read, switch, create; delete
+the original to move). Once a run has crossed profiles, references in
+what it creates or updates lose their ids (`referencesByName`). Changes
+are recorded in the profile they happened in; Undo runs in every profile
+(`undoRunEverywhere`). What it did elsewhere carries `database` (created,
+found, changed): shown as "in Work", with no Open. `useUndoRun` refreshes every
 app after. Undo buttons: the Tell me toast for edits, each chat answer that
 changed something ("Undo changes", or "Changes undone"), and each history
 row with a run.

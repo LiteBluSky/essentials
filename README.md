@@ -327,6 +327,12 @@ The **Tell me** field can edit and delete too (its toast offers Undo), and
 ⋮ → Assistant history has an Undo on every request that changed
 something.
 
+With more than one database (Settings → Database), Jarvis knows your
+profiles: if something isn't in the one you're using it looks in the
+others and tells you where it is, and it can copy or move things between
+them (_"copy the dentist task from Work to here"_). Undo covers every
+profile.
+
 Only what you type (and, in Chat, the items it looks up to answer) is sent
 to the provider. ⋮ menu → **Assistant history…** lists every request with its result, tokens and cost
 (reported by OpenRouter, or worked out from Anthropic's prices).
