@@ -119,7 +119,7 @@ export function DatabaseSettings() {
   })
 
   return (
-    <FieldSet>
+    <FieldSet className="min-w-0">
       <FieldLegend>Database</FieldLegend>
       <FieldDescription>
         Where your bookmarks, notes, tasks and everything else are kept: the
