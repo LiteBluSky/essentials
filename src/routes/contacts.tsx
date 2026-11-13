@@ -186,19 +186,23 @@ function Home() {
           <div className="flex gap-2">
             <Button
               variant="outline"
+              aria-label="New folder"
+              className={ICON_ON_PHONES}
               onClick={() => openEditor({ kind: 'folder', parentId: null })}
             >
               <FolderPlusIcon data-icon="inline-start" />
-              Folder
+              <span className="max-sm:hidden">Folder</span>
               <ShortcutHint name="newFolder" />
             </Button>
             <Button
+              aria-label="New contact"
+              className={ICON_ON_PHONES}
               onClick={() =>
                 openEditor({ kind: 'contact', mode: 'edit', folderId: null })
               }
             >
               <PlusIcon data-icon="inline-start" />
-              Contact
+              <span className="max-sm:hidden">Contact</span>
               <Kbd className="max-sm:hidden">a</Kbd>
             </Button>
           </div>
@@ -347,6 +351,9 @@ function Home() {
     </main>
   )
 }
+
+/** Header buttons that show only their icon below `sm` (phones). */
+const ICON_ON_PHONES = 'max-sm:w-8 max-sm:p-0!'
 
 function ShortcutHint({ name }: { name: ShortcutName }) {
   return (

@@ -246,7 +246,8 @@ highlighted — then New
 folder, New <item>, and a `ButtonGroup` of global search, the ⋮
 import/export menu, shortcuts help, theme menu and the profile switcher
 (user icon, `ProfileButton`); below 500px the buttons wrap under the
-navbar), the app's quick list, search box, then the tree. Folders are
+navbar, and below `sm` New folder / New <item> are icon-only
+(`ICON_ON_PHONES`, label in `aria-label`)), the app's quick list, search box, then the tree. Folders are
 `Collapsible` rows (expanded state persisted in localStorage per app), each
 row has a hover `DropdownMenu`. Create/edit happens in a `Dialog`, delete
 confirms in an `AlertDialog`. Theme: Light/Dark/System dropdown
