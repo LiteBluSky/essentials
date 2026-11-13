@@ -569,6 +569,20 @@ forward, then back to the draft, like a terminal. Loaded on the first ↑
 (`fetchQuery`, refetched only after a request invalidated it); a send
 resets it. While the `@` list is open it keeps ↑/↓.
 
+**On desktop** (`xl` and up, `useDesktopAssistant`) Jarvis is a chat
+panel floating on the right instead (`AssistantSidebar`,
+`components/assistant-sidebar.tsx`): rounded, translucent with a blur,
+`z-30`; header with New conversation, Open in Chat and Hide (collapsed: a
+round button in the corner; `s` opens it and focuses the box). It's a real
+Chat conversation (`sendChatMessage`; Chat's `ChatThread` and
+`ChatComposer`, so markers with Open / Undo), carried on across requests
+and pages until New; the id is in `assistant:conversation`, open/closed in
+`assistant:sidebar`. Empty, it says in a line what it can do. While open
+the page re-centres left of it (`body` padding-right in `styles.css`) and
+toasts move left of it. `AssistantBox` renders both the field
+(`xl:hidden`) and the panel (`max-xl:hidden`), so there's no flash on load;
+only the visible one takes `s`.
+
 The field is laid out exactly like Chat's box (`ChatComposer`) at every
 width: the textarea (same placeholder), then a bottom row with the `s`
 hint and the mic, and the filled ↑ send button on the right. Keep the two

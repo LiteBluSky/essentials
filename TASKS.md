@@ -351,6 +351,10 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] Phones: the quick entry and Ask Jarvis are pinned to the bottom
       (`MobileDock`, under dialogs), with the mic on the left and bigger
       buttons; the quick entry can be dictated too
+- [x] Desktop (xl+): Jarvis is a chat panel on the right (one carried-on
+      conversation, New / Open in Chat / Hide)
+- [ ] Verify the Jarvis panel in a real browser (layout at 1280px+, toasts,
+      collapse, `s`)
 - [ ] Verify in a real browser (quick entry on the phone, chart, dialogs)
 - [ ] Optional: entries in the global search; CSV export of the reports
 

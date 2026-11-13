@@ -34,6 +34,19 @@ body {
   }
 }
 
+/* Desktop: Jarvis's chat panel on the right (AssistantSidebar, w-96 + its
+   inset): the page re-centres in the room left of it, and the toasts move
+   left of it. */
+@media (width >= 80rem) {
+  body:has([data-jarvis-sidebar][data-open='true']) {
+    padding-right: 25.5rem;
+  }
+  body:has([data-jarvis-sidebar][data-open='true'])
+    [data-slot='toast-viewport'] {
+    right: 26.5rem;
+  }
+}
+
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: 'Geist Variable', sans-serif;

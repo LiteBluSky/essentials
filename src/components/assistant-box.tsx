@@ -8,6 +8,10 @@ import { format } from 'date-fns'
 import { ArrowUpIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
+import {
+  AssistantSidebar,
+  useDesktopAssistant,
+} from '@/components/assistant-sidebar'
 import { DictateButton } from '@/components/dictate-button'
 import { MobileDock } from '@/components/mobile-dock'
 import { ReferenceText } from '@/components/reference'
@@ -54,8 +58,19 @@ function isTyping(target: EventTarget | null) {
  */
 export function AssistantBox({ enabled }: { enabled: boolean }) {
   const { data: available } = useSuspenseQuery(assistantEnabledQueryOptions)
+  const desktop = useDesktopAssistant()
   if (!available) return null
-  return <AssistantField enabled={enabled} />
+  // From `xl` up Jarvis is the chat panel on the right; below, this field
+  // (floating at the bottom on phones). Both render (no flash on load);
+  // CSS shows one, and only that one takes `s`.
+  return (
+    <>
+      <div className="xl:hidden">
+        <AssistantField enabled={enabled && !desktop} />
+      </div>
+      <AssistantSidebar enabled={enabled} />
+    </>
+  )
 }
 
 function AssistantField({ enabled }: { enabled: boolean }) {
