@@ -346,7 +346,9 @@ the due time (the default), 5 / 15 / 30 minutes, 1 / 2 hours or a day
 before, or not at all. It's pushed then, again when it falls due, and
 every 10 minutes after that until the task is completed (changing the due
 date or the reminder re-arms it); the server checks every minute, so it must be
-running. Works over plain http on the
+running. Tasks in every database are reminded (Local and each one in
+Settings → Database, whether in use or not), and the reminder says which
+database it's from. Works over plain http on the
 LAN: the push goes server → ntfy → phone.
 
 There's no login, so anyone on your network can change these settings,

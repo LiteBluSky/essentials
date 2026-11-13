@@ -1,7 +1,8 @@
 import { and, eq, isNotNull, isNull, lt, or, sql } from 'drizzle-orm'
 
-import { db } from '@/db'
-import { taskFolders, tasks } from '@/db/schema'
+import { activeDatabase, connectRemote, db, localDb } from '@/db'
+import type { Db } from '@/db'
+import { databases, taskFolders, tasks } from '@/db/schema'
 import { leadLabel } from '@/lib/tasks/tree'
 import { readSettings } from './settings.server'
 
@@ -10,7 +11,8 @@ import { readSettings } from './settings.server'
 // `remindMinutes` before it's due (0 = at the due time, null = never), again
 // when it falls due, then every `NAG_MINUTES` while it's overdue and still
 // open (dismissing the notification isn't doing it); `remindedAt` is the
-// last push. Off unless NTFY_TOPIC is
+// last push. Every database is checked (the local file and each one in
+// Settings → Database), not just the one in use. Off unless NTFY_TOPIC is
 // set (Settings…, or the env). Run every minute by the Nitro plugin (reminders.plugin.ts) through
 // the /api/reminders route. Only import from server code.
 
@@ -78,12 +80,16 @@ export async function push({ title, message, tags = 'alarm_clock' }: Push) {
 /** Pushes every open task whose early reminder (dueAt − remindMinutes) has
  * come and wasn't pushed yet, that just fell due, or that's overdue and
  * wasn't pushed for `NAG_MINUTES`; returns how many went out. */
-export async function sendDueReminders(now = new Date()) {
+export async function sendDueReminders(
+  now = new Date(),
+  data: Db = db,
+  label?: string,
+) {
   if (!(await ntfyConfig())) return 0
   let sent = 0
   // Timestamps are stored in seconds.
   const nowS = Math.floor(now.getTime() / 1000)
-  const due = await db
+  const due = await data
     .select({
       id: tasks.id,
       title: tasks.title,
@@ -123,13 +129,15 @@ export async function sendDueReminders(now = new Date()) {
       await push({
         title: task.title,
         message: [
-          [dueIn(task.dueAt, now), task.folder].filter(Boolean).join(' · '),
+          [dueIn(task.dueAt, now), task.folder, label]
+            .filter(Boolean)
+            .join(' · '),
           task.description.trim(),
         ]
           .filter(Boolean)
           .join('\n'),
       })
-      await db
+      await data
         .update(tasks)
         .set({ remindedAt: now })
         .where(eq(tasks.id, task.id))
@@ -137,6 +145,68 @@ export async function sendDueReminders(now = new Date()) {
     } catch (error) {
       // Tried again on the next tick.
       console.error(`Reminder for task ${task.id} failed:`, error)
+    }
+  }
+  return sent
+}
+
+/** Connections to the remote databases not in use, kept between ticks
+ * (reopened when the URL or token changes, closed once it's in use or
+ * removed). */
+const idle = new Map<number, { url: string; authToken: string; data: Db }>()
+
+function closeIdle(id: number) {
+  idle.get(id)?.data.$client.close()
+  idle.delete(id)
+}
+
+async function idleConnection(id: number, url: string, authToken: string) {
+  const open = idle.get(id)
+  if (open && open.url === url && open.authToken === authToken) {
+    return open.data
+  }
+  closeIdle(id)
+  // connectRemote also brings an old schema up to date.
+  const data = await connectRemote(url, authToken)
+  idle.set(id, { url, authToken, data })
+  return data
+}
+
+/** `sendDueReminders` on every database: the local file and each remote one
+ * in Settings → Database, in use or not. One that can't be reached is
+ * skipped (and tried again next tick). With several, each reminder names
+ * the database it's from. */
+export async function sendAllReminders(now = new Date()) {
+  if (!(await ntfyConfig())) return 0
+  const remotes = await localDb.select().from(databases)
+  const activeId = activeDatabase().id
+  const labelled = remotes.length > 0
+  for (const id of idle.keys()) {
+    if (id === activeId || !remotes.some((r) => r.id === id)) closeIdle(id)
+  }
+  const sources: Array<{ name: string; data: () => Promise<Db> }> = [
+    {
+      name: 'Local',
+      data: () => Promise.resolve(activeId === null ? db : localDb),
+    },
+    ...remotes.map((r) => ({
+      name: r.name,
+      data: () =>
+        r.id === activeId
+          ? Promise.resolve(db)
+          : idleConnection(r.id, r.url, r.authToken),
+    })),
+  ]
+  let sent = 0
+  for (const source of sources) {
+    try {
+      sent += await sendDueReminders(
+        now,
+        await source.data(),
+        labelled ? source.name : undefined,
+      )
+    } catch (error) {
+      console.error(`Reminders from "${source.name}" failed:`, error)
     }
   }
   return sent

@@ -250,6 +250,8 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] Tasks: drop the Upcoming and Today lists; "Up next" shows one day's
       open tasks (today + anything left over, else the next day with any)
 - [x] Overdue open tasks are pushed again every 10 minutes until completed
+- [x] Reminders come from every database (Local + each remote), not just
+      the one in use; the reminder names its database
 - [x] The assistant files what it creates: an existing folder that fits
       first, else a new one for a clear topic, Unsorted only as a fallback
 

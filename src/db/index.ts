@@ -9,7 +9,7 @@ import { migrate } from 'drizzle-orm/libsql/migrator'
 
 import * as schema from './schema.ts'
 
-type Db = ReturnType<typeof open>
+export type Db = ReturnType<typeof open>
 
 const migrationsFolder = resolve('drizzle')
 

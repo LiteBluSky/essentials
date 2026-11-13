@@ -741,8 +741,11 @@ one's, ids included (`copyDatabase` → `database-copy.server.ts`: every
 table but `settings` / `databases`, in `TABLES` order, parents first, as
 one `batch` on the raw client, so it's all or nothing), then reloads. Add
 new data tables to `TABLES`. Settings, the database list and the
-assistant / ntfy keys always stay in the local file. Reminders, the
-assistant log and chats follow the database in use.
+assistant / ntfy keys always stay in the local file. The assistant log
+and chats follow the database in use; reminders come from every database
+(`sendAllReminders`: the local file and each remote, in use or not, idle
+ones on their own kept connections; with any remote set up, each reminder
+names its database).
 
 ### Keyboard
 
