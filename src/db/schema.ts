@@ -258,8 +258,10 @@ export const contactFolders = sqliteTable(
 )
 
 // A person: name plus optional phone, email, address, where the owner knows
-// them from (`knownFrom`) and free-text context (`description`); '' = none.
-// Lives in a folder, or at root level when folderId = null.
+// them from (`knownFrom`), birthday (`MM-DD` or `YYYY-MM-DD`) and free-text
+// context (`description`); '' = none. `birthdayRemindedYear`: the year its
+// birthday was last pushed (once a year). Lives in a folder, or at root
+// level when folderId = null.
 export const contacts = sqliteTable(
   'contacts',
   {
@@ -269,6 +271,8 @@ export const contacts = sqliteTable(
     email: text().notNull().default(''),
     address: text().notNull().default(''),
     knownFrom: text('known_from').notNull().default(''),
+    birthday: text().notNull().default(''),
+    birthdayRemindedYear: integer('birthday_reminded_year'),
     description: text().notNull().default(''),
     folderId: integer('folder_id').references(() => contactFolders.id, {
       onDelete: 'cascade',

@@ -136,8 +136,11 @@ One SQLite file holds every app. Bookmark tables keep their original names.
   `assistant_log.runId` and `chat_messages.runId` point at it.
 - `contact_folders` (same shape) / `contacts` — `id`, `name`, `phone`,
   `email`, `address`, `knownFrom` (where the owner knows them from),
-  `description` (free-text context; every optional field is `''` when
-  unset), `folderId`, `position`, timestamps.
+  `birthday` (`MM-DD`, or `YYYY-MM-DD` with the year; helpers in
+  `src/lib/contacts/birthday.ts`), `description` (free-text context; every
+  optional field is `''` when unset), `birthdayRemindedYear` (the year its
+  birthday was last pushed; cleared when the birthday changes),
+  `folderId`, `position`, timestamps.
 - `chat_conversations` (`title` = start of the first message, timestamps) /
   `chat_messages` — `conversationId`, `role` (`user` | `assistant`),
   `content` (markdown), `actions` (JSON: what the turn created / found),
@@ -625,8 +628,16 @@ nothing else changes.
 ### Contacts (`/contacts`)
 
 People, kept as small as the other apps: name (required), phone, email,
-address, **Known from** and **Context** (plain text), in folders like
-everything else. Clicking a contact / `o` / Enter opens its details
+address, **Known from**, **Birthday** and **Context** (plain text), in
+folders like everything else. The birthday is a day + month `Select` and
+an optional year (`birthday-input.tsx`); the details show it with the age
+("· today!" on the day, after hydration). On the day, from
+`BIRTHDAY_HOUR` (9:00, the server's local time — `TZ` in Docker) a push
+goes out once a year (`sendBirthdays` in `reminders.server.ts`, run with
+the task reminders for every profile; 29 Feb on the 28th in other years;
+a day the server was off isn't sent late), tapping it opens Contacts.
+Jarvis reads and sets it (`birthday` on `create_contact` / `update_item`;
+`APP_PROMPT` says birthdays go on the contact, never a task or strip). Clicking a contact / `o` / Enter opens its details
 (`ContactView` in `editor-dialogs.tsx`, read live from the tree query):
 folder path, name, "Known from …", then the phone (`tel:`), email
 (`mailto:`) and address (a Google Maps search, new tab) as tappable rows
@@ -637,7 +648,7 @@ saving an edit goes back to the details. The row shows the name with
 copy phone / email, move up/down, delete. No favourites and no bin (a
 delete is final). Import/export: `{ format: 1, folders: [{ name, folders,
 contacts }], contacts: [{ name, phone?, email?, address?, knownFrom?,
-description? }] }`, appended like the other apps. The assistant can
+birthday?, description? }] }`, appended like the other apps. The assistant can
 search, read, create (`create_contact`, filed like the rest), edit and delete
 contacts, with Undo.
 

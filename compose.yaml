@@ -19,6 +19,8 @@ services:
       NTFY_URL: ${NTFY_URL:-}
       NTFY_TOKEN: ${NTFY_TOKEN:-}
       PUBLIC_URL: ${PUBLIC_URL:-}
+      # Birthday notifications go out at 9:00 in this timezone.
+      TZ: ${TZ:-UTC}
     ports:
       - '8008:8008'
     volumes:

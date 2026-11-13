@@ -159,7 +159,7 @@ export async function editContact(id: number, input: ContactInput) {
   await assertFolderExists(input.folderId)
   const existing = (
     await db
-      .select({ folderId: contacts.folderId })
+      .select({ folderId: contacts.folderId, birthday: contacts.birthday })
       .from(contacts)
       .where(eq(contacts.id, id))
   ).at(0)
@@ -171,6 +171,10 @@ export async function editContact(id: number, input: ContactInput) {
     .set({
       ...input,
       ...(moved && { position: await nextContactPosition(input.folderId) }),
+      // A new birthday is reminded on its day, even if one went out this year.
+      ...(existing.birthday !== input.birthday && {
+        birthdayRemindedYear: null,
+      }),
     })
     .where(eq(contacts.id, id))
 }
@@ -256,6 +260,7 @@ export async function importFile(file: ContactsFile) {
           email: c.email ?? '',
           address: c.address ?? '',
           knownFrom: c.knownFrom ?? '',
+          birthday: c.birthday ?? '',
           description: c.description ?? '',
           folderId,
           position: start + i,

@@ -25,6 +25,7 @@ import {
   updateContact,
 } from '@/server/contacts.functions'
 import { submitOnModEnter } from '@/lib/submit-shortcut'
+import { BirthdayInput } from './birthday-input'
 import { FolderSelect } from './folder-select'
 
 type TextField = 'name' | 'phone' | 'email' | 'knownFrom'
@@ -101,6 +102,7 @@ export function ContactForm({
     email: contact?.email ?? '',
     address: contact?.address ?? '',
     knownFrom: contact?.knownFrom ?? '',
+    birthday: contact?.birthday ?? '',
     description: contact?.description ?? '',
     folderId: contact ? contact.folderId : folderId,
   }
@@ -151,6 +153,26 @@ export function ContactForm({
             }}
           />
         ))}
+        <form.Field
+          name="birthday"
+          children={(field) => {
+            const isInvalid =
+              field.state.meta.isTouched && !field.state.meta.isValid
+            return (
+              <Field data-invalid={isInvalid}>
+                <FieldLabel htmlFor={field.name}>Birthday</FieldLabel>
+                <BirthdayInput
+                  id={field.name}
+                  value={field.state.value}
+                  onChange={field.handleChange}
+                  onBlur={field.handleBlur}
+                  invalid={isInvalid}
+                />
+                {isInvalid && <FieldError errors={field.state.meta.errors} />}
+              </Field>
+            )
+          }}
+        />
         <form.Field
           name="folderId"
           children={(field) => (

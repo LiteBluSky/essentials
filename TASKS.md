@@ -268,6 +268,9 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] In the global search, the assistant (search, read, create, edit,
       delete, Undo) and the offline pages (`sw.js` cache v5)
 - [x] Navbar scrolls sideways when the apps don't fit; icons only on phones
+- [x] Birthday (migration 0014): day + month, optional year (age shown);
+      a phone notification at 9:00 on the day, once a year, from every
+      profile; Jarvis reads and sets it
 - [ ] Verify in a real browser (phone width: navbar, details view, tel:)
 
 ## 22. App switcher

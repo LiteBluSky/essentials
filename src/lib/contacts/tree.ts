@@ -158,6 +158,7 @@ export function toContactsFile(tree: Tree): ContactsFile {
     ...(c.email && { email: c.email }),
     ...(c.address && { address: c.address }),
     ...(c.knownFrom && { knownFrom: c.knownFrom }),
+    ...(c.birthday && { birthday: c.birthday }),
     ...(c.description && { description: c.description }),
   })
   const folder = (node: FolderNode): ExportFolder => ({

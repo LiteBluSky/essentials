@@ -128,7 +128,7 @@ export const EDIT_TOOLS: Array<ToolDef> = [
   {
     name: 'update_item',
     description:
-      'Change an existing bookmark, note, task or contact: give only the fields to change. Tasks: title, description, due, remind_minutes_before, done. Notes: title, text. Bookmarks: title, url, description, favorite. Contacts: title (their name), phone, email, address, known_from, description (context). Any of them: folder_id to move it (null = top level).',
+      'Change an existing bookmark, note, task or contact: give only the fields to change. Tasks: title, description, due, remind_minutes_before, done. Notes: title, text. Bookmarks: title, url, description, favorite. Contacts: title (their name), phone, email, address, known_from, birthday, description (context). Any of them: folder_id to move it (null = top level).',
     parameters: {
       type: 'object',
       properties: {
@@ -150,6 +150,11 @@ export const EDIT_TOOLS: Array<ToolDef> = [
         known_from: {
           type: 'string',
           description: 'Where the user knows the contact from.',
+        },
+        birthday: {
+          type: 'string',
+          description:
+            "Their birthday: YYYY-MM-DD when the year is known (born that year), else MM-DD; '' removes it. They get a phone notification at 9:00 on the day.",
         },
         url: { type: 'string', description: "A bookmark's URL." },
         due: {
@@ -270,6 +275,11 @@ export const EDIT_TOOLS: Array<ToolDef> = [
           type: 'string',
           description: 'Where the user knows them from (work, school…).',
         },
+        birthday: {
+          type: 'string',
+          description:
+            'YYYY-MM-DD when the year is known, else MM-DD (a reminder goes out at 9:00 on the day).',
+        },
         description: {
           type: 'string',
           description: 'Anything else worth remembering about them.',
@@ -326,6 +336,7 @@ const updateArgs = z.object({
   email: z.string().optional(),
   address: z.string().optional(),
   known_from: z.string().optional(),
+  birthday: z.string().optional(),
   folder_id: id.nullable().optional(),
 })
 const createFolderArgs = z.object({
@@ -352,6 +363,7 @@ const contactArgs = z.object({
   email: z.string().optional(),
   address: z.string().optional(),
   known_from: z.string().optional(),
+  birthday: z.string().optional(),
   description: z.string().optional(),
   folder_id: id.nullable().optional(),
 })
@@ -449,6 +461,7 @@ async function readItem(app: App, itemId: number, timeZone: string) {
       email: contact.email,
       address: contact.address,
       known_from: contact.knownFrom,
+      birthday: contact.birthday,
       context: contact.description,
       folder: path(contact.folderId),
       folder_id: contact.folderId,
@@ -590,6 +603,7 @@ async function updateItem(
       email: args.email ?? contact.email,
       address: args.address ?? contact.address,
       knownFrom: args.known_from ?? contact.knownFrom,
+      birthday: args.birthday ?? contact.birthday,
       description: args.description ?? contact.description,
       folderId,
     })
@@ -598,6 +612,7 @@ async function updateItem(
       ['email', 'email'],
       ['address', 'address'],
       ['known_from', 'known from'],
+      ['birthday', 'birthday'],
       ['description', 'context'],
     ] as const) {
       if (args[key] !== undefined) details.push(`${label} changed`)
@@ -843,6 +858,7 @@ export async function runTool(
       email: parsed.data.email ?? '',
       address: parsed.data.address ?? '',
       knownFrom: parsed.data.known_from ?? '',
+      birthday: parsed.data.birthday ?? '',
       description: parsed.data.description ?? '',
       folderId:
         parsed.data.folder_id ??

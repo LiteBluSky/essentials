@@ -3,7 +3,7 @@
 A handful of small personal apps in one: **Bookmarks** (links), **Notes**
 (markdown), **Tasks** (a to-do list with due dates and phone reminders), a
 **Calendar** (coloured strips over days or date ranges, with the tasks due) and
-**Contacts** (people: phone, email, address, where you know them from); all but the Calendar are organised into folders and subfolders and shown as a file
+**Contacts** (people: phone, email, address, where you know them from, birthday); all but the Calendar are organised into folders and subfolders and shown as a file
 tree. Optionally, a **"Tell me…"** field on every app turns a typed or
 dictated sentence into a task or note, and a **Chat** app answers questions
 about everything you've saved. Switch between them with the navbar at the top, or `Shift+H` /

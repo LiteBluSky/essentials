@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { parseBirthday } from './birthday'
+
 // Shared between TanStack Form validators and server-function validators.
 
 const id = z.number().int().positive()
@@ -16,6 +18,18 @@ export const folderInput = z.object({
 })
 export type FolderInput = z.infer<typeof folderInput>
 
+/** `MM-DD` or `YYYY-MM-DD`; '' = none. */
+export const birthdayInput = z.union([
+  z.literal(''),
+  z
+    .string()
+    .trim()
+    .refine(
+      (value) => parseBirthday(value) !== null,
+      'Pick a day and a month (the year is optional)',
+    ),
+])
+
 export const contactInput = z.object({
   name: z
     .string()
@@ -29,6 +43,7 @@ export const contactInput = z.object({
   ]),
   address: max(500),
   knownFrom: max(255),
+  birthday: birthdayInput,
   description: max(5000),
   folderId: id.nullable(),
 })
@@ -57,6 +72,7 @@ const exportContact = contactInput.pick({ name: true }).extend({
   email: contactInput.shape.email.optional(),
   address: contactInput.shape.address.optional(),
   knownFrom: contactInput.shape.knownFrom.optional(),
+  birthday: contactInput.shape.birthday.optional(),
   description: contactInput.shape.description.optional(),
 })
 export type ExportContact = z.infer<typeof exportContact>

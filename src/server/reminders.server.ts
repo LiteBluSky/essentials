@@ -1,8 +1,14 @@
-import { and, eq, isNotNull, isNull, lt, or, sql } from 'drizzle-orm'
+import { and, eq, isNotNull, isNull, lt, ne, or, sql } from 'drizzle-orm'
 
 import { db, forgetIdle, listProfiles, profileHandle } from '@/db'
 import type { Db } from '@/db'
-import { taskFolders, tasks } from '@/db/schema'
+import { contacts, taskFolders, tasks } from '@/db/schema'
+import {
+  BIRTHDAY_HOUR,
+  ageIn,
+  isBirthdayOn,
+  parseBirthday,
+} from '@/lib/contacts/birthday'
 import { leadLabel } from '@/lib/tasks/tree'
 import { readSettings } from './settings.server'
 
@@ -51,10 +57,21 @@ async function ntfyConfig() {
   }
 }
 
-type Push = { title: string; message: string; tags?: string }
+type Push = {
+  title: string
+  message: string
+  tags?: string
+  /** The app page a tap opens (with the app's public URL set). */
+  path?: string
+}
 
 /** Sends one notification. Throws if ntfy isn't set up or refuses it. */
-export async function push({ title, message, tags = 'alarm_clock' }: Push) {
+export async function push({
+  title,
+  message,
+  tags = 'alarm_clock',
+  path = '/tasks',
+}: Push) {
   const config = await ntfyConfig()
   if (!config) {
     throw new Error('Reminders are off: add an ntfy topic in Settings')
@@ -66,7 +83,7 @@ export async function push({ title, message, tags = 'alarm_clock' }: Push) {
       Title: `=?UTF-8?B?${Buffer.from(title).toString('base64')}?=`,
       Priority: 'high',
       Tags: tags,
-      ...(config.publicUrl && { Click: `${config.publicUrl}/tasks` }),
+      ...(config.publicUrl && { Click: `${config.publicUrl}${path}` }),
       ...(config.token && { Authorization: `Bearer ${config.token}` }),
     },
     body: message,
@@ -150,6 +167,63 @@ export async function sendDueReminders(
   return sent
 }
 
+/** Pushes the contacts whose birthday is today, once a year, from
+ * `BIRTHDAY_HOUR` (the server's local time: set TZ in Docker) until the
+ * day ends; a day missed while the server was off isn't sent late. */
+export async function sendBirthdays(
+  now = new Date(),
+  data: Db = db,
+  label?: string,
+) {
+  if (now.getHours() < BIRTHDAY_HOUR) return 0
+  const year = now.getFullYear()
+  const candidates = await data
+    .select({
+      id: contacts.id,
+      name: contacts.name,
+      birthday: contacts.birthday,
+      knownFrom: contacts.knownFrom,
+    })
+    .from(contacts)
+    .where(
+      and(
+        ne(contacts.birthday, ''),
+        or(
+          isNull(contacts.birthdayRemindedYear),
+          lt(contacts.birthdayRemindedYear, year),
+        ),
+      ),
+    )
+  let sent = 0
+  for (const contact of candidates) {
+    const birthday = parseBirthday(contact.birthday)
+    if (!birthday || !isBirthdayOn(birthday, now)) continue
+    const age = ageIn(birthday, year)
+    try {
+      await push({
+        title: `${contact.name}'s birthday`,
+        message: [
+          age !== null ? `Turns ${age} today` : 'Today',
+          contact.knownFrom,
+          label,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+        tags: 'birthday',
+        path: '/contacts',
+      })
+      await data
+        .update(contacts)
+        .set({ birthdayRemindedYear: year })
+        .where(eq(contacts.id, contact.id))
+      sent++
+    } catch (error) {
+      console.error(`Birthday of contact ${contact.id} failed:`, error)
+    }
+  }
+  return sent
+}
+
 /** `sendDueReminders` on every profile: the local file and each remote
  * database in Settings → Database, in use or not. One that can't be
  * reached is skipped (and tried again next tick). With several, each
@@ -162,11 +236,10 @@ export async function sendAllReminders(now = new Date()) {
   let sent = 0
   for (const profile of profiles) {
     try {
-      sent += await sendDueReminders(
-        now,
-        await profileHandle(profile.id),
-        labelled ? profile.name : undefined,
-      )
+      const data = await profileHandle(profile.id)
+      const label = labelled ? profile.name : undefined
+      sent += await sendDueReminders(now, data, label)
+      sent += await sendBirthdays(now, data, label)
     } catch (error) {
       console.error(`Reminders from "${profile.name}" failed:`, error)
     }

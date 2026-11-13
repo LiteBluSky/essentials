@@ -47,6 +47,13 @@ import {
 } from '@/lib/contacts/tree'
 import type { FolderNode, Tree } from '@/lib/contacts/tree'
 import {
+  ageOn,
+  birthdayLabel,
+  isBirthdayOn,
+  parseBirthday,
+} from '@/lib/contacts/birthday'
+import { useHydrated } from '@/hooks/use-hydrated'
+import {
   contactsTreeQueryOptions,
   deleteContact,
   deleteFolder,
@@ -166,6 +173,23 @@ async function copy(text: string, what: string) {
 }
 
 /** One detail line: a tappable value (call / email / map) and a copy button. */
+/** "Birthday 14 March 1990 · 34", "Birthday today! · turns 35". The age
+ * and "today" follow the browser's day, so only after hydration. */
+function BirthdayLine({ value }: { value: string }) {
+  const hydrated = useHydrated()
+  const birthday = parseBirthday(value)
+  if (!birthday) return null
+  const now = new Date()
+  const today = hydrated && isBirthdayOn(birthday, now)
+  const age = hydrated ? ageOn(birthday, now) : null
+  return (
+    <p className="text-sm text-muted-foreground">
+      Birthday {birthdayLabel(birthday)}
+      {today ? ' · today!' : age !== null ? ` · ${age}` : ''}
+    </p>
+  )
+}
+
 function Detail({
   icon: Icon,
   label,
@@ -261,6 +285,7 @@ function ContactView({
             Known from {contact.knownFrom}
           </p>
         )}
+        <BirthdayLine value={contact.birthday} />
       </DialogHeader>
 
       {hasDetails ? (
