@@ -3,14 +3,14 @@ import { useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 
 /**
- * On phones (below `sm`), floats its content at the bottom of the screen,
+ * On phones (below `lg`: a Z Fold opened and upright tablets too), floats its content at the bottom of the screen,
  * like Chat's message box: the page fades out under it (a gradient, no
  * border or solid band; taps go through the faded part). Over the page
  * (`z-40`) but under dialogs, menus
  * and popovers (`z-50`). Its height goes into `--dock-height` on <html>:
  * the page's `<main>` gets that much bottom padding (inside its
  * `min-h-dvh`, so a short page doesn't scroll) and the toasts sit above it
- * (styles.css). From `sm` up it stays where it is in
+ * (styles.css). From `lg` up it stays where it is in
  * the page. Used by Ask Jarvis and Finances' quick entry.
  */
 export function MobileDock({ children }: { children: React.ReactNode }) {
@@ -34,14 +34,14 @@ export function MobileDock({ children }: { children: React.ReactNode }) {
       ref={ref}
       data-mobile-dock
       className={cn(
-        'max-sm:pointer-events-none max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-40 max-sm:px-3 max-sm:pt-10 max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))]',
+        'max-lg:pointer-events-none max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:px-3 max-lg:pt-10 max-lg:pb-[max(0.75rem,env(safe-area-inset-bottom))]',
         // The page fades out under it, instead of a solid band with a line.
-        'max-sm:bg-linear-to-t max-sm:from-background max-sm:from-45% max-sm:to-transparent',
+        'max-lg:bg-linear-to-t max-lg:from-background max-lg:from-45% max-lg:to-transparent',
         // Only its content takes taps: the faded strip lets them through.
-        'max-sm:*:pointer-events-auto',
+        'max-lg:*:pointer-events-auto',
         // The field looks as in Chat, made opaque so the page doesn't show
         // through it (dark mode: its 30% input tint over the background).
-        'max-sm:[&_[data-slot=input-group]]:bg-background dark:max-sm:[&_[data-slot=input-group]]:bg-[color-mix(in_oklch,var(--input)_30%,var(--background))]',
+        'max-lg:[&_[data-slot=input-group]]:bg-background dark:max-lg:[&_[data-slot=input-group]]:bg-[color-mix(in_oklch,var(--input)_30%,var(--background))]',
       )}
     >
       {children}

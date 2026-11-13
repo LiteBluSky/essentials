@@ -264,7 +264,7 @@ the left — an icon per app, its name in a tooltip, the current one
 highlighted — then New
 folder, New <item>, and a `ButtonGroup` of global search, the ⋮
 import/export menu, shortcuts help, theme menu and the profile switcher
-(user icon, `ProfileButton`); on phones (below `sm`, every app) the
+(user icon, `ProfileButton`); on phones (below `lg` (1024px; phones, a Z Fold opened, tablets upright), every app) the
 header stacks: the app select spans the full width, then the buttons
 spread edge to edge (`justify-between`; Calendar adds its month row the
 same way, and Tasks' view toggles spread too), and New folder / New <item> (and Chat's New chat) are icon-only
@@ -590,7 +590,7 @@ width: the textarea (same placeholder), then a bottom row with the `s`
 hint and the mic, and the filled ↑ send button on the right. Keep the two
 alike.
 
-**On phones** (below `sm`) the field, like Finances' quick entry, is
+**On phones** (below `lg`) the field, like Finances' quick entry, is
 floating at the bottom of the screen in a `MobileDock`
 (`components/mobile-dock.tsx`), like Chat's box: no border or solid band,
 the page fades out under it (a gradient; taps pass through the faded
@@ -863,7 +863,7 @@ call. **The AI is never called otherwise.**
 **Navbar** (`components/app-nav.tsx`, every app): one icon button per
 app (`APPS`), the current one highlighted (`secondary`, `aria-current`),
 its name in a shadcn `Tooltip` on hover and as the `aria-label`; no
-labels, no scrolling. On phones (below `sm`) it's a shadcn `Select`
+labels, no scrolling. On phones (below `lg`) it's a shadcn `Select`
 instead: the trigger shows the current app's icon and name, the list every
 app's icon and name; picking one navigates there.
 

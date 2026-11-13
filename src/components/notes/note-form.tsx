@@ -397,7 +397,7 @@ export function NoteForm({
                   aria-invalid={isInvalid}
                 />
                 <ReferenceAutocomplete target={bodyRef} />
-                <FieldDescription className="max-sm:hidden" aria-live="polite">
+                <FieldDescription className="max-lg:hidden" aria-live="polite">
                   {formatAt === null ? (
                     <>
                       Lists continue on Enter, Tab indents, {MOD_LABEL}+M
@@ -434,7 +434,7 @@ export function NoteForm({
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting && <Spinner data-icon="inline-start" />}
               {note ? 'Save' : 'Create note'}
-              <KbdGroup className="max-sm:hidden">
+              <KbdGroup className="max-lg:hidden">
                 <Kbd>{MOD_LABEL}</Kbd>
                 <Kbd>Enter</Kbd>
               </KbdGroup>

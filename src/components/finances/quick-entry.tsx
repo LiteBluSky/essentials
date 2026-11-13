@@ -170,18 +170,18 @@ export function QuickEntry({
           submit()
         }}
       >
-        <InputGroup className="h-11 max-sm:h-14">
+        <InputGroup className="h-11 max-lg:h-14">
           <InputGroupAddon>
             <DictateButton
               dictation={dictation}
               value={text}
               disabled={save.isPending}
               size="icon-sm"
-              className="size-10 sm:hidden"
+              className="size-10 lg:hidden"
             />
             <InputGroupButton
               size="icon-sm"
-              className="max-sm:size-10"
+              className="max-lg:size-10"
               variant={shownKind === 'income' ? 'default' : 'secondary'}
               aria-label={
                 shownKind === 'income'
@@ -213,7 +213,7 @@ export function QuickEntry({
           />
           <InputGroupAddon align="inline-end">
             {parsed && (
-              <span className="text-muted-foreground tabular-nums max-sm:hidden">
+              <span className="text-muted-foreground tabular-nums max-lg:hidden">
                 {shownKind === 'income' ? '+' : '−'}
                 {formatMoney(parsed.cents, parsed.currency ?? currency)}
               </span>
@@ -223,12 +223,12 @@ export function QuickEntry({
               value={text}
               disabled={save.isPending}
               size="icon-sm"
-              className="max-sm:hidden"
+              className="max-lg:hidden"
             />
             <InputGroupButton
               type="submit"
               size="icon-sm"
-              className="max-sm:size-10"
+              className="max-lg:size-10"
               aria-label="Save"
               title="Save (Enter)"
               disabled={!text.trim() || save.isPending}
@@ -237,7 +237,7 @@ export function QuickEntry({
             </InputGroupButton>
           </InputGroupAddon>
         </InputGroup>
-        <div className="flex items-center gap-2 max-sm:overflow-x-auto sm:flex-wrap [&>*]:shrink-0">
+        <div className="flex items-center gap-2 max-lg:overflow-x-auto lg:flex-wrap [&>*]:shrink-0">
           <CurrencySelect
             value={parsed?.currency ?? currency}
             onChange={setCurrency}

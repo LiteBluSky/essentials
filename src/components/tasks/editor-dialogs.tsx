@@ -259,7 +259,7 @@ function TaskView({
         <Button variant="outline" onClick={() => onEdit(task)}>
           <PencilIcon data-icon="inline-start" />
           Edit
-          <Kbd className="max-sm:hidden">E</Kbd>
+          <Kbd className="max-lg:hidden">E</Kbd>
         </Button>
         {/* Focused on open so c / e / Esc work straight away. */}
         <Button autoFocus onClick={() => onComplete(task.id)}>
@@ -269,7 +269,7 @@ function TaskView({
             <CircleCheckIcon data-icon="inline-start" />
           )}
           {done ? 'Reopen' : 'Complete'}
-          <Kbd className="max-sm:hidden">C</Kbd>
+          <Kbd className="max-lg:hidden">C</Kbd>
         </Button>
       </DialogFooter>
     </div>
@@ -348,7 +348,7 @@ function DeleteConfirm({
         >
           {remove.isPending && <Spinner data-icon="inline-start" />}
           Delete
-          <Kbd className="max-sm:hidden">d</Kbd>
+          <Kbd className="max-lg:hidden">d</Kbd>
         </AlertDialogAction>
       </AlertDialogFooter>
     </>

@@ -175,7 +175,7 @@ function DeleteConfirm({
         >
           {remove.isPending && <Spinner data-icon="inline-start" />}
           Delete
-          <Kbd className="max-sm:hidden">d</Kbd>
+          <Kbd className="max-lg:hidden">d</Kbd>
         </AlertDialogAction>
       </AlertDialogFooter>
     </>

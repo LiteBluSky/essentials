@@ -360,7 +360,7 @@ function NoteView({
         <Button autoFocus onClick={() => onEdit(note)}>
           <PencilIcon data-icon="inline-start" />
           Edit
-          <Kbd className="max-sm:hidden">E</Kbd>
+          <Kbd className="max-lg:hidden">E</Kbd>
         </Button>
       </DialogFooter>
       {printElement}
@@ -447,7 +447,7 @@ function DeleteConfirm({
         >
           {remove.isPending && <Spinner data-icon="inline-start" />}
           Delete
-          <Kbd className="max-sm:hidden">d</Kbd>
+          <Kbd className="max-lg:hidden">d</Kbd>
         </AlertDialogAction>
       </AlertDialogFooter>
     </>

@@ -18,7 +18,7 @@ import {
 import { APPS } from '@/lib/apps'
 
 // Switches between the bundled apps (also Shift+H / Shift+L, and `f`):
-// from `sm` up, one icon per app, the current one highlighted, its name in
+// from `lg` up, one icon per app, the current one highlighted, its name in
 // a tooltip on hover (and as the accessible name); on phones, a select
 // showing the current app's icon and name, listing every app the same way.
 export function AppNav() {
@@ -29,7 +29,7 @@ export function AppNav() {
     <>
       <AppSelect current={current?.path ?? null} />
       <TooltipProvider>
-        <nav aria-label="Apps" className="flex gap-1 max-sm:hidden">
+        <nav aria-label="Apps" className="flex gap-1 max-lg:hidden">
           {APPS.map(({ path, name, icon: Icon }) => {
             const active = path === current?.path
             return (
@@ -71,7 +71,7 @@ function AppSelect({ current }: { current: string | null }) {
         if (path && path !== current) void navigate({ to: path })
       }}
     >
-      <SelectTrigger aria-label="Switch app" className="w-full sm:hidden">
+      <SelectTrigger aria-label="Switch app" className="w-full lg:hidden">
         <SelectValue>
           {(path: string | null) => <AppLabel path={path} />}
         </SelectValue>

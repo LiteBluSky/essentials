@@ -289,9 +289,9 @@ function CalendarPage() {
 
   return (
     <main className="flex h-dvh w-full flex-col gap-3 p-3 sm:p-4">
-      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 max-sm:flex-col max-sm:items-stretch">
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 max-lg:flex-col max-lg:items-stretch">
         <AppNav />
-        <div className="flex items-center gap-3 max-sm:order-last max-sm:justify-between">
+        <div className="flex items-center gap-3 max-lg:order-last max-lg:justify-between">
           <ButtonGroup aria-label="Month">
             <Button
               variant="outline"
@@ -331,7 +331,7 @@ function CalendarPage() {
           >
             <PlusIcon data-icon="inline-start" />
             New
-            <Kbd className="max-sm:hidden">a</Kbd>
+            <Kbd className="max-lg:hidden">a</Kbd>
           </Button>
           <ButtonGroup aria-label="Settings">
             <Button

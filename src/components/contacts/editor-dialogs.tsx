@@ -336,7 +336,7 @@ function ContactView({
         <Button autoFocus onClick={() => onEdit(contact)}>
           <PencilIcon data-icon="inline-start" />
           Edit
-          <Kbd className="max-sm:hidden">E</Kbd>
+          <Kbd className="max-lg:hidden">E</Kbd>
         </Button>
       </DialogFooter>
     </div>
@@ -415,7 +415,7 @@ function DeleteConfirm({
         >
           {remove.isPending && <Spinner data-icon="inline-start" />}
           Delete
-          <Kbd className="max-sm:hidden">d</Kbd>
+          <Kbd className="max-lg:hidden">d</Kbd>
         </AlertDialogAction>
       </AlertDialogFooter>
     </>

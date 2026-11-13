@@ -410,7 +410,7 @@ export function ChatComposer({
         <ReferenceAutocomplete target={ref} />
         <InputGroupAddon align="block-end" className="p-2">
           {!text && !dictation.listening && (
-            <Kbd className="max-sm:hidden">s</Kbd>
+            <Kbd className="max-lg:hidden">s</Kbd>
           )}
           <DictateButton
             dictation={dictation}

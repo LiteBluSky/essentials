@@ -278,7 +278,7 @@ function Home() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-4 px-4 py-8">
       {/* On phones the actions drop under the app select, spread across. */}
-      <header className="flex items-center justify-between gap-4 max-sm:flex-col max-sm:items-stretch">
+      <header className="flex items-center justify-between gap-4 max-lg:flex-col max-lg:items-stretch">
         <AppNav />
         <div className="flex justify-between gap-2">
           <div className="flex gap-2">
@@ -289,7 +289,7 @@ function Home() {
               onClick={() => openEditor({ kind: 'folder', parentId: null })}
             >
               <FolderPlusIcon data-icon="inline-start" />
-              <span className="max-sm:hidden">Folder</span>
+              <span className="max-lg:hidden">Folder</span>
               <ShortcutHint name="newFolder" />
             </Button>
             <Button
@@ -298,8 +298,8 @@ function Home() {
               onClick={() => newTask()}
             >
               <PlusIcon data-icon="inline-start" />
-              <span className="max-sm:hidden">Task</span>
-              <Kbd className="max-sm:hidden">a</Kbd>
+              <span className="max-lg:hidden">Task</span>
+              <Kbd className="max-lg:hidden">a</Kbd>
             </Button>
           </div>
           <ButtonGroup aria-label="Settings">
@@ -394,11 +394,11 @@ function Home() {
           >
             <CalendarIcon data-icon="inline-start" />
             {format(parseISO(day), 'd MMM yyyy')}
-            <Kbd className="max-sm:hidden">q</Kbd>
+            <Kbd className="max-lg:hidden">q</Kbd>
             <XIcon data-icon="inline-end" />
           </Button>
         )}
-        <div className="flex gap-2 max-sm:w-full max-sm:justify-between">
+        <div className="flex gap-2 max-lg:w-full max-lg:justify-between">
           <ButtonGroup aria-label="Which tasks">
             <ViewButton
               active={view.status === 'open'}
@@ -570,12 +570,12 @@ function ViewButton({
   )
 }
 
-/** Header buttons that show only their icon below `sm` (phones). */
-const ICON_ON_PHONES = 'max-sm:w-8 max-sm:p-0!'
+/** Header buttons that show only their icon below `lg` (phones, folds, upright tablets). */
+const ICON_ON_PHONES = 'max-lg:w-8 max-lg:p-0!'
 
 function ShortcutHint({ name }: { name: ShortcutName }) {
   return (
-    <KbdGroup className="max-sm:hidden">
+    <KbdGroup className="max-lg:hidden">
       <Kbd>{MOD_LABEL}</Kbd>
       <Kbd>{SHORTCUTS[name].label}</Kbd>
     </KbdGroup>

@@ -326,7 +326,7 @@ function AssistantField({ enabled }: { enabled: boolean }) {
           {/* The same bottom row as Chat's box. */}
           <InputGroupAddon align="block-end" className="p-2">
             {!text && !ask.isPending && !dictation.listening && (
-              <Kbd className="max-sm:hidden">s</Kbd>
+              <Kbd className="max-lg:hidden">s</Kbd>
             )}
             <DictateButton
               dictation={dictation}

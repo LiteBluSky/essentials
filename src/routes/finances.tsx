@@ -166,14 +166,14 @@ function FinancesPage() {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-6 px-4 py-8">
-      <header className="flex items-center justify-between gap-4 max-sm:flex-col max-sm:items-stretch">
+      <header className="flex items-center justify-between gap-4 max-lg:flex-col max-lg:items-stretch">
         <AppNav />
         <div className="flex justify-between gap-2">
           {aiAvailable && (
             <Button variant="outline" onClick={() => setAdviceOpen(true)}>
               <SparklesIcon data-icon="inline-start" />
               Advice
-              <Kbd className="max-sm:hidden">r</Kbd>
+              <Kbd className="max-lg:hidden">r</Kbd>
             </Button>
           )}
           <ButtonGroup aria-label="Settings">

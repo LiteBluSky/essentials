@@ -19,13 +19,13 @@ body {
   margin: 0;
 }
 
-/* Phones: room for the box floating at the bottom (MobileDock sets
+/* Phones (below lg, so a Z Fold opened too): room for the box floating at the bottom (MobileDock sets
    --dock-height while it's shown), and toasts above it. The room is the
    page's own bottom padding, inside its min-h-dvh: a short page still fits
    the screen (footer just above the box) and only a long one scrolls,
    under the box. Unlayered, so it wins over main's py-* and the toast
    viewport's bottom-4. */
-@media (width < 40rem) {
+@media (width < 64rem) {
   main:has([data-mobile-dock]) {
     padding-bottom: var(--dock-height, 0px);
   }
