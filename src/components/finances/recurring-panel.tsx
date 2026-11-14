@@ -6,13 +6,6 @@ import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
   Empty,
   EmptyDescription,
   EmptyHeader,
@@ -68,19 +61,16 @@ import {
 import { CategorySelect, CurrencySelect, DayPicker, parseDay } from './pickers'
 
 /**
- * Recurring money ("subscriptions" in the code): expenses (rent, Netflix…)
- * and income (salary…): on each day of their schedule one waits to be accepted,
- * so the month's money always counts them. Click one to edit it; deleting
- * stops it (what it already added stays).
+ * The Recurring tab. Recurring money ("subscriptions" in the code):
+ * expenses (rent, Netflix…) and income (salary…): on each day of their
+ * schedule one waits to be accepted, so the month's money always counts
+ * them. Click one to edit it in the form below; deleting stops it (what it
+ * already added stays).
  */
-export function SubscriptionsDialog({
-  open,
-  onOpenChange,
+export function RecurringPanel({
   subscriptions,
   today,
 }: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
   subscriptions: Array<FinanceSubscription>
   today: string
 }) {
@@ -97,86 +87,75 @@ export function SubscriptionsDialog({
     (a, b) => (a.kind === 'income' ? 0 : 1) - (b.kind === 'income' ? 0 : 1),
   )
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        onOpenChange(next)
-        if (!next) setEditing(null)
-      }}
-    >
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Recurring</DialogTitle>
-          <DialogDescription>
-            Bills, subscriptions and income. On their day you get a notification
-            (9:00) and accept each one here.
-            {into > 0 && ` About ${formatMoney(into)} in`}
-            {into > 0 && out > 0 && ' and'}
-            {out > 0 && `${into > 0 ? '' : ' About'} ${formatMoney(out)} out`}
-            {(into > 0 || out > 0) && ' a month.'}
-          </DialogDescription>
-        </DialogHeader>
-        {subscriptions.length === 0 ? (
-          <Empty className="p-4">
-            <EmptyHeader>
-              <EmptyTitle>Nothing recurring yet</EmptyTitle>
-              <EmptyDescription>
-                Add your salary, rent, subscriptions (streaming, gym, phone…)
-                below.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        ) : (
-          <ul className="flex flex-col">
-            {sorted.map((s) => {
-              const next = upcoming(s, today, s.chargedDay)[0]
-              return (
-                <li key={s.id}>
-                  <Button
-                    variant={editing?.id === s.id ? 'secondary' : 'ghost'}
-                    className="h-auto w-full justify-start gap-3 py-2 font-normal"
-                    onClick={() => setEditing(s)}
+    <section className="flex flex-col gap-4">
+      <p className="text-sm text-muted-foreground">
+        Bills, subscriptions and income. On their day you get a notification
+        (9:00) and accept each one under To accept.
+        {into > 0 && ` About ${formatMoney(into)} in`}
+        {into > 0 && out > 0 && ' and'}
+        {out > 0 && `${into > 0 ? '' : ' About'} ${formatMoney(out)} out`}
+        {(into > 0 || out > 0) && ' a month.'}
+      </p>
+      {subscriptions.length === 0 ? (
+        <Empty className="p-4">
+          <EmptyHeader>
+            <EmptyTitle>Nothing recurring yet</EmptyTitle>
+            <EmptyDescription>
+              Add your salary, rent, subscriptions (streaming, gym, phone…)
+              below.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <ul className="flex flex-col">
+          {sorted.map((s) => {
+            const next = upcoming(s, today, s.chargedDay)[0]
+            return (
+              <li key={s.id}>
+                <Button
+                  variant={editing?.id === s.id ? 'secondary' : 'ghost'}
+                  className="h-auto w-full justify-start gap-3 py-2 font-normal"
+                  onClick={() => setEditing(s)}
+                >
+                  <span
+                    aria-hidden
+                    className="size-2.5 shrink-0 rounded-full"
+                    style={{ background: category(s.category).color }}
+                  />
+                  <span className="flex min-w-0 flex-1 flex-col items-start">
+                    <span className="max-w-full truncate">{s.name}</span>
+                    <span className="max-w-full truncate text-xs text-muted-foreground">
+                      {describeSchedule(s)}
+                      {next
+                        ? ` · next ${format(parseDay(next), 'EEE d MMM')}`
+                        : ' · ended'}
+                    </span>
+                  </span>
+                  <span
+                    className={
+                      s.kind === 'income'
+                        ? 'tabular-nums text-success'
+                        : 'tabular-nums'
+                    }
                   >
-                    <span
-                      aria-hidden
-                      className="size-2.5 shrink-0 rounded-full"
-                      style={{ background: category(s.category).color }}
-                    />
-                    <span className="flex min-w-0 flex-1 flex-col items-start">
-                      <span className="max-w-full truncate">{s.name}</span>
-                      <span className="max-w-full truncate text-xs text-muted-foreground">
-                        {describeSchedule(s)}
-                        {next
-                          ? ` · next ${format(parseDay(next), 'EEE d MMM')}`
-                          : ' · ended'}
-                      </span>
-                    </span>
-                    <span
-                      className={
-                        s.kind === 'income'
-                          ? 'tabular-nums text-success'
-                          : 'tabular-nums'
-                      }
-                    >
-                      {formatMoney(s.cents, s.currency, {
-                        signed: s.kind === 'income',
-                      })}
-                    </span>
-                  </Button>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-        <Separator />
-        <SubscriptionForm
-          key={editing?.id ?? 'new'}
-          subscription={editing}
-          today={today}
-          onDone={() => setEditing(null)}
-        />
-      </DialogContent>
-    </Dialog>
+                    {formatMoney(s.cents, s.currency, {
+                      signed: s.kind === 'income',
+                    })}
+                  </span>
+                </Button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      <Separator />
+      <SubscriptionForm
+        key={editing?.id ?? 'new'}
+        subscription={editing}
+        today={today}
+        onDone={() => setEditing(null)}
+      />
+    </section>
   )
 }
 

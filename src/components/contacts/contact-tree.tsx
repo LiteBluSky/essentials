@@ -14,6 +14,7 @@ import {
   UserIcon,
 } from 'lucide-react'
 
+import { RowContextMenu } from '@/components/row-context-menu'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -127,13 +128,65 @@ function FolderRow({
   const open = props.forceOpen || props.expanded.has(folder.id)
   const isEmpty = !node.folders.length && !node.contacts.length
   const item = { kind: 'folder', id: folder.id } as const
-  const { rowProps, dropZone, isDragging } = useTreeRowDnd(
+  const { rowProps, dropZone, isDragging, handle } = useTreeRowDnd(
     item,
     { kind: 'folder', node },
     folder.name,
   )
   const shift = useShiftItem(item, folder.parentId)
   const indent = depth * INDENT_PX
+  // The hover menu's and the right click / long press menu's items.
+  const menu = (
+    <>
+      <DropdownMenuGroup>
+        <DropdownMenuItem
+          onClick={() => {
+            props.onToggle(folder.id, true)
+            props.onEdit({
+              kind: 'contact',
+              mode: 'edit',
+              folderId: folder.id,
+            })
+          }}
+        >
+          <PlusIcon />
+          New contact here
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => {
+            props.onToggle(folder.id, true)
+            props.onEdit({ kind: 'folder', parentId: folder.id })
+          }}
+        >
+          <FolderPlusIcon />
+          New subfolder
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() =>
+            props.onEdit({
+              kind: 'folder',
+              folder,
+              parentId: folder.parentId,
+            })
+          }
+        >
+          <PencilIcon />
+          Rename or move
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
+      <ShiftItems shift={shift} />
+      <DropdownMenuSeparator />
+      <DropdownMenuGroup>
+        <DropdownMenuItem
+          variant="destructive"
+          onClick={() => props.onEdit({ kind: 'delete-folder', node })}
+        >
+          <Trash2Icon />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
+    </>
+  )
 
   return (
     <li role="treeitem" aria-expanded={open}>
@@ -141,17 +194,22 @@ function FolderRow({
         open={open}
         onOpenChange={(next) => props.onToggle(folder.id, next)}
       >
-        <div
-          {...rowProps}
-          data-tree-row
-          data-drop={dropZone}
-          data-dragging={isDragging || undefined}
-          className={cn('group/row flex items-center gap-1', DROP_ROW)}
-          style={
-            {
-              paddingLeft: indent,
-              '--row-indent': `${indent}px`,
-            } as React.CSSProperties
+        <RowContextMenu
+          menu={menu}
+          render={
+            <div
+              {...rowProps}
+              data-tree-row
+              data-drop={dropZone}
+              data-dragging={isDragging || undefined}
+              className={cn('group/row flex items-center gap-1', DROP_ROW)}
+              style={
+                {
+                  paddingLeft: indent,
+                  '--row-indent': `${indent}px`,
+                } as React.CSSProperties
+              }
+            />
           }
         >
           <CollapsibleTrigger
@@ -179,56 +237,9 @@ function FolderRow({
               </Badge>
             )}
           </CollapsibleTrigger>
-          <RowMenu label={`Actions for ${folder.name}`}>
-            <DropdownMenuGroup>
-              <DropdownMenuItem
-                onClick={() => {
-                  props.onToggle(folder.id, true)
-                  props.onEdit({
-                    kind: 'contact',
-                    mode: 'edit',
-                    folderId: folder.id,
-                  })
-                }}
-              >
-                <PlusIcon />
-                New contact here
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  props.onToggle(folder.id, true)
-                  props.onEdit({ kind: 'folder', parentId: folder.id })
-                }}
-              >
-                <FolderPlusIcon />
-                New subfolder
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() =>
-                  props.onEdit({
-                    kind: 'folder',
-                    folder,
-                    parentId: folder.parentId,
-                  })
-                }
-              >
-                <PencilIcon />
-                Rename or move
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <ShiftItems shift={shift} />
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => props.onEdit({ kind: 'delete-folder', node })}
-              >
-                <Trash2Icon />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </RowMenu>
-        </div>
+          {handle}
+          <RowMenu label={`Actions for ${folder.name}`}>{menu}</RowMenu>
+        </RowContextMenu>
         <CollapsibleContent>
           <ul role="group" className="flex flex-col">
             {isEmpty ? (
@@ -267,7 +278,7 @@ function ContactRow({
   isCut: boolean
 }) {
   const item = { kind: 'contact', id: contact.id } as const
-  const { rowProps, dropZone, isDragging } = useTreeRowDnd(
+  const { rowProps, dropZone, isDragging, handle } = useTreeRowDnd(
     item,
     { kind: 'contact', contact },
     contact.name,
@@ -275,22 +286,27 @@ function ContactRow({
   const indent = depth * INDENT_PX + CHEVRON_PX
 
   return (
-    <li
-      role="treeitem"
-      {...rowProps}
-      data-tree-row
-      data-drop={dropZone}
-      data-dragging={isDragging || undefined}
-      data-cut={isCut || undefined}
-      className={cn(
-        'group/row flex items-center gap-1 data-cut:opacity-50',
-        DROP_ROW,
-      )}
-      style={
-        {
-          paddingLeft: indent,
-          '--row-indent': `${indent}px`,
-        } as React.CSSProperties
+    <RowContextMenu
+      menu={<ContactMenuItems contact={contact} onEdit={onEdit} />}
+      render={
+        <li
+          role="treeitem"
+          {...rowProps}
+          data-tree-row
+          data-drop={dropZone}
+          data-dragging={isDragging || undefined}
+          data-cut={isCut || undefined}
+          className={cn(
+            'group/row flex items-center gap-1 data-cut:opacity-50',
+            DROP_ROW,
+          )}
+          style={
+            {
+              paddingLeft: indent,
+              '--row-indent': `${indent}px`,
+            } as React.CSSProperties
+          }
+        />
       }
     >
       <Button
@@ -310,8 +326,9 @@ function ContactRow({
           {contact.knownFrom || contact.phone || contact.email}
         </span>
       </Button>
+      {handle}
       <ContactMenu contact={contact} onEdit={onEdit} />
-    </li>
+    </RowContextMenu>
   )
 }
 
@@ -332,13 +349,28 @@ function ContactMenu({
   contact: Contact
   onEdit: OpenEditor
 }) {
+  return (
+    <RowMenu label={`Actions for ${contact.name}`}>
+      <ContactMenuItems contact={contact} onEdit={onEdit} />
+    </RowMenu>
+  )
+}
+
+/** A contact's actions: in its hover menu and on right click / long press. */
+function ContactMenuItems({
+  contact,
+  onEdit,
+}: {
+  contact: Contact
+  onEdit: OpenEditor
+}) {
   const shift = useShiftItem(
     { kind: 'contact', id: contact.id },
     contact.folderId,
   )
 
   return (
-    <RowMenu label={`Actions for ${contact.name}`}>
+    <>
       <DropdownMenuGroup>
         <DropdownMenuItem
           onClick={() =>
@@ -385,7 +417,7 @@ function ContactMenu({
           Delete
         </DropdownMenuItem>
       </DropdownMenuGroup>
-    </RowMenu>
+    </>
   )
 }
 

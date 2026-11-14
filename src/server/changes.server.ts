@@ -163,7 +163,10 @@ async function undoBudget(change: AssistantChange) {
     await db
       .insert(financeBudgets)
       .values({ category, cents })
-      .onConflictDoUpdate({ target: financeBudgets.category, set: { cents } })
+      .onConflictDoUpdate({
+        target: financeBudgets.category,
+        set: { cents, alertedMonth: null, alertedLevel: null },
+      })
   }
   return null
 }

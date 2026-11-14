@@ -22,7 +22,13 @@ import { AppFooter } from '@/components/app-footer'
 import { AppNav } from '@/components/app-nav'
 import { ChatMenu } from '@/components/chat/chat-menu'
 import { ShortcutsDialog } from '@/components/chat/shortcuts-dialog'
-import { ChatComposer, ChatThread } from '@/components/chat/chat-thread'
+import {
+  ChatComposer,
+  ChatThread,
+  streamInto,
+} from '@/components/chat/chat-thread'
+import { refreshKey } from '@/lib/chat'
+import { streamChatMessage } from '@/lib/chat-stream'
 import type { PendingMessage } from '@/components/chat/chat-thread'
 import { GlobalSearch } from '@/components/global-search'
 import { ProfileButton } from '@/components/profile-switcher'
@@ -69,7 +75,6 @@ import {
   chatConversationsQueryOptions,
   chatMessagesQueryOptions,
   deleteConversation,
-  sendChatMessage,
 } from '@/server/chat.functions'
 import { ASSISTANT_NAME } from '@/lib/assistant'
 import { focusChatComposer, isNewChatKey } from '@/lib/shortcuts'
@@ -125,21 +130,22 @@ function ChatPage() {
 
   const send = useMutation({
     mutationFn: ({ text, webSearch }: { text: string; webSearch: boolean }) =>
-      sendChatMessage({
-        data: {
+      streamChatMessage(
+        {
           conversationId: conversationId ?? null,
           text,
           now: new Date().toISOString(),
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           webSearch,
         },
-      }),
+        (event) => setPending((p) => streamInto(p, event)),
+      ),
   })
 
   const onSend = async (text: string, webSearch: boolean) => {
-    setPending({ text })
+    setPending({ text, answer: '', tool: null })
     try {
-      const { conversationId: id, result } = await send.mutateAsync({
+      const { conversationId: id, apps } = await send.mutateAsync({
         text,
         webSearch,
       })
@@ -151,10 +157,8 @@ function ChatPage() {
       openConversation(id)
       void queryClient.invalidateQueries(chatConversationsQueryOptions)
       void queryClient.invalidateQueries(assistantHistoryQueryOptions)
-      for (const app of new Set(
-        [...result.created, ...result.changed].map((item) => item.app),
-      )) {
-        void queryClient.invalidateQueries({ queryKey: [app] })
+      for (const app of apps) {
+        void queryClient.invalidateQueries({ queryKey: [refreshKey(app)] })
       }
       return true
     } catch (error) {

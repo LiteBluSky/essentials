@@ -68,31 +68,40 @@ export function useDictation({
   const callbacks = useRef({ onText, onError })
   callbacks.current = { onText, onError }
 
+  /** Held (hold-to-speak): a pause doesn't end it, the release does. */
+  const held = useRef(false)
+  /** What `onText` last got, to carry on from when a held one restarts. */
+  const lastText = useRef('')
+
   const stop = useCallback(() => {
     // abort: drop anything not yet delivered (e.g. after sending).
+    held.current = false
     recognition.current?.abort()
     recognition.current = null
     setListening(false)
   }, [])
 
-  const start = useCallback((text: string) => {
+  const listen = useCallback((text: string): boolean => {
     const Ctor = recognitionCtor()
-    if (!Ctor || recognition.current) return
+    if (!Ctor) return false
     const rec = new Ctor()
     rec.lang = navigator.language
     rec.continuous = false
     rec.interimResults = true
     const prefix = text && !/\s$/.test(text) ? `${text} ` : text
+    lastText.current = text
     rec.onresult = (e) => {
       if (recognition.current !== rec) return
       let said = ''
       for (const result of Array.from(e.results)) {
         said += result[0].transcript
       }
-      callbacks.current.onText(prefix + said.trimStart())
+      lastText.current = prefix + said.trimStart()
+      callbacks.current.onText(lastText.current)
     }
     rec.onerror = (e) => {
       if (e.error === 'aborted' || e.error === 'no-speech') return
+      held.current = false
       callbacks.current.onError(
         ERRORS[e.error] ?? `Speech recognition failed (${e.error}).`,
       )
@@ -100,24 +109,47 @@ export function useDictation({
     rec.onend = () => {
       if (recognition.current !== rec) return
       recognition.current = null
+      // Still held after a pause: listen on, after what's been said.
+      if (held.current && listen(lastText.current)) return
+      held.current = false
       setListening(false)
     }
     recognition.current = rec
-    setListening(true)
     try {
       rec.start()
+      return true
     } catch {
       recognition.current = null
-      setListening(false)
+      return false
     }
   }, [])
 
+  /** Listens, appending to `text`. `hold`: until `finish` (hold-to-speak),
+   * else until a pause. */
+  const start = useCallback(
+    (text: string, { hold = false }: { hold?: boolean } = {}) => {
+      if (recognition.current) return
+      held.current = hold
+      setListening(listen(text))
+    },
+    [listen],
+  )
+
+  /** A held start becomes a plain one: it ends at the next pause (a tap on
+   * the mic rather than a hold). */
+  const release = useCallback(() => {
+    held.current = false
+  }, [])
+
   /** Stop listening gracefully (keeps what was just said). */
-  const finish = useCallback(() => recognition.current?.stop(), [])
+  const finish = useCallback(() => {
+    held.current = false
+    recognition.current?.stop()
+  }, [])
 
   useEffect(() => () => recognition.current?.abort(), [])
 
-  return { supported, listening, start, stop, finish }
+  return { supported, listening, start, stop, finish, release }
 }
 
 export type Dictation = ReturnType<typeof useDictation>

@@ -17,10 +17,10 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { AppFooter } from '@/components/app-footer'
 import { AppNav } from '@/components/app-nav'
-import { JarvisSidebar } from '@/components/assistant-sidebar'
+import { AssistantBox } from '@/components/assistant-box'
 import { AdviceDialog } from '@/components/finances/advice-dialog'
 import { AmountDialog } from '@/components/finances/amount-dialog'
-import { BudgetsDialog } from '@/components/finances/budgets-dialog'
+import { BudgetsPanel } from '@/components/finances/budgets-panel'
 import { CloseMonth } from '@/components/finances/close-month'
 import { EntriesList } from '@/components/finances/entries-list'
 import { parseDay } from '@/components/finances/pickers'
@@ -29,7 +29,7 @@ import { FinancesMenu } from '@/components/finances/finances-menu'
 import { MonthReport } from '@/components/finances/month-report'
 import { PendingList } from '@/components/finances/pending-list'
 import { ShortcutsDialog } from '@/components/finances/shortcuts-dialog'
-import { SubscriptionsDialog } from '@/components/finances/subscriptions-dialog'
+import { RecurringPanel } from '@/components/finances/recurring-panel'
 import { GlobalSearch } from '@/components/global-search'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
@@ -41,6 +41,7 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 import { Kbd } from '@/components/ui/kbd'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toast'
 import type { FinanceEntry } from '@/db/schema'
 import { useAppSwitch } from '@/hooks/use-app-switch'
@@ -55,7 +56,7 @@ import {
   financesQueryOptions,
 } from '@/server/finances.functions'
 
-// The Finances app: type what you spent or got ("12.50 coffee", "+1800
+// The Finances app (three tabs: the month, Recurring, Budgets): type what you spent or got ("12.50 coffee", "+1800
 // payroll") and see the month at a glance: in, out, left, and a circle of
 // where it went. Recurring expenses and income wait to be accepted when
 // they fall due (a phone push at 9:00); past months keep
@@ -87,8 +88,8 @@ function FinancesPage() {
 
   const [editing, setEditing] = useState<FinanceEntry | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
-  const [subsOpen, setSubsOpen] = useState(false)
-  const [budgetsOpen, setBudgetsOpen] = useState(false)
+  // The page's tabs: the month, recurring money, budgets.
+  const [tab, setTab] = useState<FinancesTab>('month')
   const [adviceOpen, setAdviceOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -99,8 +100,6 @@ function FinancesPage() {
   const dialogOpen =
     adding !== null ||
     editorOpen ||
-    subsOpen ||
-    budgetsOpen ||
     adviceOpen ||
     helpOpen ||
     searchOpen ||
@@ -158,11 +157,20 @@ function FinancesPage() {
       if (isTyping(e.target)) return
       const actions: Record<string, (() => void) | undefined> = {
         a: () => setAdding('expense'),
-        m: () => setMonth((m) => addMonth(m, 1)),
-        M: () => setMonth((m) => addMonth(m, -1)),
-        t: () => setMonth(data.month),
-        u: () => setSubsOpen(true),
-        b: () => setBudgetsOpen(true),
+        m: () => {
+          setTab('month')
+          setMonth((m) => addMonth(m, 1))
+        },
+        M: () => {
+          setTab('month')
+          setMonth((m) => addMonth(m, -1))
+        },
+        t: () => {
+          setTab('month')
+          setMonth(data.month)
+        },
+        u: () => setTab('recurring'),
+        b: () => setTab('budgets'),
         r: aiAvailable ? () => setAdviceOpen(true) : undefined,
         z: () => setSearchOpen(true),
         '?': () => setHelpOpen(true),
@@ -212,8 +220,6 @@ function FinancesPage() {
             <FinancesMenu
               settingsOpen={settingsOpen}
               onSettingsOpenChange={setSettingsOpen}
-              onSubscriptions={() => setSubsOpen(true)}
-              onBudgets={() => setBudgetsOpen(true)}
               uncategorized={aiAvailable ? uncategorized.length : 0}
               onCategorize={() =>
                 categorize.mutate(uncategorized.map((e) => e.id))
@@ -249,72 +255,105 @@ function FinancesPage() {
         <PendingList pending={data.pending} today={data.today} />
       )}
 
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-lg font-medium">{monthLabel(month)}</h1>
-        <ButtonGroup aria-label="Month">
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Previous month"
-            title="Previous month (M)"
-            onClick={() => setMonth((m) => addMonth(m, -1))}
-          >
-            <ChevronLeftIcon />
-          </Button>
-          <Button
-            variant="outline"
-            disabled={month === data.month}
-            onClick={() => setMonth(data.month)}
-          >
-            This month
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Next month"
-            title="Next month (m)"
-            onClick={() => setMonth((m) => addMonth(m, 1))}
-          >
-            <ChevronRightIcon />
-          </Button>
-        </ButtonGroup>
-      </div>
+      <Tabs
+        value={tab}
+        onValueChange={(value: FinancesTab) => setTab(value)}
+        className="gap-6"
+      >
+        <TabsList className="w-full">
+          <TabsTrigger value="month">Month</TabsTrigger>
+          <TabsTrigger value="recurring">
+            Recurring
+            <Kbd className="max-lg:hidden">u</Kbd>
+          </TabsTrigger>
+          <TabsTrigger value="budgets">
+            Budgets
+            <Kbd className="max-lg:hidden">b</Kbd>
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="month" className="flex flex-col gap-6">
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="text-lg font-medium">{monthLabel(month)}</h1>
+            <ButtonGroup aria-label="Month">
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Previous month"
+                title="Previous month (M)"
+                onClick={() => setMonth((m) => addMonth(m, -1))}
+              >
+                <ChevronLeftIcon />
+              </Button>
+              <Button
+                variant="outline"
+                disabled={month === data.month}
+                onClick={() => setMonth(data.month)}
+              >
+                This month
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Next month"
+                title="Next month (m)"
+                onClick={() => setMonth((m) => addMonth(m, 1))}
+              >
+                <ChevronRightIcon />
+              </Button>
+            </ButtonGroup>
+          </div>
 
-      {totals.length === 0 ? (
-        <Empty className="border">
-          <EmptyHeader>
-            <EmptyTitle>Nothing in {monthLabel(month)}</EmptyTitle>
-            <EmptyDescription>
-              {past && month !== data.openMonth
-                ? 'Nothing was recorded that month.'
-                : 'Press Add (or a) to note what you spend, or what comes in.'}
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : (
-        <MonthReport totals={totals} budgets={budgets} />
-      )}
-
-      {past && entries.length === 0
-        ? totals.length > 0 && (
-            <p className="text-sm text-muted-foreground">
-              Past months keep only their totals per category.
-            </p>
-          )
-        : entries.length > 0 && (
-            <section className="flex flex-col gap-2">
-              <h2 className="text-sm font-medium text-muted-foreground">
-                Entries
-              </h2>
-              <EntriesList
-                entries={entries}
-                onOpen={(entry) => {
-                  setEditing(entry)
-                  setEditorOpen(true)
-                }}
-              />
-            </section>
+          {totals.length === 0 ? (
+            <Empty className="border">
+              <EmptyHeader>
+                <EmptyTitle>Nothing in {monthLabel(month)}</EmptyTitle>
+                <EmptyDescription>
+                  {past && month !== data.openMonth
+                    ? 'Nothing was recorded that month.'
+                    : 'Press Add (or a) to note what you spend, or what comes in.'}
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            <MonthReport totals={totals} budgets={budgets} />
           )}
+
+          {past && entries.length === 0
+            ? totals.length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Past months keep only their totals per category.
+                </p>
+              )
+            : entries.length > 0 && (
+                <section className="flex flex-col gap-2">
+                  <h2 className="text-sm font-medium text-muted-foreground">
+                    Entries
+                  </h2>
+                  <EntriesList
+                    entries={entries}
+                    onOpen={(entry) => {
+                      setEditing(entry)
+                      setEditorOpen(true)
+                    }}
+                  />
+                </section>
+              )}
+        </TabsContent>
+        <TabsContent value="recurring">
+          <RecurringPanel
+            subscriptions={data.subscriptions}
+            today={data.today}
+          />
+        </TabsContent>
+        <TabsContent value="budgets">
+          <BudgetsPanel
+            budgets={data.budgets}
+            entries={data.entries}
+            month={data.month}
+            today={data.today}
+          />
+        </TabsContent>
+      </Tabs>
 
       <AmountDialog
         open={adding !== null}
@@ -327,29 +366,20 @@ function FinancesPage() {
         open={editorOpen}
         onOpenChange={setEditorOpen}
       />
-      <SubscriptionsDialog
-        open={subsOpen}
-        onOpenChange={setSubsOpen}
-        subscriptions={data.subscriptions}
-        today={data.today}
-      />
-      <BudgetsDialog
-        open={budgetsOpen}
-        onOpenChange={setBudgetsOpen}
-        budgets={data.budgets}
-      />
       <AdviceDialog
         open={adviceOpen}
         onOpenChange={setAdviceOpen}
         month={month}
       />
       <AppFooter />
-      <JarvisSidebar enabled={!dialogOpen} />
+      <AssistantBox enabled={!dialogOpen} phonesOnly />
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </main>
   )
 }
+
+type FinancesTab = 'month' | 'recurring' | 'budgets'
 
 // Icon-only below lg, like the other apps' New buttons.
 const ICON_ON_PHONES = 'max-lg:w-8 max-lg:p-0!'

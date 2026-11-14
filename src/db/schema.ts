@@ -578,6 +578,11 @@ export const financePending = sqliteTable(
 export const financeBudgets = sqliteTable('finance_budgets', {
   category: text().primaryKey(),
   cents: integer().notNull(),
+  /** The month (`YYYY-MM`) a budget alert was last pushed for, and at
+   * which level (80 = nearly used up, 100 = over). Cleared when the budget
+   * changes. */
+  alertedMonth: text('alerted_month'),
+  alertedLevel: integer('alerted_level'),
 })
 
 export type FinanceEntry = typeof financeEntries.$inferSelect

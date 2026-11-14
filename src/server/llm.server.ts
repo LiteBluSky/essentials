@@ -107,6 +107,8 @@ export function callModel(
     /** The provider's own web search (Anthropic's server tool, OpenRouter's
      * web plugin), for this call only. */
     webSearch?: boolean
+    /** Streams the answer: called with each piece of text as it comes. */
+    onText?: (delta: string) => void
   },
 ): Promise<ModelReply> {
   return config.provider === 'anthropic'
@@ -173,7 +175,7 @@ function toOpenAi(turns: Array<Turn>) {
 
 async function callOpenAi(
   config: LlmConfig,
-  { system, turns, tools, webSearch }: Parameters<typeof callModel>[1],
+  { system, turns, tools, webSearch, onText }: Parameters<typeof callModel>[1],
 ): Promise<ModelReply> {
   const openRouter = new URL(config.baseUrl).hostname.endsWith('openrouter.ai')
   if (webSearch && !openRouter) {
@@ -201,6 +203,7 @@ async function callOpenAi(
       ...(openRouter && { usage: { include: true } }),
       // OpenRouter's web plugin (its search is billed in `usage.cost`).
       ...(webSearch && { plugins: [{ id: 'web', max_results: 5 }] }),
+      ...(onText && { stream: true, stream_options: { include_usage: true } }),
     }),
     signal: AbortSignal.timeout(90_000),
   })
@@ -208,7 +211,9 @@ async function callOpenAi(
     const detail = (await res.text()).slice(0, 300)
     throw new Error(`The LLM answered ${res.status}: ${detail}`)
   }
-  const body = completion.parse(await res.json())
+  const body = completion.parse(
+    onText ? await readOpenAiStream(res, onText) : await res.json(),
+  )
   const { message } = body.choices[0]
   return {
     provider: 'openai',
@@ -230,6 +235,99 @@ async function callOpenAi(
         return []
       }
     }),
+  }
+}
+
+const chunk = z.object({
+  choices: z
+    .array(
+      z.object({
+        delta: z
+          .object({
+            content: z.string().nullish(),
+            tool_calls: z
+              .array(
+                z.object({
+                  index: z.number().nullish(),
+                  id: z.string().nullish(),
+                  function: z
+                    .object({
+                      name: z.string().nullish(),
+                      arguments: z.string().nullish(),
+                    })
+                    .nullish(),
+                }),
+              )
+              .nullish(),
+          })
+          .nullish(),
+      }),
+    )
+    .nullish(),
+  model: z.string().nullish(),
+  usage: completion.shape.usage,
+})
+
+/** A streamed completion (server-sent events), put back together as the
+ * non-streamed body; `onText` gets the text as it comes. */
+async function readOpenAiStream(
+  res: Response,
+  onText: (delta: string) => void,
+) {
+  if (!res.body) throw new Error('The LLM sent no stream')
+  let content = ''
+  let model: string | null = null
+  let usage: z.infer<typeof completion>['usage'] = null
+  const calls: Array<{ id: string; name: string; arguments: string }> = []
+  const decoder = new TextDecoder()
+  let buffer = ''
+  const handle = (line: string) => {
+    if (!line.startsWith('data:')) return // Comments (": OPENROUTER PROCESSING").
+    const data = line.slice(5).trim()
+    if (!data || data === '[DONE]') return
+    const json = JSON.parse(data) as { error?: { message?: string } }
+    if (json.error) {
+      throw new Error(`The LLM failed: ${json.error.message ?? 'unknown'}`)
+    }
+    const part = chunk.parse(json)
+    model = part.model || model
+    usage = part.usage ?? usage
+    const delta = part.choices?.[0]?.delta
+    if (delta?.content) {
+      content += delta.content
+      onText(delta.content)
+    }
+    for (const call of delta?.tool_calls ?? []) {
+      const i = call.index ?? calls.length - 1
+      calls[i] ??= { id: '', name: '', arguments: '' }
+      if (call.id) calls[i].id = call.id
+      if (call.function?.name) calls[i].name += call.function.name
+      if (call.function?.arguments) {
+        calls[i].arguments += call.function.arguments
+      }
+    }
+  }
+  for await (const bytes of res.body) {
+    buffer += decoder.decode(bytes, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+    lines.forEach((line) => handle(line.trim()))
+  }
+  handle(buffer.trim())
+  return {
+    choices: [
+      {
+        message: {
+          content,
+          tool_calls: calls.filter(Boolean).map((call) => ({
+            id: call.id,
+            function: { name: call.name, arguments: call.arguments },
+          })),
+        },
+      },
+    ],
+    model,
+    usage,
   }
 }
 
@@ -307,7 +405,7 @@ function toAnthropic(
 
 async function callAnthropic(
   config: LlmConfig,
-  { system, turns, tools, webSearch }: Parameters<typeof callModel>[1],
+  { system, turns, tools, webSearch, onText }: Parameters<typeof callModel>[1],
 ): Promise<ModelReply> {
   const client = new Anthropic({ apiKey: config.key, timeout: 90_000 })
   const fallback = TAKES_FALLBACK.test(config.model)
@@ -337,7 +435,7 @@ async function callAnthropic(
   const content: Array<Anthropic.Beta.BetaContentBlock> = []
   const responses: Array<Anthropic.Beta.BetaMessage> = []
   for (let resume = 0; ; resume++) {
-    const part = await client.beta.messages.create({
+    const params = {
       model: config.model,
       max_tokens: 16000,
       system,
@@ -354,7 +452,15 @@ async function callAnthropic(
         betas: ['server-side-fallback-2026-07-01'],
         fallbacks: 'default' as const,
       }),
-    })
+    } satisfies Anthropic.Beta.MessageCreateParamsNonStreaming
+    let part: Anthropic.Beta.BetaMessage
+    if (onText) {
+      const stream = client.beta.messages.stream(params)
+      stream.on('text', (delta) => onText(delta))
+      part = await stream.finalMessage()
+    } else {
+      part = await client.beta.messages.create(params)
+    }
     responses.push(part)
     content.push(...part.content)
     if (part.stop_reason !== 'pause_turn' || resume >= MAX_RESUMES) break

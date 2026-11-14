@@ -203,7 +203,7 @@ export const EDIT_TOOLS: Array<ToolDef> = [
   {
     name: 'create_folder',
     description:
-      'Create a folder in an app (inside parent_id, or at the top level).',
+      'Create a folder in an app (inside parent_id, or at the top level). Name it as a short, general category more items will share, never after one item (see the filing rules).',
     parameters: {
       type: 'object',
       properties: {
@@ -248,7 +248,7 @@ export const EDIT_TOOLS: Array<ToolDef> = [
   {
     name: 'create_bookmark',
     description:
-      'Save a link (bookmark), into folder_id (from list_folders for bookmarks), else the "Unsorted" folder.',
+      'Save a link (bookmark), into folder_id (from list_folders for bookmarks); "Unsorted" only when you cannot tell what it is about.',
     parameters: {
       type: 'object',
       properties: {
@@ -264,7 +264,7 @@ export const EDIT_TOOLS: Array<ToolDef> = [
   {
     name: 'create_contact',
     description:
-      'Save a person as a contact, into folder_id (from list_folders for contacts), else the "Unsorted" folder. Only fill in what the user said.',
+      'Save a person as a contact, into folder_id (from list_folders for contacts); "Unsorted" only when you cannot tell where it belongs. Only fill in what the user said.',
     parameters: {
       type: 'object',
       properties: {

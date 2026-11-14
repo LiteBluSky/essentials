@@ -1,9 +1,4 @@
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-  useSuspenseQuery,
-} from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import {
   MessagesSquareIcon,
@@ -13,7 +8,13 @@ import {
 } from 'lucide-react'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
-import { ChatComposer, ChatThread } from '@/components/chat/chat-thread'
+import {
+  ChatComposer,
+  ChatThread,
+  streamInto,
+} from '@/components/chat/chat-thread'
+import { refreshKey } from '@/lib/chat'
+import { streamChatMessage } from '@/lib/chat-stream'
 import type { PendingMessage } from '@/components/chat/chat-thread'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
@@ -27,14 +28,10 @@ import {
 import { ASSISTANT_NAME } from '@/lib/assistant'
 import { focusChatComposer, isNewChatKey } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
-import {
-  assistantEnabledQueryOptions,
-  assistantHistoryQueryOptions,
-} from '@/server/assistant.functions'
+import { assistantHistoryQueryOptions } from '@/server/assistant.functions'
 import {
   chatConversationsQueryOptions,
   chatMessagesQueryOptions,
-  sendChatMessage,
 } from '@/server/chat.functions'
 
 // Desktop (`xl` and up): Jarvis as a chat panel floating on the right of
@@ -77,14 +74,6 @@ function write(key: string, value: string | null) {
   } catch {
     // Not kept; fine.
   }
-}
-
-/** Just the panel, for apps without the Ask Jarvis field (Finances,
- * Calendar); nothing without an API key. Their loader prefetches
- * `assistantEnabledQueryOptions`. */
-export function JarvisSidebar({ enabled }: { enabled: boolean }) {
-  const { data: available } = useSuspenseQuery(assistantEnabledQueryOptions)
-  return available ? <AssistantSidebar enabled={enabled} /> : null
 }
 
 export function AssistantSidebar({ enabled }: { enabled: boolean }) {
@@ -167,8 +156,8 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
 
   const send = useMutation({
     mutationFn: ({ text, webSearch }: { text: string; webSearch: boolean }) =>
-      sendChatMessage({
-        data: {
+      streamChatMessage(
+        {
           // A conversation deleted meanwhile (or expired) starts a new one.
           conversationId: messages.length ? conversationId : null,
           text,
@@ -176,13 +165,14 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           webSearch,
         },
-      }),
+        (event) => setPending((p) => streamInto(p, event)),
+      ),
   })
 
   const onSend = async (text: string, webSearch: boolean) => {
-    setPending({ text })
+    setPending({ text, answer: '', tool: null })
     try {
-      const { conversationId: id, result } = await send.mutateAsync({
+      const { conversationId: id, apps } = await send.mutateAsync({
         text,
         webSearch,
       })
@@ -193,13 +183,7 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
       startOver(id)
       void queryClient.invalidateQueries(chatConversationsQueryOptions)
       void queryClient.invalidateQueries(assistantHistoryQueryOptions)
-      for (const app of new Set(
-        [...result.created, ...result.changed].map((item) =>
-          item.app === 'subscriptions' || item.app === 'budgets'
-            ? 'finances'
-            : item.app,
-        ),
-      )) {
+      for (const app of new Set(apps.map(refreshKey))) {
         void queryClient.invalidateQueries({ queryKey: [app] })
       }
       return true

@@ -15,6 +15,7 @@ import {
   Trash2Icon,
 } from 'lucide-react'
 
+import { RowContextMenu } from '@/components/row-context-menu'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -175,13 +176,65 @@ function FolderRow({
   const open = props.forceOpen || props.expanded.has(folder.id)
   const isEmpty = !node.folders.length && !node.tasks.length
   const item = { kind: 'folder', id: folder.id } as const
-  const { rowProps, dropZone, isDragging } = useTreeRowDnd(
+  const { rowProps, dropZone, isDragging, handle } = useTreeRowDnd(
     item,
     { kind: 'folder', node },
     folder.name,
   )
   const shift = useShiftItem(item, folder.parentId)
   const indent = depth * INDENT_PX
+  // The hover menu's and the right click / long press menu's items.
+  const menu = (
+    <>
+      <DropdownMenuGroup>
+        <DropdownMenuItem
+          onClick={() => {
+            props.onToggle(folder.id, true)
+            props.onEdit({
+              kind: 'task',
+              mode: 'edit',
+              folderId: folder.id,
+            })
+          }}
+        >
+          <PlusIcon />
+          New task here
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => {
+            props.onToggle(folder.id, true)
+            props.onEdit({ kind: 'folder', parentId: folder.id })
+          }}
+        >
+          <FolderPlusIcon />
+          New subfolder
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() =>
+            props.onEdit({
+              kind: 'folder',
+              folder,
+              parentId: folder.parentId,
+            })
+          }
+        >
+          <PencilIcon />
+          Rename or move
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
+      <ShiftItems shift={shift} />
+      <DropdownMenuSeparator />
+      <DropdownMenuGroup>
+        <DropdownMenuItem
+          variant="destructive"
+          onClick={() => props.onEdit({ kind: 'delete-folder', node })}
+        >
+          <Trash2Icon />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
+    </>
+  )
 
   return (
     <li role="treeitem" aria-expanded={open}>
@@ -189,17 +242,22 @@ function FolderRow({
         open={open}
         onOpenChange={(next) => props.onToggle(folder.id, next)}
       >
-        <div
-          {...rowProps}
-          data-tree-row
-          data-drop={dropZone}
-          data-dragging={isDragging || undefined}
-          className={cn('group/row flex items-center gap-1', DROP_ROW)}
-          style={
-            {
-              paddingLeft: indent,
-              '--row-indent': `${indent}px`,
-            } as React.CSSProperties
+        <RowContextMenu
+          menu={menu}
+          render={
+            <div
+              {...rowProps}
+              data-tree-row
+              data-drop={dropZone}
+              data-dragging={isDragging || undefined}
+              className={cn('group/row flex items-center gap-1', DROP_ROW)}
+              style={
+                {
+                  paddingLeft: indent,
+                  '--row-indent': `${indent}px`,
+                } as React.CSSProperties
+              }
+            />
           }
         >
           <CollapsibleTrigger
@@ -227,56 +285,9 @@ function FolderRow({
               </Badge>
             )}
           </CollapsibleTrigger>
-          <RowMenu label={`Actions for ${folder.name}`}>
-            <DropdownMenuGroup>
-              <DropdownMenuItem
-                onClick={() => {
-                  props.onToggle(folder.id, true)
-                  props.onEdit({
-                    kind: 'task',
-                    mode: 'edit',
-                    folderId: folder.id,
-                  })
-                }}
-              >
-                <PlusIcon />
-                New task here
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  props.onToggle(folder.id, true)
-                  props.onEdit({ kind: 'folder', parentId: folder.id })
-                }}
-              >
-                <FolderPlusIcon />
-                New subfolder
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() =>
-                  props.onEdit({
-                    kind: 'folder',
-                    folder,
-                    parentId: folder.parentId,
-                  })
-                }
-              >
-                <PencilIcon />
-                Rename or move
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <ShiftItems shift={shift} />
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => props.onEdit({ kind: 'delete-folder', node })}
-              >
-                <Trash2Icon />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </RowMenu>
-        </div>
+          {handle}
+          <RowMenu label={`Actions for ${folder.name}`}>{menu}</RowMenu>
+        </RowContextMenu>
         <CollapsibleContent>
           <ul role="group" className="flex flex-col">
             {isEmpty ? (
@@ -321,7 +332,7 @@ function TaskRow({
   canShift?: boolean
 }) {
   const item = { kind: 'task', id: task.id } as const
-  const { rowProps, dropZone, isDragging } = useTreeRowDnd(
+  const { rowProps, dropZone, isDragging, handle } = useTreeRowDnd(
     item,
     { kind: 'task', task },
     task.title,
@@ -329,22 +340,34 @@ function TaskRow({
   const indent = depth * INDENT_PX
 
   return (
-    <li
-      role="treeitem"
-      {...rowProps}
-      data-tree-row
-      data-drop={dropZone}
-      data-dragging={isDragging || undefined}
-      data-cut={isCut || undefined}
-      className={cn(
-        'group/row flex items-center gap-1 data-cut:opacity-50',
-        DROP_ROW,
-      )}
-      style={
-        {
-          paddingLeft: indent,
-          '--row-indent': `${indent}px`,
-        } as React.CSSProperties
+    <RowContextMenu
+      menu={
+        <TaskMenuItems
+          task={task}
+          onEdit={onEdit}
+          onComplete={onComplete}
+          canShift={canShift}
+        />
+      }
+      render={
+        <li
+          role="treeitem"
+          {...rowProps}
+          data-tree-row
+          data-drop={dropZone}
+          data-dragging={isDragging || undefined}
+          data-cut={isCut || undefined}
+          className={cn(
+            'group/row flex items-center gap-1 data-cut:opacity-50',
+            DROP_ROW,
+          )}
+          style={
+            {
+              paddingLeft: indent,
+              '--row-indent': `${indent}px`,
+            } as React.CSSProperties
+          }
+        />
       }
     >
       <TaskCheck task={task} onComplete={onComplete} />
@@ -362,13 +385,14 @@ function TaskRow({
         {path && <span className="truncate text-muted-foreground">{path}</span>}
         <TaskAge task={task} className="ml-auto" />
       </Button>
+      {handle}
       <TaskMenu
         task={task}
         onEdit={onEdit}
         onComplete={onComplete}
         canShift={canShift}
       />
-    </li>
+    </RowContextMenu>
   )
 }
 
@@ -449,11 +473,30 @@ export function TaskMenu({
   onComplete,
   canShift = false,
 }: TaskActions & { task: Task; canShift?: boolean }) {
+  return (
+    <RowMenu label={`Actions for ${task.title}`}>
+      <TaskMenuItems
+        task={task}
+        onEdit={onEdit}
+        onComplete={onComplete}
+        canShift={canShift}
+      />
+    </RowMenu>
+  )
+}
+
+/** A task's actions: in its hover menu and on right click / long press. */
+export function TaskMenuItems({
+  task,
+  onEdit,
+  onComplete,
+  canShift = false,
+}: TaskActions & { task: Task; canShift?: boolean }) {
   const shift = useShiftItem({ kind: 'task', id: task.id }, task.folderId)
   const done = task.completedAt !== null
 
   return (
-    <RowMenu label={`Actions for ${task.title}`}>
+    <>
       <DropdownMenuGroup>
         <DropdownMenuItem
           onClick={() =>
@@ -492,7 +535,7 @@ export function TaskMenu({
           Delete
         </DropdownMenuItem>
       </DropdownMenuGroup>
-    </RowMenu>
+    </>
   )
 }
 

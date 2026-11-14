@@ -2,12 +2,15 @@ import { asc, desc, eq, inArray, lt } from 'drizzle-orm'
 
 import { db } from '@/db'
 import { chatConversations, chatMessages } from '@/db/schema'
+import type { ChatMessage } from '@/db/schema'
+import { UNSORTED_FOLDER } from '@/lib/assistant'
 import { chatCutoff } from '@/lib/chat'
-import type { ChatInput, ChatTurnResult } from '@/lib/chat'
+import type { ChatInput, ChatStreamEvent, ChatTurnResult } from '@/lib/chat'
 import { runAgent } from './agent.server'
 import type { AgentRun } from './agent.server'
 import { APP_PROMPT } from './prompts.server'
 import { describe } from './assistant-actions.server'
+import { ensureTopFolder as ensureNoteFolder, insertNote } from './notes.server'
 import { logRequest } from './assistant-log.server'
 import { undoableRuns } from './changes.server'
 import { currentModel, localTime } from './llm.server'
@@ -78,6 +81,49 @@ export async function removeConversation(id: number) {
   })
 }
 
+/**
+ * Saves an answer as a note (Notes' "Unsorted" folder): titled after its
+ * first heading (taken out of the text), else the question it answered.
+ */
+export async function answerToNote(messageId: number) {
+  const message = (
+    await db.select().from(chatMessages).where(eq(chatMessages.id, messageId))
+  ).at(0)
+  if (!message || message.role !== 'assistant' || message.error) {
+    throw new Error('That answer is gone')
+  }
+  let body = message.content.trim()
+  let title = ''
+  const heading = /^#{1,6}\s+(.+?)\s*#*\s*$/m.exec(body)
+  if (heading && body.startsWith(heading[0])) {
+    title = heading[1]
+    body = body.slice(heading[0].length).trim()
+  } else {
+    title = titleFrom((await questionBefore(message)) ?? '')
+  }
+  const folderId = await ensureNoteFolder(UNSORTED_FOLDER)
+  const { id } = await insertNote({
+    title: title.slice(0, 255),
+    body,
+    folderId,
+  })
+  return { id, title, folder: UNSORTED_FOLDER }
+}
+
+/** The user's message an answer replied to (the one right before it). */
+async function questionBefore(message: ChatMessage) {
+  const rows = await db
+    .select()
+    .from(chatMessages)
+    .where(eq(chatMessages.conversationId, message.conversationId))
+    .orderBy(asc(chatMessages.createdAt), asc(chatMessages.id))
+  const index = rows.findIndex((m) => m.id === message.id)
+  return rows
+    .slice(0, Math.max(index, 0))
+    .reverse()
+    .find((m) => m.role === 'user')?.content
+}
+
 /** The conversation's title: the start of its first message. */
 function titleFrom(text: string) {
   const line = text.trim().split('\n')[0]
@@ -145,7 +191,11 @@ export async function saveTurn(
  * found / changed and the run id for Undo. Every turn is logged with its
  * cost.
  */
-export async function sendMessage(input: ChatInput): Promise<ChatTurnResult> {
+export async function sendMessage(
+  input: ChatInput,
+  /** Streams the turn as it runs (see `/api/chat`). */
+  onEvent?: (event: ChatStreamEvent) => void,
+): Promise<ChatTurnResult> {
   const started = Date.now()
 
   let conversationId = input.conversationId
@@ -180,6 +230,7 @@ export async function sendMessage(input: ChatInput): Promise<ChatTurnResult> {
     turns,
     timeZone: input.timeZone,
     webSearch: input.webSearch,
+    onEvent,
   })
 
   const { message } = await saveTurn(conversationId, input.text, run)

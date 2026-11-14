@@ -113,13 +113,22 @@ export function referenceQuery(textBeforeCaret: string): ReferenceQuery | null {
 }
 
 /** Remark plugin: each reference in the text becomes a `<span data-ref>`
- * (rendered as a chip by the markdown components). Not inside code or
- * links. */
+ * (rendered as a chip by the markdown components), also one alone in a
+ * code span. Not inside code blocks or links. */
 export function remarkReferences() {
   const walk = (node: Root | RootContent) => {
     if (!('children' in node) || node.type === 'link') return
     const children: Array<RootContent> = []
     for (const child of node.children as Array<RootContent>) {
+      // A reference in backticks (models do that) is still a reference.
+      if (child.type === 'inlineCode') {
+        const parts = splitReferences(child.value.trim())
+        const [part] = parts
+        if (parts.length === 1 && typeof part !== 'string') {
+          children.push(referenceNode(part))
+          continue
+        }
+      }
       if (child.type !== 'text') {
         walk(child)
         children.push(child)
@@ -129,23 +138,25 @@ export function remarkReferences() {
         if (typeof part === 'string') {
           children.push({ type: 'text', value: part } satisfies Text)
         } else {
-          children.push({
-            type: 'text',
-            value: `@${part.name}`,
-            data: {
-              hName: 'span',
-              hProperties: {
-                dataRef: JSON.stringify(part),
-              },
-              hChildren: [{ type: 'text', value: `@${part.name}` }],
-            },
-          })
+          children.push(referenceNode(part))
         }
       }
     }
     ;(node as { children: Array<RootContent> }).children = children
   }
   return (tree: Root) => walk(tree)
+}
+
+function referenceNode(reference: Reference): Text {
+  return {
+    type: 'text',
+    value: `@${reference.name}`,
+    data: {
+      hName: 'span',
+      hProperties: { dataRef: JSON.stringify(reference) },
+      hChildren: [{ type: 'text', value: `@${reference.name}` }],
+    },
+  }
 }
 
 /** The reference a `data-ref` attribute holds (see `remarkReferences`). */

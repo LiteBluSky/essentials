@@ -11,7 +11,7 @@ import {
   parseBirthday,
 } from '@/lib/contacts/birthday'
 import { leadLabel } from '@/lib/tasks/tree'
-import { sendPaymentReminders } from './finances-due.server'
+import { sendBudgetAlerts, sendPaymentReminders } from './finances-due.server'
 import { readSettings } from './settings.server'
 
 // Phone reminders: an open task is pushed through ntfy (https://ntfy.sh, or
@@ -305,6 +305,7 @@ export async function sendAllReminders(now = new Date()) {
       sent += await sendBirthdays(now, data, label)
       sent += await sendStripReminders(now, data, label)
       sent += await sendPaymentReminders(push, now, data, label)
+      sent += await sendBudgetAlerts(push, now, data, label)
     } catch (error) {
       console.error(`Reminders from "${profile.name}" failed:`, error)
     }

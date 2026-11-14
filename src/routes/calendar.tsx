@@ -11,7 +11,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { AppNav } from '@/components/app-nav'
-import { JarvisSidebar } from '@/components/assistant-sidebar'
+import { AssistantBox } from '@/components/assistant-box'
 import { CalendarMenu } from '@/components/calendar/calendar-menu'
 import {
   DeleteStripDialog,
@@ -155,8 +155,11 @@ function CalendarPage() {
   }
 
   // Dragging over days: the pointer is followed over the grid, and letting
-  // go adds a strip over the days covered (a click = one day).
+  // go adds a strip over the days covered (a click = one day). A finger
+  // only taps a day (a swipe switches app instead; the dialog sets the
+  // range).
   const dragging = useRef(false)
+  const tapped = useRef<{ day: string; x: number; y: number } | null>(null)
   useEffect(() => {
     const dayAt = (e: PointerEvent) =>
       document
@@ -168,13 +171,20 @@ function CalendarPage() {
       const day = dayAt(e)
       if (day) setSelection((s) => (s ? { ...s, focus: day } : s))
     }
-    const onUp = () => {
+    const onUp = (e: PointerEvent) => {
+      const tap = tapped.current
+      tapped.current = null
+      if (tap && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < 10) {
+        openNew(tap.day, tap.day)
+        return
+      }
       if (!dragging.current) return
       dragging.current = false
       const s = selectionRef.current
       if (s) openNew(s.anchor, s.focus)
     }
     const onCancel = () => {
+      tapped.current = null
       if (!dragging.current) return
       dragging.current = false
       setSelection(null)
@@ -191,6 +201,10 @@ function CalendarPage() {
 
   const onDayPointerDown = (day: string, e: React.PointerEvent) => {
     if (e.button !== 0) return
+    if (e.pointerType === 'touch') {
+      tapped.current = { day, x: e.clientX, y: e.clientY }
+      return
+    }
     dragging.current = true
     setSelection({ anchor: day, focus: day, by: 'pointer' })
   }
@@ -416,7 +430,7 @@ function CalendarPage() {
           }
         }}
       />
-      <JarvisSidebar enabled={!dialogOpen} />
+      <AssistantBox enabled={!dialogOpen} phonesOnly />
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
       <ShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </main>

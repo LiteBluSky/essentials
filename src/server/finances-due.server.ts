@@ -1,13 +1,15 @@
 import { format } from 'date-fns'
-import { and, asc, eq, isNull, lte } from 'drizzle-orm'
+import { and, asc, eq, isNull, like, lte } from 'drizzle-orm'
 
 import { db } from '@/db'
 import type { Db } from '@/db'
 import {
+  financeBudgets,
   financeEntries,
   financePending,
   financeSubscriptions,
 } from '@/db/schema'
+import { alertLevel, budgetLines } from '@/lib/finances/budgets'
 import { formatMoney } from '@/lib/finances/money'
 import { assertCanAdd } from './finances-months.server'
 import { dueDays } from '@/lib/finances/schedule'
@@ -143,6 +145,68 @@ export async function sendPaymentReminders(
       sent++
     } catch (error) {
       console.error(`Reminder for pending charge ${p.id} failed:`, error)
+    }
+  }
+  return sent
+}
+
+/**
+ * Pushes a budget that this month has nearly used up (80%) and again once
+ * it's over (100%), each once a month (`alertedMonth` / `alertedLevel` on
+ * the budget; changing the budget re-arms it). Run by the reminder tick, so
+ * it goes out soon after the spending that crossed it was added.
+ */
+export async function sendBudgetAlerts(
+  push: (p: {
+    title: string
+    message: string
+    tags: string
+    path: string
+  }) => Promise<void>,
+  now = new Date(),
+  data: Db = db,
+  label?: string,
+) {
+  const today = localDay(now)
+  const month = today.slice(0, 7)
+  const budgets = await data.select().from(financeBudgets)
+  if (budgets.length === 0) return 0
+  const entries = await data
+    .select()
+    .from(financeEntries)
+    .where(like(financeEntries.day, `${month}-%`))
+  let sent = 0
+  for (const line of budgetLines(budgets, entries, month, today)) {
+    const level = alertLevel(line)
+    const saved = budgets.find((b) => b.category === line.category)!
+    const already = saved.alertedMonth === month ? (saved.alertedLevel ?? 0) : 0
+    if (level === 0 || level <= already) continue
+    const percent = Math.round(line.ratio * 100)
+    try {
+      await push({
+        title:
+          level === 100
+            ? `Over budget: ${line.label}`
+            : `${line.label} budget nearly used up`,
+        message: [
+          `${formatMoney(line.spent)} of ${formatMoney(line.budget)} (${percent}%)`,
+          line.left < 0
+            ? `${formatMoney(-line.left)} over`
+            : `${formatMoney(line.left)} left this month`,
+          label,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+        tags: level === 100 ? 'warning' : 'chart_with_upwards_trend',
+        path: '/finances',
+      })
+      await data
+        .update(financeBudgets)
+        .set({ alertedMonth: month, alertedLevel: level })
+        .where(eq(financeBudgets.category, line.category))
+      sent++
+    } catch (error) {
+      console.error(`Budget alert for ${line.category} failed:`, error)
     }
   }
   return sent

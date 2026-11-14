@@ -1,10 +1,17 @@
+import { RowContextMenu } from '@/components/row-context-menu'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import type { Task } from '@/db/schema'
 import { UP_NEXT_KEYS, upNextDayLabel } from '@/lib/tasks/tree'
 import type { UpNext as UpNextList } from '@/lib/tasks/tree'
 import type { OpenEditor } from './editor'
-import { TaskAge, TaskCheck, TaskMenu, TaskTitle } from './task-tree'
+import {
+  TaskAge,
+  TaskCheck,
+  TaskMenu,
+  TaskMenuItems,
+  TaskTitle,
+} from './task-tree'
 
 type ListProps = {
   tasks: Array<Task>
@@ -50,7 +57,17 @@ function QuickList({
       </h2>
       <ul className="flex flex-col">
         {tasks.map((task, i) => (
-          <li key={task.id} className="group/row flex items-center gap-1">
+          <RowContextMenu
+            key={task.id}
+            menu={
+              <TaskMenuItems
+                task={task}
+                onEdit={onEdit}
+                onComplete={onComplete}
+              />
+            }
+            render={<li className="group/row flex items-center gap-1" />}
+          >
             <TaskCheck task={task} onComplete={onComplete} />
             <Button
               variant="ghost"
@@ -65,7 +82,7 @@ function QuickList({
               <TaskAge task={task} className="ml-auto" />
             </Button>
             <TaskMenu task={task} onEdit={onEdit} onComplete={onComplete} />
-          </li>
+          </RowContextMenu>
         ))}
       </ul>
     </section>

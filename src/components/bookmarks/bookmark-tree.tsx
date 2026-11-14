@@ -16,6 +16,7 @@ import {
   Trash2Icon,
 } from 'lucide-react'
 
+import { RowContextMenu } from '@/components/row-context-menu'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -127,13 +128,61 @@ function FolderRow({
   const open = props.forceOpen || props.expanded.has(folder.id)
   const isEmpty = !node.folders.length && !node.links.length
   const item = { kind: 'folder', id: folder.id } as const
-  const { rowProps, dropZone, isDragging } = useTreeRowDnd(
+  const { rowProps, dropZone, isDragging, handle } = useTreeRowDnd(
     item,
     { kind: 'folder', node },
     folder.name,
   )
   const shift = useShiftItem(item, folder.parentId)
   const indent = depth * INDENT_PX
+  // The hover menu's and the right click / long press menu's items.
+  const menu = (
+    <>
+      <DropdownMenuGroup>
+        <DropdownMenuItem
+          onClick={() => {
+            props.onToggle(folder.id, true)
+            props.onEdit({ kind: 'link', folderId: folder.id })
+          }}
+        >
+          <PlusIcon />
+          New link here
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => {
+            props.onToggle(folder.id, true)
+            props.onEdit({ kind: 'folder', parentId: folder.id })
+          }}
+        >
+          <FolderPlusIcon />
+          New subfolder
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() =>
+            props.onEdit({
+              kind: 'folder',
+              folder,
+              parentId: folder.parentId,
+            })
+          }
+        >
+          <PencilIcon />
+          Rename or move
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
+      <ShiftItems shift={shift} />
+      <DropdownMenuSeparator />
+      <DropdownMenuGroup>
+        <DropdownMenuItem
+          variant="destructive"
+          onClick={() => props.onEdit({ kind: 'delete-folder', node })}
+        >
+          <Trash2Icon />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
+    </>
+  )
 
   return (
     <li role="treeitem" aria-expanded={open}>
@@ -141,17 +190,22 @@ function FolderRow({
         open={open}
         onOpenChange={(next) => props.onToggle(folder.id, next)}
       >
-        <div
-          {...rowProps}
-          data-tree-row
-          data-drop={dropZone}
-          data-dragging={isDragging || undefined}
-          className={cn('group/row flex items-center gap-1', DROP_ROW)}
-          style={
-            {
-              paddingLeft: indent,
-              '--row-indent': `${indent}px`,
-            } as React.CSSProperties
+        <RowContextMenu
+          menu={menu}
+          render={
+            <div
+              {...rowProps}
+              data-tree-row
+              data-drop={dropZone}
+              data-dragging={isDragging || undefined}
+              className={cn('group/row flex items-center gap-1', DROP_ROW)}
+              style={
+                {
+                  paddingLeft: indent,
+                  '--row-indent': `${indent}px`,
+                } as React.CSSProperties
+              }
+            />
           }
         >
           <CollapsibleTrigger
@@ -179,52 +233,9 @@ function FolderRow({
               </Badge>
             )}
           </CollapsibleTrigger>
-          <RowMenu label={`Actions for ${folder.name}`}>
-            <DropdownMenuGroup>
-              <DropdownMenuItem
-                onClick={() => {
-                  props.onToggle(folder.id, true)
-                  props.onEdit({ kind: 'link', folderId: folder.id })
-                }}
-              >
-                <PlusIcon />
-                New link here
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  props.onToggle(folder.id, true)
-                  props.onEdit({ kind: 'folder', parentId: folder.id })
-                }}
-              >
-                <FolderPlusIcon />
-                New subfolder
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() =>
-                  props.onEdit({
-                    kind: 'folder',
-                    folder,
-                    parentId: folder.parentId,
-                  })
-                }
-              >
-                <PencilIcon />
-                Rename or move
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <ShiftItems shift={shift} />
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => props.onEdit({ kind: 'delete-folder', node })}
-              >
-                <Trash2Icon />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </RowMenu>
-        </div>
+          {handle}
+          <RowMenu label={`Actions for ${folder.name}`}>{menu}</RowMenu>
+        </RowContextMenu>
         <CollapsibleContent>
           <ul role="group" className="flex flex-col">
             {isEmpty ? (
@@ -266,7 +277,7 @@ function LinkRow({
 }) {
   const isFavorite = link.favoritePosition !== null
   const item = { kind: 'link', id: link.id } as const
-  const { rowProps, dropZone, isDragging } = useTreeRowDnd(
+  const { rowProps, dropZone, isDragging, handle } = useTreeRowDnd(
     item,
     { kind: 'link', link },
     link.url,
@@ -274,22 +285,33 @@ function LinkRow({
   const indent = depth * INDENT_PX + CHEVRON_PX
 
   return (
-    <li
-      role="treeitem"
-      {...rowProps}
-      data-tree-row
-      data-drop={dropZone}
-      data-dragging={isDragging || undefined}
-      data-cut={isCut || undefined}
-      className={cn(
-        'group/row flex items-center gap-1 data-cut:opacity-50',
-        DROP_ROW,
-      )}
-      style={
-        {
-          paddingLeft: indent,
-          '--row-indent': `${indent}px`,
-        } as React.CSSProperties
+    <RowContextMenu
+      menu={
+        <LinkMenuItems
+          link={link}
+          onEdit={onEdit}
+          onToggleFavorite={onToggleFavorite}
+        />
+      }
+      render={
+        <li
+          role="treeitem"
+          {...rowProps}
+          data-tree-row
+          data-drop={dropZone}
+          data-dragging={isDragging || undefined}
+          data-cut={isCut || undefined}
+          className={cn(
+            'group/row flex items-center gap-1 data-cut:opacity-50',
+            DROP_ROW,
+          )}
+          style={
+            {
+              paddingLeft: indent,
+              '--row-indent': `${indent}px`,
+            } as React.CSSProperties
+          }
+        />
       }
     >
       <Button
@@ -321,17 +343,39 @@ function LinkRow({
           />
         )}
       </Button>
+      {handle}
       <LinkMenu
         link={link}
         onEdit={onEdit}
         onToggleFavorite={onToggleFavorite}
       />
-    </li>
+    </RowContextMenu>
   )
 }
 
 /** A link's hover `…` menu (tree rows and the favourites list). */
 export function LinkMenu({
+  link,
+  onEdit,
+  onToggleFavorite,
+}: {
+  link: Link
+  onEdit: OpenEditor
+  onToggleFavorite: (linkId: number) => void
+}) {
+  return (
+    <RowMenu label={`Actions for ${link.title}`}>
+      <LinkMenuItems
+        link={link}
+        onEdit={onEdit}
+        onToggleFavorite={onToggleFavorite}
+      />
+    </RowMenu>
+  )
+}
+
+/** A link's actions: in its hover menu and on right click / long press. */
+export function LinkMenuItems({
   link,
   onEdit,
   onToggleFavorite,
@@ -353,7 +397,7 @@ export function LinkMenu({
   }
 
   return (
-    <RowMenu label={`Actions for ${link.title}`}>
+    <>
       <DropdownMenuGroup>
         <DropdownMenuItem
           onClick={() =>
@@ -383,7 +427,7 @@ export function LinkMenu({
           Delete
         </DropdownMenuItem>
       </DropdownMenuGroup>
-    </RowMenu>
+    </>
   )
 }
 

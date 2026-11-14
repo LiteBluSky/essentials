@@ -1,7 +1,9 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { format } from 'date-fns'
 import {
   ArrowUpIcon,
+  CheckIcon,
   ExternalLinkIcon,
   ListChecksIcon,
   NotebookPenIcon,
@@ -37,6 +39,7 @@ import {
   MessageScrollerItem,
   MessageScrollerProvider,
   MessageScrollerViewport,
+  useMessageScroller,
 } from '@/components/ui/message-scroller'
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
@@ -46,20 +49,41 @@ import type {
   AssistantItem,
   ChangeSummary,
 } from '@/lib/assistant'
-import { messageActions } from '@/lib/chat'
-import type { ChatMessageView } from '@/lib/chat'
+import { messageActions, toolActivity } from '@/lib/chat'
+import type { ChatMessageView, ChatStreamEvent } from '@/lib/chat'
 import { useUndoRun } from '@/hooks/use-undo-run'
 import { requestOpen } from '@/lib/global-search'
 import type { SearchApp } from '@/lib/global-search'
+import { saveAnswerAsNote } from '@/server/chat.functions'
 import { ChatMarkdown } from './chat-markdown'
 import { ASSISTANT_NAME } from '@/lib/assistant'
 
-/** A message being sent (shown before the server has saved it). */
-export type PendingMessage = { text: string }
+/** A message being sent (shown until the server has saved the turn), with
+ * the answer so far as it streams in, and the tool it's using meanwhile. */
+export type PendingMessage = {
+  text: string
+  answer: string
+  tool: string | null
+}
+
+/** Applies a streamed event to the pending message. */
+export function streamInto(
+  pending: PendingMessage | null,
+  event: ChatStreamEvent,
+): PendingMessage | null {
+  if (!pending) return pending
+  if (event.type === 'text') {
+    return { ...pending, answer: pending.answer + event.delta }
+  }
+  // The text before tool calls was only a lead-in.
+  if (event.type === 'step') return { ...pending, answer: '' }
+  if (event.type === 'tool') return { ...pending, tool: event.name }
+  return pending
+}
 
 // The conversation (shadcn message + bubble, in a message scroller that
-// sticks to the latest message) and what each answer created / found, with
-// Open buttons.
+// follows the bottom) and what each answer created / found, with Open
+// buttons.
 export function ChatThread({
   messages,
   pending,
@@ -68,49 +92,81 @@ export function ChatThread({
   pending: PendingMessage | null
 }) {
   return (
-    <MessageScrollerProvider>
-      <MessageScroller>
-        <MessageScrollerViewport>
-          <MessageScrollerContent className="mx-auto w-full max-w-3xl px-1 py-4">
-            {messages.map((message) => (
-              <MessageScrollerItem
-                key={message.id}
-                messageId={String(message.id)}
-                scrollAnchor={message.role === 'user'}
-              >
-                <ChatBubble message={message} />
+    <MessageScrollerProvider autoScroll>
+      <ThreadMessages messages={messages} pending={pending} />
+    </MessageScrollerProvider>
+  )
+}
+
+function ThreadMessages({
+  messages,
+  pending,
+}: {
+  messages: Array<ChatMessageView>
+  pending: PendingMessage | null
+}) {
+  // No scroll anchors (they pin a new question to the top): a message sent,
+  // an answer in or another conversation opened goes to the latest message,
+  // even when scrolled up.
+  const { scrollToEnd } = useMessageScroller()
+  const lastId = messages.at(-1)?.id
+  const sending = pending !== null
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => scrollToEnd())
+    return () => cancelAnimationFrame(frame)
+  }, [lastId, sending, scrollToEnd])
+
+  return (
+    <MessageScroller>
+      <MessageScrollerViewport>
+        <MessageScrollerContent className="mx-auto w-full max-w-3xl px-1 py-4">
+          {messages.map((message) => (
+            <MessageScrollerItem
+              key={message.id}
+              messageId={String(message.id)}
+            >
+              <ChatBubble message={message} />
+            </MessageScrollerItem>
+          ))}
+          {pending && (
+            <>
+              <MessageScrollerItem messageId="pending">
+                <Message align="end">
+                  <MessageContent>
+                    <Bubble>
+                      <BubbleContent className="whitespace-pre-wrap">
+                        <ReferenceText>{pending.text}</ReferenceText>
+                      </BubbleContent>
+                    </Bubble>
+                  </MessageContent>
+                </Message>
               </MessageScrollerItem>
-            ))}
-            {pending && (
-              <>
-                <MessageScrollerItem messageId="pending" scrollAnchor>
-                  <Message align="end">
+              <MessageScrollerItem>
+                {pending.answer ? (
+                  <Message>
                     <MessageContent>
-                      <Bubble>
-                        <BubbleContent className="whitespace-pre-wrap">
-                          <ReferenceText>{pending.text}</ReferenceText>
+                      <Bubble variant="ghost">
+                        <BubbleContent aria-live="polite">
+                          <ChatMarkdown>{pending.answer}</ChatMarkdown>
                         </BubbleContent>
                       </Bubble>
                     </MessageContent>
                   </Message>
-                </MessageScrollerItem>
-                <MessageScrollerItem scrollAnchor={false}>
+                ) : (
                   <Marker role="status">
                     <MarkerIcon>
                       <Spinner />
                     </MarkerIcon>
-                    <MarkerContent>
-                      {ASSISTANT_NAME} is looking it up…
-                    </MarkerContent>
+                    <MarkerContent>{toolActivity(pending.tool)}</MarkerContent>
                   </Marker>
-                </MessageScrollerItem>
-              </>
-            )}
-          </MessageScrollerContent>
-        </MessageScrollerViewport>
-        <MessageScrollerButton />
-      </MessageScroller>
-    </MessageScrollerProvider>
+                )}
+              </MessageScrollerItem>
+            </>
+          )}
+        </MessageScrollerContent>
+      </MessageScrollerViewport>
+      <MessageScrollerButton />
+    </MessageScroller>
   )
 }
 
@@ -154,11 +210,73 @@ function ChatBubble({ message }: { message: ChatMessageView }) {
             )}
           </BubbleContent>
         </Bubble>
-        {message.runId && (
-          <UndoButton runId={message.runId} undoable={message.undoable} />
+        {!message.error && (
+          <div className="flex flex-wrap items-center gap-2">
+            {message.runId && (
+              <UndoButton runId={message.runId} undoable={message.undoable} />
+            )}
+            <SaveAsNoteButton messageId={message.id} />
+          </div>
         )}
       </MessageContent>
     </Message>
+  )
+}
+
+/** Saves the answer as a note (Notes' Unsorted folder), then offers to
+ * open it. */
+function SaveAsNoteButton({ messageId }: { messageId: number }) {
+  const queryClient = useQueryClient()
+  const open = useOpen()
+  const [savedId, setSavedId] = useState<number | null>(null)
+  const save = useMutation({
+    mutationFn: () => saveAnswerAsNote({ data: { id: messageId } }),
+    onSuccess: (note) => {
+      setSavedId(note.id)
+      void queryClient.invalidateQueries({ queryKey: ['notes'] })
+      toast.add({
+        title: 'Saved as a note',
+        description: `${note.title || 'Untitled'} · in ${note.folder}`,
+        type: 'success',
+        actionProps: {
+          children: 'Open',
+          onClick: () => open({ app: 'notes', id: note.id }),
+        },
+      })
+    },
+    onError: (error) =>
+      toast.add({
+        title: "Couldn't save it",
+        description: error.message,
+        type: 'error',
+      }),
+  })
+  if (savedId !== null) {
+    return (
+      <Button
+        size="xs"
+        variant="ghost"
+        onClick={() => open({ app: 'notes', id: savedId })}
+      >
+        <CheckIcon data-icon="inline-start" />
+        Saved · Open note
+      </Button>
+    )
+  }
+  return (
+    <Button
+      size="xs"
+      variant="ghost"
+      disabled={save.isPending}
+      onClick={() => save.mutate()}
+    >
+      {save.isPending ? (
+        <Spinner data-icon="inline-start" />
+      ) : (
+        <NotebookPenIcon data-icon="inline-start" />
+      )}
+      Save as note
+    </Button>
   )
 }
 
@@ -169,21 +287,19 @@ function UndoButton({ runId, undoable }: { runId: string; undoable: boolean }) {
     return <p className="text-xs text-muted-foreground">Changes undone.</p>
   }
   return (
-    <div>
-      <Button
-        size="xs"
-        variant="outline"
-        disabled={undo.isPending}
-        onClick={() => undo.mutate(runId)}
-      >
-        {undo.isPending ? (
-          <Spinner data-icon="inline-start" />
-        ) : (
-          <Undo2Icon data-icon="inline-start" />
-        )}
-        Undo changes
-      </Button>
-    </div>
+    <Button
+      size="xs"
+      variant="outline"
+      disabled={undo.isPending}
+      onClick={() => undo.mutate(runId)}
+    >
+      {undo.isPending ? (
+        <Spinner data-icon="inline-start" />
+      ) : (
+        <Undo2Icon data-icon="inline-start" />
+      )}
+      Undo changes
+    </Button>
   )
 }
 

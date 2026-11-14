@@ -57,7 +57,15 @@ function isTyping(target: EventTarget | null) {
  * an LLM key. Not focused on its own: `s` (while `enabled`: no dialog
  * open) or a tap goes in, Esc hands the keys back to the tree.
  */
-export function AssistantBox({ enabled }: { enabled: boolean }) {
+export function AssistantBox({
+  enabled,
+  phonesOnly = false,
+}: {
+  enabled: boolean
+  /** Only the floating field on phones (below `lg`) and the panel from
+   * `xl`: nothing in between (Calendar and Finances keep their room). */
+  phonesOnly?: boolean
+}) {
   const { data: available } = useSuspenseQuery(assistantEnabledQueryOptions)
   const desktop = useDesktopAssistant()
   if (!available) return null
@@ -66,7 +74,7 @@ export function AssistantBox({ enabled }: { enabled: boolean }) {
   // CSS shows one, and only that one takes `s`.
   return (
     <>
-      <div className="xl:hidden">
+      <div className={phonesOnly ? 'lg:hidden' : 'xl:hidden'}>
         <AssistantField enabled={enabled && !desktop} />
       </div>
       <AssistantSidebar enabled={enabled} />

@@ -2,10 +2,8 @@ import {
   EllipsisVerticalIcon,
   HistoryIcon,
   MonitorDownIcon,
-  RepeatIcon,
   SettingsIcon,
   SparklesIcon,
-  WalletIcon,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -24,21 +22,16 @@ import { toast } from '@/components/ui/toast'
 import { useInstallApp } from '@/hooks/use-install-app'
 import { ASSISTANT_NAME } from '@/lib/assistant'
 
-// The Finances app's ⋮ menu: subscriptions, budgets, categorizing what's
-// uncategorized (one AI request), settings, the assistant history and
+// The Finances app's ⋮ menu: categorizing what's uncategorized (one AI request), settings, the assistant history and
 // installing the app.
 export function FinancesMenu({
   settingsOpen,
   onSettingsOpenChange,
-  onSubscriptions,
-  onBudgets,
   uncategorized,
   onCategorize,
 }: {
   settingsOpen: boolean
   onSettingsOpenChange: (open: boolean) => void
-  onSubscriptions: () => void
-  onBudgets: () => void
   /** How many of this month's entries could be categorized (0 = hidden). */
   uncategorized: number
   onCategorize: () => void
@@ -73,23 +66,17 @@ export function FinancesMenu({
           <EllipsisVerticalIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuGroup>
-            <DropdownMenuItem onClick={onSubscriptions}>
-              <RepeatIcon />
-              Recurring…
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={onBudgets}>
-              <WalletIcon />
-              Budgets…
-            </DropdownMenuItem>
-            {uncategorized > 0 && (
-              <DropdownMenuItem onClick={onCategorize}>
-                <SparklesIcon />
-                Categorize {uncategorized} with {ASSISTANT_NAME}
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
+          {uncategorized > 0 && (
+            <>
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={onCategorize}>
+                  <SparklesIcon />
+                  Categorize {uncategorized} with {ASSISTANT_NAME}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+            </>
+          )}
           <DropdownMenuGroup>
             <DropdownMenuItem onClick={() => onSettingsOpenChange(true)}>
               <SettingsIcon />

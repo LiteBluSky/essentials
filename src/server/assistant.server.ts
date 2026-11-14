@@ -40,7 +40,7 @@ export const ACTION_TOOLS: Array<ToolDef> = [
         folder_id: {
           type: 'integer',
           description:
-            'The folder to file it in: an id from list_folders for this app. Omit to put it in "Unsorted".',
+            'The folder to file it in: an id from list_folders for this app (create_folder a fitting one first if none fits). Omit only when you cannot tell what it is about: it then goes to "Unsorted".',
         },
       },
       required: ['title'],
@@ -63,7 +63,7 @@ export const ACTION_TOOLS: Array<ToolDef> = [
         folder_id: {
           type: 'integer',
           description:
-            'The folder to file it in: an id from list_folders for this app. Omit to put it in "Unsorted".',
+            'The folder to file it in: an id from list_folders for this app (create_folder a fitting one first if none fits). Omit only when you cannot tell what it is about: it then goes to "Unsorted".',
         },
       },
       required: ['body'],

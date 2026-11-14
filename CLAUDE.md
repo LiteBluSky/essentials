@@ -79,6 +79,7 @@ Each app is self-contained and namespaced; only the shell is shared.
 - **Shared**: `lib/config.ts`, `lib/theme.ts`, `lib/shortcuts.ts`
   (`search`, `newFolder`), `hooks/use-expanded-folders.ts`,
   `hooks/use-install-app.ts`, `hooks/use-hydrated.ts`,
+  `components/swipe-apps.tsx`,
   `components/theme-toggle.tsx`, the global
   search (`components/global-search.tsx`, `hooks/use-global-search.ts`,
   `lib/global-search.ts`, `server/search.*.ts`), the assistant
@@ -183,7 +184,8 @@ One SQLite file holds every app. Bookmark tables keep their original names.
   timestamps. Accept = an entry on its day, Skip = deleted
   (`finances-due.server.ts`). Not counted anywhere until accepted.
 - `finance_budgets` — optional monthly budget per expense `category`
-  (primary key), `cents` in euros.
+  (primary key), `cents` in euros, `alertedMonth` / `alertedLevel` (the
+  last budget alert pushed: month + 80 / 100).
 - `assistant_log` — one row per "Tell me…" request or chat turn (`source`
   `tell` | `chat`; `finances` for Finances' own AI calls): `text`, `provider`,
   `model`, `ok`, `result` (one line per item done, or the error),
@@ -283,7 +285,13 @@ spread edge to edge (`justify-between`; Calendar adds its month row the
 same way, and Tasks' view toggles spread too), and New folder / New <item> (and Chat's New chat) are icon-only
 (`ICON_ON_PHONES`, label in `aria-label`)), the app's quick list, search box, then the tree. Folders are
 `Collapsible` rows (expanded state persisted in localStorage per app), each
-row has a hover `DropdownMenu`. Create/edit happens in a `Dialog`, delete
+row has a hover `DropdownMenu`, and the same actions on **right click /
+long press** (~0.5 s on touch): `RowContextMenu`
+(`components/row-context-menu.tsx`, shadcn `context-menu`) wraps the row
+element and reuses the hover menu's items (`NoteMenuItems`,
+`LinkMenuItems`, `TaskMenuItems`, `ContactMenuItems`; the dropdown and the
+context menu share Base UI's menu parts), in the trees and the quick
+lists. Create/edit happens in a `Dialog`, delete
 confirms in an `AlertDialog`. Theme: Light/Dark/System dropdown
 (`src/lib/theme.ts`, shared by all apps; an inline head script applies it
 before first paint). Page titles are `<App> · ${APP_NAME}`.
@@ -319,6 +327,14 @@ moves to the top level. `resolveMove` turns a drop into
 `{ kind, id, parentId, index }` (or null for invalid/no-op); the move server
 fn rewrites sibling positions in a transaction and `useMoveBookmark` /
 `useMoveItem` applies it optimistically. Disabled while searching.
+**Touch screens** (no native drag and drop): each row also has a grip
+(`DragHandle`, `pointer-coarse:` only, `touch-none`, `data-no-swipe`)
+returned as `handle` by `useTreeRowDnd`; pressing it drags with the finger
+over pointer events: the row under it is found with `elementFromPoint`
+via its `data-dnd-key` (targets registered by key), then the same zones,
+`resolveMove` and move as the mouse (`hoverAt` / `dropAt`, shared); a
+`Badge` with the item's name follows the finger and the page scrolls
+near its top / bottom (`SCROLL_EDGE`).
 
 **Global search** (`z`, or the search button first in the header's button
 group, on every app): a `Command` dialog listing every app's folders and
@@ -509,7 +525,8 @@ flips / shifts to fit), with `initialFocus`/`finalFocus` off so the field
 keeps focus. Being a nested popup, it never stretches a dialog's scroll
 area and picking from it isn't an outside press for the dialog. **Showing**: a clickable chip (`ReferenceChip` /
 `ReferenceText` in `components/reference.tsx`; markdown via the
-`remarkReferences` plugin in the notes preview and chat answers; plain text
+`remarkReferences` plugin in the notes preview and chat answers (a
+reference alone in backticks counts too); plain text
 in task descriptions, contact context, the user's chat messages and Tell me
 answer toasts). Labels, snippets and the PDF show `@Name`. **Clicking**
 (`useOpenReference`): `resolveReference` (`search.functions.ts` →
@@ -588,16 +605,17 @@ panel floating on the right instead (`AssistantSidebar`,
 `z-30`; header with New conversation, Open in Chat and Hide (collapsed: a
 round button in the corner; `s` opens it and focuses the box,
 `Shift+S` hides it — not while typing). It's a real
-Chat conversation (`sendChatMessage`; Chat's `ChatThread` and
+Chat conversation (`streamChatMessage`; Chat's `ChatThread` and
 `ChatComposer`, so markers with Open / Undo), carried on across requests
 and pages until New; the id is in `assistant:conversation`, open/closed in
 `assistant:sidebar`. Empty, it says in a line what it can do. While open
 the page re-centres left of it (`body` padding-right in `styles.css`) and
 toasts move left of it. `AssistantBox` renders both the field
 (`xl:hidden`) and the panel (`max-xl:hidden`), so there's no flash on load;
-only the visible one takes `s`. Finances and Calendar, which have no Ask
-Jarvis field, render just the panel (`JarvisSidebar`, nothing without an
-API key; their loaders prefetch `assistantEnabledQueryOptions`).
+only the visible one takes `s`. Finances and Calendar render it with
+`phonesOnly`: the floating field on phones (below `lg`) and the panel from
+`xl`, nothing in between (they keep their room); their loaders prefetch
+`assistantEnabledQueryOptions`.
 
 The field is laid out exactly like Chat's box (`ChatComposer`) at every
 width: the textarea (same placeholder), then a bottom row with the `s`
@@ -626,7 +644,10 @@ dictate a sentence, Enter (Shift+Enter = newline).
 not rendered where missing, e.g. Firefox, or on the server). Tap to
 listen: words are appended to the field live (interim results) in
 `navigator.language`, it stops by itself after a pause, tap again (or
-Esc) stops it; sending aborts it. Nothing is sent anywhere by the app
+Esc) stops it; sending aborts it. Or **hold** it (≥ `HOLD_MS`, 350 ms) and
+speak: pauses don't end it (it restarts after what was said), letting go
+does. The press keeps the field's focus (a phone keeps its keyboard) and
+opens no long-press menu. Nothing is sent anywhere by the app
 itself (the browser may use its vendor's speech service). The mic needs
 a secure origin (https or localhost); a blocked mic is an error toast.
 Chromium forks without Google's speech service (Vivaldi, Brave, Opera)
@@ -654,12 +675,15 @@ converted with `zonedTime`), `create_note { title?, body }` and
 `open_item { query, app?, folder? }`. The prompt makes a **list** (shopping,
 packing…) **one note** with a `- [ ] item` checklist, never several tasks;
 separate unrelated actions stay separate tasks. **Filing** (`APP_PROMPT`):
-before creating, the model calls `list_folders` for the app and passes a
-`folder_id`: the folder the user named, else an existing folder that fits
-the topic (even roughly; the most specific subfolder), else — only for a
-clear, lasting topic — a new short, general folder it creates first
-(`create_folder`, in the style of the existing names, never per item).
-With nothing fitting it leaves `folder_id` out and the item goes into the
+before creating, the model calls `list_folders` for the app and thinks
+about what the item is about and where the user would look for it: the
+folder the user named (created if missing), else the best-fitting
+existing folder (even roughly; the most specific subfolder), else a good
+new folder it creates first (`create_folder`: a short, general category
+more items will share, never the item's title, in the style and language
+of the existing names, inside a broader folder when one fits). A broad
+folder beats Unsorted: only when it genuinely can't tell what the item is
+about does it leave `folder_id` out, and the item goes into the
 top-level **Unsorted** folder of its app (`UNSORTED_FOLDER`, found
 case-insensitively or created: `ensureTopFolder` in each app's server
 file). The created item carries its `folder` path for the toast / chat
@@ -746,12 +770,27 @@ The last navbar app (`APPS`), for asking about anything stored. One
 conversation per `?c=<id>` (none = new); the list on the left (a dropdown
 below `md`), latest first, with a hover delete (confirm, `d` `d`). The
 thread uses shadcn's `message`, `bubble`, `marker` and `message-scroller`
-(`components/chat/chat-thread.tsx`); answers render as markdown
+(`components/chat/chat-thread.tsx`; no scroll anchors: it follows the
+bottom, and a send, a new answer or another conversation scrolls to the
+latest); answers render as markdown
 (`chat-markdown.tsx`, `.markdown` styles). A turn
-(`sendChatMessage` → `sendMessage` in `chat.server.ts`) runs the tool loop
+(`streamChatMessage` in `lib/chat-stream.ts` → the `/api/chat` route →
+`sendMessage` in `chat.server.ts`) runs the tool loop
 above with the last 30 messages as context, then saves the user's message
-and the answer. It can look up, create, edit and delete; each answer that
-changed something shows what (markers) and an Undo button. Within the loop Anthropic's content
+and the answer. **Streaming**: the route answers with one JSON
+`ChatStreamEvent` per line (`lib/chat.ts`): the answer's text as the model
+writes it (`callModel`'s `onText`: Anthropic's `messages.stream()`,
+OpenAI-compatible `stream: true` SSE), `step` when that text was only a
+lead-in to tool calls (dropped), each `tool` used (the waiting line says
+what: `toolActivity`), then `done` (conversation id + apps to refresh) or
+`error`. The pending bubble shows it live (`streamInto`); the saved
+messages replace it at the end. The turn is saved even if the browser
+leaves part-way. It can look up, create, edit and delete; each answer that
+changed something shows what (markers) and an Undo button. Every answer
+has **Save as note** (`saveAnswerAsNote` → `answerToNote`: a note in
+Notes' Unsorted, titled by the answer's leading `# ` heading, taken out,
+else its question; a toast with Open); asked for a report, Jarvis writes
+one as a note itself (`APP_PROMPT`). Within the loop Anthropic's content
 blocks go back unchanged (`Turn.raw`); saved earlier turns are plain text.
 The answer (or the error, as an `error` message) is saved with its
 `actions`, shown as markers with **Open** buttons (`requestOpen` +
@@ -830,8 +869,10 @@ off on that side.
   items (`changes.server.ts` maps it to `calendar_events`), so Undo works;
   strips have no `@` references. `APP_PROMPT` says strips are for things
   going on over days with nothing to do (else a task, never both).
-- Not (yet) in the global search or `@` references, and no
-  `AssistantBox` (the grid gets the room). Its ⋮ menu
+- Not (yet) in the global search or `@` references. `AssistantBox`
+  `phonesOnly` (the field on phones only; the grid gets the room). A
+  finger only taps a day (no range drag; the dialog sets the range), so a
+  sideways swipe switches app. Its ⋮ menu
   (`calendar-menu.tsx`) has Settings, Assistant history and Install.
 
 ### Finances (`/finances`)
@@ -879,7 +920,10 @@ call. **The AI is never called otherwise.**
 - **Carry-over**: what a month left (or overspent) carries into the next,
   per currency (`carriedInto` / `monthTotals` in `summary.ts`): the month
   view shows Carried over, In, Out and Left = carried + in − out.
-- **Recurring** (`u`, ⋮ menu; `subscriptions-dialog.tsx`; each due day
+- **Tabs** (shadcn `Tabs` under the banners): **Month** (the month view
+  below; `m` / `M` / `t` come back to it), **Recurring** (`u`) and
+  **Budgets** (`b`), on the page rather than in pop-ups.
+- **Recurring** (`u`; `recurring-panel.tsx`; each due day
   waits in To accept): income first,
   then expenses, each with its schedule in words and the next day, the
   monthly totals in and out; click to edit, "Stop it" deletes; the form
@@ -888,8 +932,18 @@ call. **The AI is never called otherwise.**
   (rows of 1st…31st / Last × Day / Working day / Monday…), on a weekend,
   ends (never / on a day / after N times), and a preview of the next
   days.
-- **Budgets** (`b`, ⋮ menu; `budgets-dialog.tsx`): optional euro amount
-  per expense category, saved on blur / Enter, empty = none.
+- **Budgets** (`b`; `budgets-panel.tsx`): this month against each budget
+  (`budgetLines` in `src/lib/finances/budgets.ts`, pure: euro expenses
+  only): a `Progress` bar per category, most used first (warning colour
+  from `BUDGET_WARN` 80%, red when over), what's left and where the month
+  is heading at this pace ("on pace for", warning colour when that's over
+  the budget), the total; then the budgets themselves: optional euro
+  amount per expense category, saved on blur / Enter, empty = none. With
+  ntfy set up, the reminder tick pushes a budget once it's nearly used up
+  (80%) and again when it's over (100%), each once a month
+  (`sendBudgetAlerts` in `finances-due.server.ts`; `alertedMonth` /
+  `alertedLevel` on `finance_budgets`, cleared when the budget changes,
+  Undo too); a tap opens `/finances`.
 - **Advice** (`r` or the header button, with an API key; `advice-dialog.tsx`
   → `getAdvice`): one plain call with the month asked about and the five
   before it, subscriptions, budgets and this month's entries, plus an
@@ -906,7 +960,8 @@ call. **The AI is never called otherwise.**
   (Undo; budgets have no id, so `recordBudget` keeps the category and the
   amount before, and `undoBudget` puts it back). So "Jarvis, spent 12 on lunch" works from any
   app's field.
-- Not in the global search or `@` references; no `AssistantBox`. `callModel` takes an empty tool list for
+- Not in the global search or `@` references; `AssistantBox phonesOnly`
+  (the field on phones, the panel on desktop). `callModel` takes an empty tool list for
   plain calls.
 
 **Navbar** (`components/app-nav.tsx`, every app): one icon button per
@@ -960,7 +1015,12 @@ names its database).
 - Switch apps: `Shift+L` next, `Shift+H` previous — but `Shift+H` first
   collapses all folders if any are open (press again to switch). Wraps
   around; order follows `APPS`. Handled in each app's tree keyboard hook
-  (`onSwitchApp`, from `useAppSwitch`).
+  (`onSwitchApp`, from `useAppSwitch`). On phones (below `lg`) a quick
+  sideways **swipe** does the same (left = next, right = previous):
+  `components/swipe-apps.tsx`, mounted once in `__root.tsx`, listening in
+  the capture phase (the long-press rows stop their touches); not from
+  fields, sideways scrollers, the screen's edges (the browser's back gesture), with a dialog / menu
+  open or text selected; `data-no-swipe` opts an element out.
 - Global (`src/lib/shortcuts.ts`): `Ctrl+K` search, `Ctrl+G` new folder
   (⌘ on macOS); new items are `a` in each tree. Avoid browser-reserved
   combos (Ctrl+L/N/T/W/F) when adding more. Ignored when the event was
@@ -1001,7 +1061,8 @@ names its database).
 - Finances (`src/routes/finances.tsx`; help in
   `components/finances/shortcuts-dialog.tsx`): `a` opens the money
   pop-up (Enter saves), `m`/`M` next / previous month, `t` this
-  month, `u` subscriptions, `b` budgets, `r` advice, `z`, `f`, `?`,
+  month (all three on the Month tab), `u` the Recurring tab, `b` the
+  Budgets tab, `r` advice, `z`, `f`, `?`,
   `Shift+H/L`.
 - Calendar (`src/routes/calendar.tsx`; help in
   `components/calendar/shortcuts-dialog.tsx`): `h`/`l` day, `k`/`j` week

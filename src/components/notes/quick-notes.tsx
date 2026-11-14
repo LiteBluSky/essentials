@@ -1,11 +1,12 @@
 import { FileTextIcon } from 'lucide-react'
 
+import { RowContextMenu } from '@/components/row-context-menu'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import type { Note } from '@/db/schema'
 import { QUICK_COUNT, noteLabel, noteSnippet } from '@/lib/notes/tree'
 import type { OpenEditor } from './editor'
-import { NoteMenu } from './note-tree'
+import { NoteMenu, NoteMenuItems } from './note-tree'
 
 // "Recent" (keys 1-4) and "Most viewed" (keys 5-8) above the tree. Each row
 // shows the note's title, or the start of its text, and has the same hover
@@ -57,7 +58,11 @@ function QuickList({
       </h2>
       <ul className="flex flex-col">
         {notes.map((note, i) => (
-          <li key={note.id} className="group/row flex items-center gap-1">
+          <RowContextMenu
+            key={note.id}
+            menu={<NoteMenuItems note={note} onEdit={onEdit} />}
+            render={<li className="group/row flex items-center gap-1" />}
+          >
             <Button
               variant="ghost"
               className="min-w-0 flex-1 justify-start"
@@ -71,7 +76,7 @@ function QuickList({
               <span className="truncate">{noteLabel(note)}</span>
             </Button>
             <NoteMenu note={note} onEdit={onEdit} />
-          </li>
+          </RowContextMenu>
         ))}
       </ul>
     </section>

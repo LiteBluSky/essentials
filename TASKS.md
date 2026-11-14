@@ -391,6 +391,49 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       below)
 - [ ] Investments: holdings and their value over time — needs a design
 
+## 24. Next up
+
+- [x] Invert calendar colours on the current day
+- [x] Add reminders for calendar strips
+- [x] Add birthday to contact fields
+- [x] Swipe left or right to switch the current app on mobile
+      (`swipe-apps.tsx`; verify on a phone)
+- [x] Improve gestures overall: long press (touch) / right click (PC) on
+      any row opens its actions (`RowContextMenu`)
+- [x] Calendar: swipe switches app there too (a finger taps a day, no
+      range drag)
+- [x] Jarvis field on Finances and Calendar on phones (`phonesOnly`)
+- [x] Drag and drop on touch screens: a grip on every tree row (all four
+      apps) drags with the finger, same moves as the mouse
+- [x] Jarvis thinks up a good folder for what it files (creating one when
+      none fits); Unsorted only when it can't tell what it's about
+- [ ] Verify on a phone: dragging by the grip (into folders, reordering,
+      top level, scrolling while dragging)
+- [ ] Verify on a phone: long-press menus, swipe on Calendar, the Jarvis
+      field on Finances / Calendar
+- [x] Revamp Finances: budgets and recurring as tabs on the page, and find
+      a use for budgets (Month / Recurring / Budgets tabs; a bar per budget
+      with what's left and the pace; a push at 80% and when over)
+- [ ] Verify on a phone: the Finances tabs, the budget bars, a budget push
+- [x] Find out if the mic button can be hold-to-speak on mobile: yes,
+      done (tap = as before, hold = listen until let go; verify on a phone)
+- [x] Find out if Jarvis can make markdown files as reports when he
+      answers in the chat: notes are those; "Save as note" under each
+      answer (Unsorted, titled by its heading or the question), and asked
+      for a report Jarvis writes it as a note
+- [x] Fix reference chips in the chat not being clickable on PC: clicking
+      @bookmark / @note / @task / @contact doesn't open the item (Jarvis
+      wrote them in backticks, i.e. code: a code span holding just a
+      reference is now a chip, and the prompt says plain text)
+- [x] Keep the chat scrolled to the bottom when a new message arrives (it
+      jumps to the top): no scroll anchors, follow the bottom
+- [ ] Verify in a real browser: chips in answers open the item, the chat
+      stays at the bottom on send / answer / switching conversation
+- [x] Stream chat replies as they're generated: a plain streamed response
+      (`/api/chat`, NDJSON events; both providers stream), no AI SDK
+- [ ] Verify with the real providers (Anthropic and OpenRouter): the
+      answer appears as it's written, tool lines in between
+
 ## History of the notes app (before the merge)
 
 ### Notes 0. Scaffold (from the bookmarks app)

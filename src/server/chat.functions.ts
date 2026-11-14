@@ -2,15 +2,15 @@ import { queryOptions } from '@tanstack/react-query'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 
-import { chatInput } from '@/lib/chat'
 import {
   listConversations,
   loadMessages,
+  answerToNote,
   removeConversation,
-  sendMessage,
 } from './chat.server'
 
-// The Chat app's RPCs. No auth by design (see CLAUDE.md).
+// The Chat app's RPCs. No auth by design (see CLAUDE.md). Sending a
+// message streams, so it's a route: `/api/chat` (routes/api/chat.ts).
 
 const byId = z.object({ id: z.number().int().positive() })
 
@@ -33,9 +33,10 @@ export const chatMessagesQueryOptions = (id: number) =>
     queryFn: () => getConversation({ data: { id } }),
   })
 
-export const sendChatMessage = createServerFn({ method: 'POST' })
-  .validator(chatInput)
-  .handler(({ data }) => sendMessage(data))
+/** Saves a chat answer as a note ("Save as note" under each answer). */
+export const saveAnswerAsNote = createServerFn({ method: 'POST' })
+  .validator(byId)
+  .handler(({ data }) => answerToNote(data.id))
 
 export const deleteConversation = createServerFn({ method: 'POST' })
   .validator(byId)

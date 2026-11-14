@@ -18,6 +18,7 @@ import { Route as FinancesRouteImport } from './routes/finances'
 import { Route as ManifestDotwebmanifestRouteImport } from './routes/manifest[.]webmanifest'
 import { Route as NotesRouteImport } from './routes/notes'
 import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiRemindersRouteImport } from './routes/api/reminders'
 
 const IndexRoute = IndexRouteImport.update({
@@ -65,6 +66,11 @@ const TasksRoute = TasksRouteImport.update({
   path: '/tasks',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiRemindersRoute = ApiRemindersRouteImport.update({
   id: '/api/reminders',
   path: '/api/reminders',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
   '/notes': typeof NotesRoute
   '/tasks': typeof TasksRoute
+  '/api/chat': typeof ApiChatRoute
   '/api/reminders': typeof ApiRemindersRoute
 }
 export interface FileRoutesByTo {
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
   '/notes': typeof NotesRoute
   '/tasks': typeof TasksRoute
+  '/api/chat': typeof ApiChatRoute
   '/api/reminders': typeof ApiRemindersRoute
 }
 export interface FileRoutesById {
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/manifest.webmanifest': typeof ManifestDotwebmanifestRoute
   '/notes': typeof NotesRoute
   '/tasks': typeof TasksRoute
+  '/api/chat': typeof ApiChatRoute
   '/api/reminders': typeof ApiRemindersRoute
 }
 export interface FileRouteTypes {
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
     | '/manifest.webmanifest'
     | '/notes'
     | '/tasks'
+    | '/api/chat'
     | '/api/reminders'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
     | '/manifest.webmanifest'
     | '/notes'
     | '/tasks'
+    | '/api/chat'
     | '/api/reminders'
   id:
     | '__root__'
@@ -144,6 +155,7 @@ export interface FileRouteTypes {
     | '/manifest.webmanifest'
     | '/notes'
     | '/tasks'
+    | '/api/chat'
     | '/api/reminders'
   fileRoutesById: FileRoutesById
 }
@@ -157,6 +169,7 @@ export interface RootRouteChildren {
   ManifestDotwebmanifestRoute: typeof ManifestDotwebmanifestRoute
   NotesRoute: typeof NotesRoute
   TasksRoute: typeof TasksRoute
+  ApiChatRoute: typeof ApiChatRoute
   ApiRemindersRoute: typeof ApiRemindersRoute
 }
 
@@ -225,6 +238,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TasksRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/reminders': {
       id: '/api/reminders'
       path: '/api/reminders'
@@ -245,6 +265,7 @@ const rootRouteChildren: RootRouteChildren = {
   ManifestDotwebmanifestRoute: ManifestDotwebmanifestRoute,
   NotesRoute: NotesRoute,
   TasksRoute: TasksRoute,
+  ApiChatRoute: ApiChatRoute,
   ApiRemindersRoute: ApiRemindersRoute,
 }
 export const routeTree = rootRouteImport

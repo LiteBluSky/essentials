@@ -155,7 +155,11 @@ export async function setBudget(categoryKey: string, cents: number | null) {
   await db
     .insert(financeBudgets)
     .values({ category: categoryKey, cents })
-    .onConflictDoUpdate({ target: financeBudgets.category, set: { cents } })
+    // A new amount re-arms its alerts.
+    .onConflictDoUpdate({
+      target: financeBudgets.category,
+      set: { cents, alertedMonth: null, alertedLevel: null },
+    })
 }
 
 // ---- AI (only when asked) ---------------------------------------------------

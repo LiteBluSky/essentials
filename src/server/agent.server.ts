@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { listProfiles, profileHandle, withDatabase } from '@/db'
 import type { Profile } from '@/db'
 import type { AssistantResult } from '@/lib/assistant'
+import type { ChatStreamEvent } from '@/lib/chat'
 import { referencesByName } from '@/lib/references'
 import { ALL_TOOLS, runTool } from './agent-tools.server'
 import { addUsage, callModel, llmConfig } from './llm.server'
@@ -68,12 +69,15 @@ export async function runAgent({
   turns,
   timeZone,
   webSearch = false,
+  onEvent,
 }: {
   system: string
   turns: Array<Turn>
   timeZone: string
   /** Offer the provider's web search for this request. */
   webSearch?: boolean
+  /** Streams the run: the answer's text as it comes, and each tool used. */
+  onEvent?: (event: ChatStreamEvent) => void
 }): Promise<AgentRun> {
   const config = await llmConfig()
   if (!config) {
@@ -148,6 +152,7 @@ ${profilesPrompt(profiles)}`
         turns: conversation,
         tools,
         webSearch,
+        onText: onEvent && ((delta) => onEvent({ type: 'text', delta })),
       })
       usage = addUsage(usage, cost)
       if (!calls.length) {
@@ -161,8 +166,10 @@ ${profilesPrompt(profiles)}`
         break
       }
       conversation.push({ role: 'assistant', text, calls, raw })
+      onEvent?.({ type: 'step' })
       const results = []
       for (const call of calls) {
+        onEvent?.({ type: 'tool', name: call.name })
         let output: unknown
         try {
           output = await runInProfile(call.name, call.args)
