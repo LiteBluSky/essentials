@@ -26,8 +26,10 @@ body {
    under the box. Unlayered, so it wins over main's py-* and the toast
    viewport's bottom-4. */
 @media (width < 64rem) {
+  /* Plus the fade's height (2rem) above the box, so the end of the page
+     clears it. */
   main:has([data-mobile-dock]) {
-    padding-bottom: var(--dock-height, 0px);
+    padding-bottom: calc(var(--dock-height, 0px) + 2rem);
   }
   [data-slot='toast-viewport'] {
     bottom: calc(var(--dock-height, 0px) + 1rem);

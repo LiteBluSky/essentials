@@ -629,11 +629,14 @@ alike.
 floating at the bottom of the screen in a `MobileDock`
 (`components/mobile-dock.tsx`), like Chat's box: a solid band in the
 page's colour (`bg-background`) with a short fade above it (a `before:`
-gradient, taps pass through it), so the page goes behind it, and the field
+gradient, taps pass through it) only while there's page behind it
+(`data-covering`: it scrolls and isn't at its end), so the page goes
+behind it, and the field
 itself is opaque; `z-40`, so over the page but under
 dialogs, menus and popovers (`z-50`). The dock puts its
 height in `--dock-height` on `<html>`, which `styles.css` uses (phones
-only) as the `<main>`'s bottom padding (`main:has([data-mobile-dock])`),
+only) as the `<main>`'s bottom padding (`main:has([data-mobile-dock])`;
+plus 2rem, the fade's height, so the page's end clears the fade),
 inside its `min-h-dvh`: a short page fits the screen with no scroll, a
 long one scrolls clear of it, and
 to lift the toasts above it.
