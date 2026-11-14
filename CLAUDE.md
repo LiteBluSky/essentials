@@ -624,9 +624,10 @@ alike.
 
 **On phones** (below `lg`) the field is
 floating at the bottom of the screen in a `MobileDock`
-(`components/mobile-dock.tsx`), like Chat's box: no border or solid band,
-the page fades out under it (a gradient; taps pass through the faded
-part) and the field itself is opaque; `z-40`, so over the page but under
+(`components/mobile-dock.tsx`), like Chat's box: a solid band in the
+page's colour (`bg-background`) with a short fade above it (a `before:`
+gradient, taps pass through it), so the page goes behind it, and the field
+itself is opaque; `z-40`, so over the page but under
 dialogs, menus and popovers (`z-50`). The dock puts its
 height in `--dock-height` on `<html>`, which `styles.css` uses (phones
 only) as the `<main>`'s bottom padding (`main:has([data-mobile-dock])`),
