@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 
+import { AppFooter } from '@/components/app-footer'
 import { cn } from '@/lib/utils'
 
 /**
@@ -11,7 +12,8 @@ import { cn } from '@/lib/utils'
  * the page's `<main>` gets that much bottom padding (inside its
  * `min-h-dvh`, so a short page doesn't scroll) and the toasts sit above it
  * (styles.css). From `lg` up it stays where it is in
- * the page. Used by Ask Jarvis.
+ * the page. Used by Ask Jarvis. On phones the app footer (database in use,
+ * version) sits under its content, so it's always in view.
  */
 export function MobileDock({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -46,6 +48,7 @@ export function MobileDock({ children }: { children: React.ReactNode }) {
       )}
     >
       {children}
+      <AppFooter inDock />
     </div>
   )
 }

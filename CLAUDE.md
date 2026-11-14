@@ -302,7 +302,10 @@ name; its URL / the local path as a tooltip; `databasesQueryOptions`,
 prefetched by each app's loader) and the running version on the right
 (`APP_VERSION` in `lib/config.ts`: package.json's version, injected by
 Vite's `define` as `__APP_VERSION__`). `mt-auto` keeps it at the bottom,
-so the page's `<main>` is `min-h-dvh` (Chat: `h-dvh`).
+so the page's `<main>` is `min-h-dvh` (Chat: `h-dvh`). On phones, with the
+Jarvis field showing, it's under the field in the `MobileDock` instead
+(`AppFooter inDock`; styles.css hides the page's own), so it's always in
+view (Calendar too).
 
 **Installable app (PWA)**: the manifest is a server route
 (`src/routes/manifest[.]webmanifest.ts`, so the name follows

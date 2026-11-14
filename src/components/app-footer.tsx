@@ -2,15 +2,18 @@ import { useQuery } from '@tanstack/react-query'
 import { CloudIcon, HardDriveIcon } from 'lucide-react'
 
 import { APP_VERSION } from '@/lib/config'
+import { cn } from '@/lib/utils'
 import { databasesQueryOptions } from '@/server/databases.functions'
 
 /**
  * The strip at the bottom of every app but Calendar: the database in use
  * (Local or the remote's name, from Settings → Database) on the left, the
  * running version on the right. Pushed to the bottom with `mt-auto`, so the
- * page's `<main>` needs `min-h-dvh` (or a fixed height).
+ * page's `<main>` needs `min-h-dvh` (or a fixed height). On phones, with
+ * the Jarvis field showing, it's under the field instead (`inDock`, in
+ * `MobileDock`; styles.css hides the page's own), so it's always in view.
  */
-export function AppFooter() {
+export function AppFooter({ inDock = false }: { inDock?: boolean }) {
   const { data } = useQuery(databasesQueryOptions)
   const active =
     data?.activeId == null
@@ -19,7 +22,14 @@ export function AppFooter() {
   const Icon = active ? CloudIcon : HardDriveIcon
 
   return (
-    <footer className="text-muted-foreground mt-auto flex items-center justify-between gap-4 text-xs">
+    <footer
+      data-app-footer
+      data-in-dock={inDock || undefined}
+      className={cn(
+        'flex items-center justify-between gap-4 text-xs text-muted-foreground',
+        inDock ? 'px-1 pt-2 lg:hidden' : 'mt-auto',
+      )}
+    >
       <span
         className="flex min-w-0 items-center gap-1.5"
         title={active ? active.url : data?.localPath}

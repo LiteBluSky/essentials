@@ -32,6 +32,10 @@ body {
   [data-slot='toast-viewport'] {
     bottom: calc(var(--dock-height, 0px) + 1rem);
   }
+  /* The footer is shown under the Jarvis field in the dock instead. */
+  main:has([data-mobile-dock]) [data-app-footer]:not([data-in-dock]) {
+    display: none;
+  }
 }
 
 /* Desktop: Jarvis's chat panel on the right (AssistantSidebar, w-96 + its
