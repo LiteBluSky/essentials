@@ -1,6 +1,7 @@
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
+  ArrowUpFromLineIcon,
   PencilIcon,
   PiggyBankIcon,
   ShoppingBagIcon,
@@ -22,6 +23,7 @@ import {
 } from '@/components/ui/dialog'
 import {
   Field,
+  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -39,6 +41,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
 import type { FinanceSaving } from '@/db/schema'
 import {
+  CURRENCIES,
   DEFAULT_CURRENCY,
   centsToInput,
   formatMoney,
@@ -50,40 +53,71 @@ import type { SavingInput } from '@/lib/finances/schemas'
 import { submitOnModEnter } from '@/lib/submit-shortcut'
 import { cn } from '@/lib/utils'
 import {
-  addToSaving,
   createSaving,
   deleteSaving,
   financesQueryOptions,
+  moveSavingMoney,
   updateSaving,
 } from '@/server/finances.functions'
 import { DeleteConfirm } from './entry-dialog'
 import { CurrencySelect } from './pickers'
 
 /**
- * The Savings tab: things the user saves up for. Each goal has a price and
- * a gauge that fills as money is put in, until it's full and the thing can
- * be bought. Not an expense and not a budget: no category, no month, it
- * never resets; putting money in doesn't touch the month's entries.
+ * The Savings tab: savings accounts, places to keep money apart from the
+ * wallet (an emergency fund, holidays, a new car). Putting money in is an
+ * expense (category Savings): it comes off what's left that month; taking
+ * it out is income again. Each account can have a goal (an amount to
+ * reach, with a gauge), or none.
  */
 export function SavingsPanel({ savings }: { savings: Array<FinanceSaving> }) {
+  // What's kept in savings, per currency (euros first).
+  const totals = CURRENCIES.map((currency) => ({
+    currency,
+    cents: savings
+      .filter((s) => s.currency === currency)
+      .reduce((sum, s) => sum + s.savedCents, 0),
+    count: savings.filter((s) => s.currency === currency).length,
+  })).filter((t) => t.count > 0)
+
   return (
     <section className="flex flex-col gap-6">
       {savings.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Saving up for something? Add it below with its price, then put money
-          in whenever you can: its gauge fills up until you can buy it.
+          Keep money apart from your wallet: an emergency fund, holidays, a new
+          car. Money you put in counts as spent (it comes off what's left this
+          month) and comes back when you take it out. Give one a goal to fill
+          up, or none.
         </p>
       ) : (
-        <ul className="flex flex-col gap-6">
-          {savings.map((saving) => (
-            <SavingRow key={saving.id} saving={saving} />
-          ))}
-        </ul>
+        <>
+          <div className="flex flex-col gap-1">
+            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              <span className="text-sm text-muted-foreground">In savings</span>
+              {totals.map((t) => (
+                <span
+                  key={t.currency}
+                  className="text-2xl font-semibold tabular-nums"
+                >
+                  {formatMoney(t.cents, t.currency)}
+                </span>
+              ))}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Putting money in counts as spent this month; taking it out gives
+              it back.
+            </p>
+          </div>
+          <ul className="flex flex-col gap-6">
+            {savings.map((saving) => (
+              <SavingRow key={saving.id} saving={saving} />
+            ))}
+          </ul>
+        </>
       )}
       <Separator />
       <div className="flex flex-col gap-3">
         <h2 className="text-sm font-medium text-muted-foreground">
-          New savings goal
+          New savings account
         </h2>
         <NewSaving />
       </div>
@@ -97,28 +131,38 @@ function SavingRow({ saving }: { saving: FinanceSaving }) {
   const [editing, setEditing] = useState(false)
   const [removing, setRemoving] = useState(false)
 
-  const ready = saving.savedCents >= saving.cents
-  const ratio = saving.cents > 0 ? saving.savedCents / saving.cents : 0
-  const percent = Math.min(100, Math.floor(ratio * 100))
+  const goal = saving.cents
+  const reached = goal !== null && saving.savedCents >= goal
+  const percent =
+    goal === null || goal === 0
+      ? 0
+      : Math.min(100, Math.floor((saving.savedCents / goal) * 100))
   const money = (cents: number) => formatMoney(cents, saving.currency)
 
-  const deposit = useMutation({
-    mutationFn: (cents: number) =>
-      addToSaving({ data: { id: saving.id, cents } }),
-    onSuccess: async (row) => {
+  const move = useMutation({
+    mutationFn: (input: { cents: number; direction: 'in' | 'out' }) =>
+      moveSavingMoney({ data: { id: saving.id, ...input } }),
+    onSuccess: async ({ saving: row }, input) => {
       setAmount('')
       await queryClient.invalidateQueries(financesQueryOptions)
-      const full = row.savedCents >= row.cents
+      const moved = formatMoney(input.cents, row.currency)
       toast.add({
-        title: full
-          ? `${row.name}: ready to buy!`
-          : `${formatMoney(row.cents - row.savedCents, row.currency)} to go for ${row.name}`,
+        title:
+          input.direction === 'in'
+            ? `${moved} put into ${row.name}`
+            : `${moved} taken out of ${row.name}`,
+        description:
+          row.cents !== null && row.savedCents >= row.cents
+            ? 'Goal reached!'
+            : row.cents !== null
+              ? `${formatMoney(row.cents - row.savedCents, row.currency)} to go`
+              : `${formatMoney(row.savedCents, row.currency)} in it`,
         type: 'success',
       })
     },
     onError: (error) =>
       toast.add({
-        title: "Couldn't put the money in",
+        title: "Couldn't move the money",
         description: error.message,
         type: 'error',
       }),
@@ -130,7 +174,7 @@ function SavingRow({ saving }: { saving: FinanceSaving }) {
       await queryClient.invalidateQueries(financesQueryOptions)
       setRemoving(false)
       toast.add({
-        title: ready ? `Enjoy your ${saving.name}!` : 'Deleted',
+        title: reached ? `Enjoy your ${saving.name}!` : 'Deleted',
         type: 'success',
       })
     },
@@ -143,15 +187,15 @@ function SavingRow({ saving }: { saving: FinanceSaving }) {
   })
 
   const cents = parseAmount(amount)
-  const putIn = () => {
-    if (cents !== null && !deposit.isPending) deposit.mutate(cents)
+  const moveMoney = (direction: 'in' | 'out') => {
+    if (cents !== null && !move.isPending) move.mutate({ cents, direction })
   }
 
   return (
     <li className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
         <span className="flex-1 truncate font-medium">{saving.name}</span>
-        {ready && <Badge>Ready to buy</Badge>}
+        {reached && <Badge>Goal reached</Badge>}
         <Button
           variant="ghost"
           size="icon-sm"
@@ -164,64 +208,86 @@ function SavingRow({ saving }: { saving: FinanceSaving }) {
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label={ready ? `Bought ${saving.name}` : `Delete ${saving.name}`}
-          title={ready ? 'Bought it' : 'Delete'}
+          aria-label={
+            reached ? `Bought ${saving.name}` : `Delete ${saving.name}`
+          }
+          title={reached ? 'Bought it' : 'Delete'}
           onClick={() => setRemoving(true)}
         >
-          {ready ? <ShoppingBagIcon /> : <Trash2Icon />}
+          {reached ? <ShoppingBagIcon /> : <Trash2Icon />}
         </Button>
       </div>
-      <Progress
-        value={percent}
-        aria-label={`${saving.name}: ${percent}% saved`}
-        className={cn(
-          'h-3',
-          ready && '[&_[data-slot=progress-indicator]]:bg-success',
-        )}
-      />
-      <div className="flex items-center justify-between gap-3 text-sm">
-        <span className="tabular-nums">
+      {goal === null ? (
+        <span className="text-xl font-semibold tabular-nums">
           {money(saving.savedCents)}
-          <span className="text-muted-foreground">
-            {' '}
-            of {money(saving.cents)} · {percent}%
-          </span>
         </span>
-        <span
-          className={cn(
-            'text-muted-foreground tabular-nums',
-            ready && 'text-success',
-          )}
-        >
-          {ready
-            ? 'You can buy it'
-            : `${money(saving.cents - saving.savedCents)} to go`}
-        </span>
-      </div>
-      <InputGroup className="sm:max-w-64">
+      ) : (
+        <>
+          <Progress
+            value={percent}
+            aria-label={`${saving.name}: ${percent}% of the goal`}
+            className={cn(
+              'h-3',
+              reached && '[&_[data-slot=progress-indicator]]:bg-success',
+            )}
+          />
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span className="tabular-nums">
+              {money(saving.savedCents)}
+              <span className="text-muted-foreground">
+                {' '}
+                of {money(goal)} · {percent}%
+              </span>
+            </span>
+            <span
+              className={cn(
+                'text-muted-foreground tabular-nums',
+                reached && 'text-success',
+              )}
+            >
+              {reached
+                ? 'You can buy it'
+                : `${money(goal - saving.savedCents)} to go`}
+            </span>
+          </div>
+        </>
+      )}
+      <InputGroup className="sm:max-w-80">
         <InputGroupInput
-          aria-label={`Put money into ${saving.name}`}
+          aria-label={`Amount to put into or take out of ${saving.name}`}
           inputMode="decimal"
           autoComplete="off"
-          placeholder="Put money in"
+          placeholder="Amount"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') putIn()
+            if (e.key === 'Enter') moveMoney('in')
           }}
           aria-invalid={amount.trim() !== '' && cents === null}
         />
         <InputGroupAddon align="inline-end">
           <InputGroupButton
-            disabled={cents === null || deposit.isPending}
-            onClick={putIn}
+            title="Take it out, back into your wallet"
+            disabled={
+              cents === null || move.isPending || cents > saving.savedCents
+            }
+            onClick={() => moveMoney('out')}
           >
-            {deposit.isPending ? (
+            <ArrowUpFromLineIcon data-icon="inline-start" />
+            Take out
+          </InputGroupButton>
+          <InputGroupButton
+            variant="secondary"
+            title="Put it in from your wallet (Enter)"
+            disabled={cents === null || move.isPending}
+            onClick={() => moveMoney('in')}
+          >
+            {move.isPending ? (
               <Spinner data-icon="inline-start" />
             ) : (
               <PiggyBankIcon data-icon="inline-start" />
             )}
-            Add
+            Put in
           </InputGroupButton>
         </InputGroupAddon>
       </InputGroup>
@@ -229,9 +295,11 @@ function SavingRow({ saving }: { saving: FinanceSaving }) {
       <Dialog open={editing} onOpenChange={setEditing}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit savings goal</DialogTitle>
+            <DialogTitle>Edit savings account</DialogTitle>
             <DialogDescription>
-              What you're saving for, its price and what's saved so far.
+              Its name, an optional goal, and what's in it. Changing the amount
+              here is a correction: it doesn't touch your wallet (use Put in /
+              Take out for that).
             </DialogDescription>
           </DialogHeader>
           {editing && (
@@ -261,6 +329,11 @@ function SavingRow({ saving }: { saving: FinanceSaving }) {
               label={saving.name}
               pending={remove.isPending}
               onConfirm={() => remove.mutate()}
+              description={
+                saving.savedCents > 0 && !reached
+                  ? `The ${money(saving.savedCents)} in it stays counted as spent: take it out first to have it back in your wallet.`
+                  : undefined
+              }
             />
           )}
         </AlertDialogContent>
@@ -280,7 +353,7 @@ function NewSaving() {
         <div className="flex justify-end">
           <Button type="submit" disabled={submitting}>
             {submitting && <Spinner data-icon="inline-start" />}
-            Add goal
+            Add account
           </Button>
         </div>
       )}
@@ -288,7 +361,7 @@ function NewSaving() {
   )
 }
 
-/** New goal (no `saving`) or edit one (also its saved amount). */
+/** New account (no `saving`) or edit one (also what's in it). */
 function SavingForm({
   saving,
   onDone,
@@ -318,12 +391,12 @@ function SavingForm({
 
   const toInput = (value: {
     name: string
-    price: string
+    goal: string
     currency: Currency
     saved: string
   }) => ({
     name: value.name,
-    cents: parseAmount(value.price) ?? 0,
+    cents: value.goal.trim() === '' ? null : (parseAmount(value.goal) ?? 0),
     currency: value.currency,
     savedCents: parseSaved(value.saved),
   })
@@ -331,7 +404,10 @@ function SavingForm({
   const form = useForm({
     defaultValues: {
       name: saving?.name ?? '',
-      price: saving ? centsToInput(saving.cents) : '',
+      goal:
+        saving?.cents === null || saving?.cents === undefined
+          ? ''
+          : centsToInput(saving.cents),
       currency: (saving?.currency ?? DEFAULT_CURRENCY) as Currency,
       saved: saving ? centsToInput(saving.savedCents) : '',
     },
@@ -340,7 +416,7 @@ function SavingForm({
         const result = savingInput.safeParse(toInput(value))
         if (result.success) return undefined
         const field = (key: PropertyKey) =>
-          key === 'cents' ? 'price' : key === 'savedCents' ? 'saved' : key
+          key === 'cents' ? 'goal' : key === 'savedCents' ? 'saved' : key
         return {
           fields: Object.fromEntries(
             result.error.issues.map((i) => [
@@ -375,11 +451,11 @@ function SavingForm({
             const isInvalid = field.state.meta.errors.length > 0
             return (
               <Field data-invalid={isInvalid}>
-                <FieldLabel htmlFor={`${id}-name`}>What for</FieldLabel>
+                <FieldLabel htmlFor={`${id}-name`}>Name</FieldLabel>
                 <Input
                   id={`${id}-name`}
                   autoComplete="off"
-                  placeholder="A new bike"
+                  placeholder="Emergency fund, New car…"
                   autoFocus={!!saving}
                   value={field.state.value}
                   onBlur={field.handleBlur}
@@ -393,17 +469,19 @@ function SavingForm({
         />
         <div className="grid grid-cols-[1fr_auto] gap-3">
           <form.Field
-            name="price"
+            name="goal"
             children={(field) => {
               const isInvalid = field.state.meta.errors.length > 0
               return (
                 <Field data-invalid={isInvalid}>
-                  <FieldLabel htmlFor={`${id}-price`}>Price</FieldLabel>
+                  <FieldLabel htmlFor={`${id}-goal`}>
+                    Goal (optional)
+                  </FieldLabel>
                   <Input
-                    id={`${id}-price`}
+                    id={`${id}-goal`}
                     inputMode="decimal"
                     autoComplete="off"
-                    placeholder="0.00"
+                    placeholder="None"
                     value={field.state.value}
                     onBlur={field.handleBlur}
                     onChange={(e) => field.handleChange(e.target.value)}
@@ -438,7 +516,7 @@ function SavingForm({
             return (
               <Field data-invalid={isInvalid}>
                 <FieldLabel htmlFor={`${id}-saved`}>
-                  {saving ? 'Saved so far' : 'Already saved (optional)'}
+                  {saving ? 'In it now' : 'Already in it (optional)'}
                 </FieldLabel>
                 <Input
                   id={`${id}-saved`}
@@ -450,6 +528,12 @@ function SavingForm({
                   onChange={(e) => field.handleChange(e.target.value)}
                   aria-invalid={isInvalid}
                 />
+                {!saving && (
+                  <FieldDescription>
+                    Money that's already saved somewhere: not taken from your
+                    wallet.
+                  </FieldDescription>
+                )}
                 {isInvalid && <FieldError errors={errors(field.state.meta)} />}
               </Field>
             )
@@ -464,7 +548,7 @@ function SavingForm({
   )
 }
 
-/** What's saved so far: empty or zero = 0; -1 when it isn't an amount. */
+/** What's in it: empty or zero = 0; -1 when it isn't an amount. */
 function parseSaved(text: string) {
   if (/^\s*0*([.,]0*)?\s*$/.test(text)) return 0
   return parseAmount(text) ?? -1

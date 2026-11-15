@@ -96,11 +96,12 @@ export const budgetInput = z.object({
   cents: cents.nullable(),
 })
 
-/** A savings goal: what to buy, its price, and what's saved so far. */
+/** A savings account: its name, an optional goal (a price to reach) and
+ * what's in it (set by hand: a correction, not taken from the wallet). */
 export const savingInput = z.object({
   name: z.string().trim().min(1, 'Give it a name').max(200),
-  /** The price. */
-  cents,
+  /** The goal; null = none. */
+  cents: cents.nullable(),
   currency: z.enum(CURRENCIES),
   savedCents: z.number().int().min(0).max(100_000_000_00, 'Too much'),
 })
@@ -110,11 +111,14 @@ export const updateSavingInput = savingInput.extend({
   id: z.number().int().positive(),
 })
 
-/** Money put into a savings goal. */
-export const depositInput = z.object({
+/** Money moved into (`in`: an expense from the wallet) or out of (`out`:
+ * income back into it) a savings account. */
+export const moveSavingInput = z.object({
   id: z.number().int().positive(),
   cents,
+  direction: z.enum(['in', 'out']),
 })
+export type MoveSavingInput = z.infer<typeof moveSavingInput>
 
 export const adviceInput = z.object({
   question: z.string().trim().max(2000),

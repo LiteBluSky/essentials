@@ -6,7 +6,7 @@ import {
   budgetInput,
   byId,
   categorizeInput,
-  depositInput,
+  moveSavingInput,
   newEntryInput,
   savingInput,
   subscriptionInput,
@@ -16,7 +16,6 @@ import {
 } from '@/lib/finances/schemas'
 import {
   categorizeEntries,
-  depositSaving,
   editEntry,
   editSaving,
   editSubscription,
@@ -25,6 +24,7 @@ import {
   insertSaving,
   insertSubscription,
   loadFinances,
+  moveSaving,
   removeEntry,
   removeSaving,
   removeSubscription,
@@ -90,7 +90,7 @@ export const saveBudget = createServerFn({ method: 'POST' })
     await setBudget(data.category, data.cents)
   })
 
-/** Savings goals: something to buy, filled up bit by bit. */
+/** Savings accounts: money kept apart, optionally towards a goal. */
 export const createSaving = createServerFn({ method: 'POST' })
   .validator(savingInput)
   .handler(({ data }) => insertSaving(data))
@@ -101,9 +101,13 @@ export const updateSaving = createServerFn({ method: 'POST' })
     await editSaving(id, input)
   })
 
-export const addToSaving = createServerFn({ method: 'POST' })
-  .validator(depositInput)
-  .handler(({ data }) => depositSaving(data.id, data.cents))
+/** Puts money in (an expense from the wallet) or takes it out (income). */
+export const moveSavingMoney = createServerFn({ method: 'POST' })
+  .validator(moveSavingInput)
+  .handler(async ({ data }) => {
+    const { saving, day } = await moveSaving(data)
+    return { saving, day }
+  })
 
 export const deleteSaving = createServerFn({ method: 'POST' })
   .validator(byId)
@@ -129,5 +133,5 @@ export const skipPendingCharge = createServerFn({ method: 'POST' })
 
 /** Closes the oldest past month still open (folds it into its totals). */
 export const closeFinanceMonth = createServerFn({ method: 'POST' }).handler(
-  async () => ({ month: await closeMonth() }),
+  async () => ({ month: (await closeMonth()).month }),
 )

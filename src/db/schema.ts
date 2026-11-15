@@ -370,6 +370,9 @@ export const assistantChanges = sqliteTable(
         'finances',
         'subscriptions',
         'budgets',
+        'savings',
+        'pending',
+        'months',
       ],
     }).notNull(),
     target: text({ enum: ['item', 'folder'] }).notNull(),
@@ -497,6 +500,9 @@ export const financeEntries = sqliteTable(
     category: text().notNull().default('uncategorized'),
     day: text().notNull(),
     subscriptionId: integer('subscription_id'),
+    /** Set on money put into (expense) or taken out of (income) a savings
+     * account: deleting / editing the entry moves its balance back. */
+    savingId: integer('saving_id'),
     ...timestamps,
   },
   (t) => [index('finance_entries_day_idx').on(t.day)],
@@ -585,13 +591,16 @@ export const financeBudgets = sqliteTable('finance_budgets', {
   alertedLevel: integer('alerted_level'),
 })
 
-// A savings goal: something the user wants to buy (`cents` = its price).
-// Money is put in bit by bit (`savedCents`) until it reaches the price.
-// Not an expense, not a budget: no category, no month, never resets.
+// A savings account: a place to keep money apart from the wallet. Putting
+// money in is an expense (category `savings`, an entry with `savingId`),
+// taking it out is income (`from_savings`), so it leaves / comes back to
+// what's left that month. `savedCents` = what's in it now; `cents` = an
+// optional goal (a price to reach, e.g. "New car"), null = none. No month,
+// never resets.
 export const financeSavings = sqliteTable('finance_savings', {
   id: integer().primaryKey({ autoIncrement: true }),
   name: text().notNull(),
-  cents: integer().notNull(),
+  cents: integer(),
   savedCents: integer('saved_cents').notNull().default(0),
   currency: text().notNull().default('EUR'),
   ...timestamps,

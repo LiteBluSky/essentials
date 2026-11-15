@@ -27,6 +27,7 @@ import { Kbd } from '@/components/ui/kbd'
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
 import { ASSISTANT_NAME, UNSORTED_FOLDER } from '@/lib/assistant'
+import { refreshKey } from '@/lib/chat'
 import type {
   AssistantFound,
   AssistantItem,
@@ -138,9 +139,7 @@ function AssistantField({ enabled }: { enabled: boolean }) {
           // Every query of the app (the Calendar's isn't a tree).
           (app) =>
             queryClient.invalidateQueries({
-              queryKey: [
-                app === 'subscriptions' || app === 'budgets' ? 'finances' : app,
-              ],
+              queryKey: [refreshKey(app)],
             }),
         ),
       )
@@ -392,6 +391,9 @@ const CHANGE_ITEM: Record<ChangeSummary['app'], string> = {
   finances: 'money entry',
   subscriptions: 'recurring',
   budgets: 'budget',
+  savings: 'savings account',
+  pending: 'due charge',
+  months: 'month',
 }
 
 const APP_LABEL = {

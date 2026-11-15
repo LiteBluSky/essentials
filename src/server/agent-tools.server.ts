@@ -12,7 +12,7 @@ import {
   taskFolders,
   tasks,
 } from '@/db/schema'
-import { UNSORTED_FOLDER } from '@/lib/assistant'
+import { UNSORTED_FOLDER, isFinancePart } from '@/lib/assistant'
 import type { AssistantResult, ChangeSummary } from '@/lib/assistant'
 import { linkInput } from '@/lib/bookmarks/schemas'
 import { contactInput } from '@/lib/contacts/schemas'
@@ -545,9 +545,7 @@ function changed(
   return summary.target === 'item' &&
     summary.op !== 'delete' &&
     summary.app !== 'calendar' &&
-    summary.app !== 'finances' &&
-    summary.app !== 'subscriptions' &&
-    summary.app !== 'budgets'
+    !isFinancePart(summary.app)
     ? { changed: summary, ref: refFor(summary.app, summary.label, summary.id) }
     : { changed: summary }
 }

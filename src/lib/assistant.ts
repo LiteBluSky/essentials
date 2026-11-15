@@ -55,6 +55,9 @@ export type ChangeSummary = {
     | 'finances'
     | 'subscriptions'
     | 'budgets'
+    | 'savings'
+    | 'pending'
+    | 'months'
   target: 'item' | 'folder'
   op: 'create' | 'update' | 'delete'
   id: number
@@ -63,6 +66,21 @@ export type ChangeSummary = {
   detail?: string
   /** The profile it happened in, when not the one in use. */
   database?: string
+}
+
+/** Changes to these live in Finances' data (its query, its page). */
+const FINANCE_PARTS = [
+  'finances',
+  'subscriptions',
+  'budgets',
+  'savings',
+  'pending',
+  'months',
+] as const
+type FinancePart = (typeof FINANCE_PARTS)[number]
+
+export function isFinancePart(app: string): app is FinancePart {
+  return (FINANCE_PARTS as ReadonlyArray<string>).includes(app)
 }
 
 export type AssistantResult = {

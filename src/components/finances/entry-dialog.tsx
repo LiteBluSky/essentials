@@ -359,10 +359,13 @@ export function DeleteConfirm({
   label,
   pending,
   onConfirm,
+  description,
 }: {
   label: string
   pending: boolean
   onConfirm: () => void
+  /** Said before "This can't be undone." */
+  description?: string
 }) {
   useConfirmKey('d', onConfirm)
   return (
@@ -371,7 +374,9 @@ export function DeleteConfirm({
         <AlertDialogTitle>
           Delete {label ? `“${label}”` : 'this'}?
         </AlertDialogTitle>
-        <AlertDialogDescription>This can’t be undone.</AlertDialogDescription>
+        <AlertDialogDescription>
+          {description ? `${description} ` : ''}This can’t be undone.
+        </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel>Cancel</AlertDialogCancel>

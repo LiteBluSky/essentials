@@ -1,4 +1,4 @@
-import { format } from 'date-fns'
+import { endOfMonth, format } from 'date-fns'
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm'
 
 import { db } from '@/db'
@@ -12,6 +12,8 @@ import {
 } from '@/db/schema'
 import {
   CATEGORIES,
+  FROM_SAVINGS,
+  TO_SAVINGS,
   UNCATEGORIZED,
   categoriesFor,
   category,
@@ -24,6 +26,7 @@ import {
 } from '@/lib/finances/money'
 import type {
   EntryInput,
+  MoveSavingInput,
   SavingInput,
   SubscriptionInput,
 } from '@/lib/finances/schemas'
@@ -98,13 +101,33 @@ export async function insertEntry(input: EntryInput) {
   return row
 }
 
+/** Edits an entry; one that moved money into / out of a savings account
+ * moves the account's balance by the difference. */
 export async function editEntry(id: number, input: EntryInput) {
   await assertCanAdd(input.day)
-  await db.update(financeEntries).set(input).where(eq(financeEntries.id, id))
+  await db.transaction(async (tx) => {
+    const before = (
+      await tx.select().from(financeEntries).where(eq(financeEntries.id, id))
+    ).at(0)
+    await tx.update(financeEntries).set(input).where(eq(financeEntries.id, id))
+    if (before?.savingId != null) {
+      await shiftSaving(tx, before.savingId, before, input)
+    }
+  })
 }
 
+/** Deletes an entry; one that moved money into / out of a savings account
+ * moves it back. */
 export async function removeEntry(id: number) {
-  await db.delete(financeEntries).where(eq(financeEntries.id, id))
+  await db.transaction(async (tx) => {
+    const before = (
+      await tx.select().from(financeEntries).where(eq(financeEntries.id, id))
+    ).at(0)
+    await tx.delete(financeEntries).where(eq(financeEntries.id, id))
+    if (before?.savingId != null) {
+      await shiftSaving(tx, before.savingId, before, null)
+    }
+  })
 }
 
 export async function insertSubscription(input: SubscriptionInput) {
@@ -168,7 +191,48 @@ export async function setBudget(categoryKey: string, cents: number | null) {
     })
 }
 
-// ---- Savings goals (not expenses, not budgets: no month, no category) ------
+// ---- Savings accounts ------------------------------------------------------
+// Money kept apart from the wallet. Putting money in is an expense (an
+// entry in `TO_SAVINGS`, linked by `savingId`), taking it out is income
+// (`FROM_SAVINGS`), so it counts in the month like any other money. The
+// balance (`savedCents`) is kept on the account (closed months drop their
+// entries); editing or deleting a linked entry moves it to match. The
+// balance typed in the form (a new account's starting amount, a
+// correction) isn't taken from the wallet.
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
+type Moved = { kind: 'expense' | 'income'; cents: number; currency: string }
+
+/** What an entry did to its account's balance: in = +, out = −; nothing
+ * when it's in another currency than the account. */
+function effect(entry: Moved | null, currency: string) {
+  if (!entry || entry.currency !== currency) return 0
+  return entry.kind === 'expense' ? entry.cents : -entry.cents
+}
+
+/** Moves an account's balance from what `before` did to what `after` does
+ * (null = the entry is gone). Never below zero; a deleted account is left
+ * alone. */
+async function shiftSaving(
+  tx: Tx,
+  savingId: number,
+  before: Moved | null,
+  after: Moved | null,
+) {
+  const saving = (
+    await tx
+      .select()
+      .from(financeSavings)
+      .where(eq(financeSavings.id, savingId))
+  ).at(0)
+  if (!saving) return
+  const delta = effect(after, saving.currency) - effect(before, saving.currency)
+  if (delta === 0) return
+  await tx
+    .update(financeSavings)
+    .set({ savedCents: Math.max(0, saving.savedCents + delta) })
+    .where(eq(financeSavings.id, savingId))
+}
 
 export async function insertSaving(input: SavingInput) {
   const [row] = await db
@@ -182,18 +246,60 @@ export async function editSaving(id: number, input: SavingInput) {
   await db.update(financeSavings).set(input).where(eq(financeSavings.id, id))
 }
 
-/** Puts money into a goal; returns it as it is now. */
-export async function depositSaving(id: number, cents: number) {
-  const rows = await db
-    .update(financeSavings)
-    .set({ savedCents: sql`${financeSavings.savedCents} + ${cents}` })
-    .where(eq(financeSavings.id, id))
-    .returning()
-  const row = rows.at(0)
-  if (!row) throw new Error('That savings goal is gone')
-  return row
+/** The day money moved now is counted on: today, or the last day of the
+ * past month still open (nothing goes into this month until it's closed). */
+export async function moveDay() {
+  const open = await openMonth()
+  if (!open) return today()
+  return format(endOfMonth(new Date(`${open}-01T12:00:00`)), 'yyyy-MM-dd')
 }
 
+/** Puts money into an account (an expense from the wallet) or takes it
+ * out (income back into it), on `day` (default `moveDay()`). Returns the
+ * account as it is now and the entry made. */
+export async function moveSaving(input: MoveSavingInput, day?: string) {
+  const on = day ?? (await moveDay())
+  await assertCanAdd(on)
+  return db.transaction(async (tx) => {
+    const saving = (
+      await tx
+        .select()
+        .from(financeSavings)
+        .where(eq(financeSavings.id, input.id))
+    ).at(0)
+    if (!saving) throw new Error('That savings account is gone')
+    const into = input.direction === 'in'
+    if (!into && input.cents > saving.savedCents) {
+      throw new Error(
+        `There's only ${formatMoney(saving.savedCents, saving.currency)} in ${saving.name}`,
+      )
+    }
+    const [entry] = await tx
+      .insert(financeEntries)
+      .values({
+        kind: into ? 'expense' : 'income',
+        cents: input.cents,
+        currency: saving.currency,
+        title: saving.name,
+        category: into ? TO_SAVINGS : FROM_SAVINGS,
+        day: on,
+        savingId: saving.id,
+      })
+      .returning({ id: financeEntries.id })
+    const [row] = await tx
+      .update(financeSavings)
+      .set({
+        savedCents: saving.savedCents + (into ? input.cents : -input.cents),
+      })
+      .where(eq(financeSavings.id, saving.id))
+      .returning()
+    return { saving: row, before: saving, entryId: entry.id, day: on }
+  })
+}
+
+/** Deletes an account. What's in it stays spent (it left the wallet when
+ * it was put in): take it out first to have it back. Its entries keep
+ * their `savingId` (ids aren't reused), so Undo can link them again. */
 export async function removeSaving(id: number) {
   await db.delete(financeSavings).where(eq(financeSavings.id, id))
 }
@@ -365,6 +471,14 @@ export async function getAdvice(
           )
           .join('; ')}.`
       : '',
+    data.savings.length
+      ? `Savings accounts (money put in counted as spent, category Savings; taken out counted as income, From savings): ${data.savings
+          .map(
+            (s) =>
+              `${s.name} ${formatMoney(s.savedCents, s.currency)}${s.cents === null ? '' : ` of a ${formatMoney(s.cents, s.currency)} goal`}`,
+          )
+          .join('; ')}.`
+      : 'No savings accounts.',
     data.budgets.length
       ? `Monthly budgets: ${data.budgets
           .map((b) => `${category(b.category).label} ${formatMoney(b.cents)}`)
@@ -384,6 +498,7 @@ export async function getAdvice(
   const system = [
     `You are ${ASSISTANT_NAME}, a friendly money coach inside the user's personal app. The user knows nothing about personal finance: explain simply, no jargon (or explain it in a few words), no lecturing.`,
     'Base everything on their numbers below. Give: a short recap of the month (where the money went, what was left), what is going well, the 2–3 most useful things to improve, each with a concrete step and how much it could save, and a simple saving plan (e.g. pay yourself first, an emergency fund of 3–6 months of spending, the 50/30/20 split) fitted to their income. If they ask about buying or saving for something, say whether it fits and how long it would take to save for it.',
+    'Money put into a savings account shows as spent (category Savings) but is still theirs, kept apart: count it as saving, not spending.',
     'What is left at the end of a month carries over into the next (an overspend too). Mention recurring expenses (subscriptions) worth checking. Note that closed months only keep totals per category. Amounts in different currencies are never converted. Never invent numbers; if there is little data, say what to track to get better advice.',
     "Answer briefly in the user's language, in markdown, with short headings or bullets.",
     `Category names: ${CATEGORIES.map((c) => c.label).join(', ')}.`,

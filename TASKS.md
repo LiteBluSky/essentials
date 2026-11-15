@@ -382,7 +382,7 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       nothing can be added to this one (server-side, Jarvis too); "Close
       <month>" folds it into its totals
 - [x] Finance tables included in Settings → Database → Copy (`TABLES`)
-- [ ] Optional: Jarvis can accept / skip due charges and close a month
+- [x] Optional: Jarvis can accept / skip due charges and close a month
       (with Undo)
 - [ ] Verify in a real browser: To accept, the Close banner, the 09:00
       push on the phone
@@ -418,7 +418,16 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] Savings goals in Finances (Savings tab, `g`; `finance_savings`,
       migration 0019): something to buy with its price, put money in bit
       by bit, a gauge fills until it's ready to buy; separate from budgets
-- [ ] Optional: Jarvis and Advice see savings goals (with Undo)
+- [x] Optional: Jarvis and Advice see savings goals (with Undo)
+- [x] Savings are accounts, not just goals: the goal is optional, putting
+      money in is an expense from the wallet (category Savings, comes off
+      Left), taking it out is income; entries keep the balance in sync
+      (migration 0020); Jarvis manages them (`add_savings`,
+      `put_in_savings`, `take_from_savings`, …) and can explain Finances
+- [x] Fix: the Calendar's mouse wheel got stuck going back (the month
+      step was read after it was reset, when React ran the update late)
+- [ ] Verify in a real browser: Put in / Take out, a savings account
+      without a goal, Jarvis putting money in and Undo
 - [ ] Verify in a real browser: the Savings tab, putting money in, full
 - [x] Notes preview: only the note scrolls (header and buttons stay);
       code blocks scroll inside their own box

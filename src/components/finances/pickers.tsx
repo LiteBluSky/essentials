@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
-import { categoriesFor } from '@/lib/finances/categories'
+import { pickableCategories } from '@/lib/finances/categories'
 import type { CategoryKey, EntryKind } from '@/lib/finances/categories'
 import { CURRENCIES } from '@/lib/finances/money'
 import type { Currency } from '@/lib/finances/money'
@@ -99,7 +99,8 @@ export function CategorySelect({
   onChange: (key: CategoryKey) => void
   className?: string
 }) {
-  const items = categoriesFor(kind).map((c) => ({
+  const options = pickableCategories(kind, value)
+  const items = options.map((c) => ({
     value: c.key,
     label: c.label,
   }))
@@ -114,7 +115,7 @@ export function CategorySelect({
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
-          {categoriesFor(kind).map((c) => (
+          {options.map((c) => (
             <SelectItem key={c.key} value={c.key}>
               <span
                 aria-hidden

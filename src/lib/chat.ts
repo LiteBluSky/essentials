@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import type { ChatMessage } from '@/db/schema'
 import type { AssistantResult } from '@/lib/assistant'
-import { ASSISTANT_NAME } from '@/lib/assistant'
+import { ASSISTANT_NAME, isFinancePart } from '@/lib/assistant'
 
 // The Chat app: ask about anything stored (bookmarks, notes, tasks), and have
 // it create tasks / notes or open items. See chat.server.ts.
@@ -49,9 +49,9 @@ export type ChatStreamEvent =
   | { type: 'error'; message: string }
 
 /** The query key root to refresh after a turn changed `app` (recurring
- * money and budgets live in Finances' data). */
+ * money, budgets, savings… live in Finances' data). */
 export function refreshKey(app: string) {
-  return app === 'subscriptions' || app === 'budgets' ? 'finances' : app
+  return isFinancePart(app) ? 'finances' : app
 }
 
 /** "Jarvis is reading…": what the turn is doing, while there's no text. */
@@ -67,7 +67,7 @@ export function toolActivity(name: string | null) {
             ? 'looking it up'
             : /^(create|add)_/.test(name)
               ? 'adding'
-              : /^(update|set)_/.test(name)
+              : /^(update|set|put|take|accept|skip|close)_/.test(name)
                 ? 'making changes'
                 : name.startsWith('delete_')
                   ? 'deleting'

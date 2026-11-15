@@ -56,7 +56,7 @@ import { requestOpen } from '@/lib/global-search'
 import type { SearchApp } from '@/lib/global-search'
 import { saveAnswerAsNote } from '@/server/chat.functions'
 import { ChatMarkdown } from './chat-markdown'
-import { ASSISTANT_NAME } from '@/lib/assistant'
+import { ASSISTANT_NAME, isFinancePart } from '@/lib/assistant'
 
 /** A message being sent (shown until the server has saved the turn), with
  * the answer so far as it streams in, and the tool it's using meanwhile. */
@@ -312,6 +312,9 @@ const APP_ITEM: Record<ChangeSummary['app'], string> = {
   finances: 'money entry',
   subscriptions: 'recurring',
   budgets: 'budget',
+  savings: 'savings account',
+  pending: 'due charge',
+  months: 'month',
 }
 
 function ChangedMarker({ change }: { change: ChangeSummary }) {
@@ -349,9 +352,7 @@ function ChangedMarker({ change }: { change: ChangeSummary }) {
           onClick={() =>
             change.app === 'calendar'
               ? void navigate({ to: '/calendar' })
-              : change.app === 'finances' ||
-                  change.app === 'subscriptions' ||
-                  change.app === 'budgets'
+              : isFinancePart(change.app)
                 ? void navigate({ to: '/finances' })
                 : open({ app: change.app, id: change.id, kind: change.target })
           }

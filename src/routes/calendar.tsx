@@ -152,6 +152,8 @@ function CalendarPage() {
   // first and flips once at its end. A trackpad sends a burst of small
   // deltas: they add up to one flip, then a short pause before the next.
   const gridRef = useRef<HTMLDivElement>(null)
+  // The month inside the grid (what slides; see below).
+  const slideRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const grid = gridRef.current
     if (!grid) return
@@ -161,17 +163,26 @@ function CalendarPage() {
       if (e.ctrlKey || e.metaKey) return // zoom
       if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
       const down = e.deltaY > 0
+      // The month's own height: a slide's transform would add to the
+      // grid's scrollHeight for a moment.
+      const height = slideRef.current?.scrollHeight ?? grid.scrollHeight
       const canScroll = down
-        ? grid.scrollTop + grid.clientHeight < grid.scrollHeight - 1
+        ? grid.scrollTop + grid.clientHeight < height - 1
         : grid.scrollTop > 0
       if (canScroll) return
       e.preventDefault()
       const now = Date.now()
       if (now - lastFlip < WHEEL_PAUSE_MS) return
       // Lines / pages (Firefox) count as a full step.
-      total += e.deltaMode === 0 ? e.deltaY : Math.sign(e.deltaY) * WHEEL_STEP
+      const delta =
+        e.deltaMode === 0 ? e.deltaY : Math.sign(e.deltaY) * WHEEL_STEP
+      // A turn the other way starts over (no leftover from the last one).
+      if (Math.sign(delta) !== Math.sign(total)) total = 0
+      total += delta
       if (Math.abs(total) < WHEEL_STEP) return
-      setMonth((m) => addMonths(m, total > 0 ? 1 : -1))
+      // Taken now: React may run the updater later, after `total` is reset.
+      const step = total > 0 ? 1 : -1
+      setMonth((m) => addMonths(m, step))
       total = 0
       lastFlip = now
     }
@@ -183,7 +194,6 @@ function CalendarPage() {
   // (once the grid, if it scrolls, is at that end when the swipe starts).
   // The month follows the finger a little, then slides on or springs back.
   // Sideways swipes are left to the app switcher (swipe-apps.tsx).
-  const slideRef = useRef<HTMLDivElement>(null)
   // Animates the month; a grid that fits isn't let scroll meanwhile (the
   // moved month would flash a scrollbar).
   const slide = (frames: Array<Keyframe>, easing: string) => {

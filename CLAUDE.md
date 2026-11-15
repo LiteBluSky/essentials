@@ -160,6 +160,8 @@ One SQLite file holds every app. Bookmark tables keep their original names.
   converted), `title` (`''` = none), `category` (a key of `CATEGORIES` in
   `src/lib/finances/categories.ts`; `uncategorized` by default), `day`
   (local `YYYY-MM-DD`), `subscriptionId` (set on a subscription's charge),
+  `savingId` (set on money put into / taken out of a savings account:
+  editing or deleting the entry moves the account's balance to match),
   timestamps. Only rows of months not closed yet exist: see `finance_months`.
 - `finance_months` — a closed month's report: `month` (`YYYY-MM`), `kind`,
   `category`, `currency` (the primary key together), `cents`, `count`.
@@ -186,10 +188,16 @@ One SQLite file holds every app. Bookmark tables keep their original names.
 - `finance_budgets` — optional monthly budget per expense `category`
   (primary key), `cents` in euros, `alertedMonth` / `alertedLevel` (the
   last budget alert pushed: month + 80 / 100).
-- `finance_savings` — **savings goals** (not expenses, not budgets: no
-  category, no month, never reset): `name`, `cents` (the price),
-  `savedCents` (put in so far; `depositSaving` adds to it), `currency`,
-  timestamps. Putting money in doesn't touch the entries.
+- `finance_savings` — **savings accounts** (money kept apart from the
+  wallet; no month, never reset): `name`, `cents` (an optional goal to
+  reach; null = none), `savedCents` (what's in it now), `currency`,
+  timestamps. Money moves through entries (`moveSaving` in
+  `finances.server.ts`): putting it in is an expense in `TO_SAVINGS`
+  ("Savings"), taking it out income in `FROM_SAVINGS` ("From savings"),
+  both with `savingId`, so it counts in the month (Left drops). The
+  balance typed in the form (starting amount, a correction) isn't an
+  entry. Deleting an account leaves its money spent and its entries'
+  `savingId` (ids aren't reused, so Undo relinks them).
 - `assistant_log` — one row per "Tell me…" request or chat turn (`source`
   `tell` | `chat`; `finances` for Finances' own AI calls): `text`, `provider`,
   `model`, `ok`, `result` (one line per item done, or the error),
@@ -958,32 +966,45 @@ call. **The AI is never called otherwise.**
   (`sendBudgetAlerts` in `finances-due.server.ts`; `alertedMonth` /
   `alertedLevel` on `finance_budgets`, cleared when the budget changes,
   Undo too); a tap opens `/finances`.
-- **Savings** (`g`; `savings-panel.tsx`): goals the user saves up for,
-  kept apart from budgets (a budget is a monthly cap per expense
-  category that resets; a goal is a price to reach, with no cap, no
-  category and no reset). Each shows a `Progress` gauge (saved / price,
-  `success` colour once full), "€x of €y · n%", what's to go or "Ready to
-  buy", and a "Put money in" field (Enter / Add; `addToSaving`). The
-  pencil edits name, price, currency and the saved amount; the trash
-  (a bag "Bought it" once full) deletes it (`d` `d`). The form below
-  adds a goal (what for, price, currency, already saved). Jarvis and
-  Advice don't see them (yet).
+- **Savings** (`g`; `savings-panel.tsx`): savings accounts, places to
+  keep money apart from the wallet (an emergency fund, holidays, a new
+  car), apart from budgets (a monthly cap that resets). The total "In
+  savings" per currency on top; each account shows its balance, or with
+  a goal a `Progress` gauge (`success` colour once reached), "€x of €y ·
+  n%" and what's to go; an amount field with **Put in** (Enter; an
+  expense, category Savings, so it comes off what's left this month) and
+  **Take out** (income, From savings; at most what's in it)
+  (`moveSavingMoney`; saved today, or on the open month's last day). The
+  pencil edits name, goal, currency and what's in it (a correction, not
+  an entry); the trash (a bag "Bought it" once the goal is reached)
+  deletes it (`d` `d`; what's in it stays spent). The form below adds
+  one (name, optional goal, currency, already in it). The savings
+  categories aren't in the category pickers (`pickableCategories`) nor
+  in Budgets (`BUDGET_CATEGORIES`). Advice sees them.
 - **Advice** (`r` or the header button, with an API key; `advice-dialog.tsx`
   → `getAdvice`): one plain call with the month asked about and the five
-  before it, subscriptions, budgets and this month's entries, plus an
+  before it, subscriptions, budgets, savings accounts and this month's entries, plus an
   optional question ("can I afford…"). The prompt assumes the user knows
   nothing about finance. The answer is shown as markdown and saved as a
   Chat conversation ("Carry on in Chat"); logged as `source: 'finances'`.
 - **Jarvis** (`agent-finances.server.ts`, `FINANCE_TOOLS` in `ALL_TOOLS`):
-  `add_money_entry` (picks a category itself), `list_finances` (with the
-  carry-over, full schedules, `to_accept` and `month_to_close`; Jarvis
-  can't accept charges or close months), `update_money_entry`,
-  `delete_money_entry`, `add_recurring` / `update_recurring` /
-  `delete_recurring` (schedules as above), `set_budget`; recorded as
-  `finances` / `subscriptions` / `budgets` items in `changes.server.ts`
-  (Undo; budgets have no id, so `recordBudget` keeps the category and the
-  amount before, and `undoBudget` puts it back). So "Jarvis, spent 12 on lunch" works from any
-  app's field.
+  all of it, like the page. `add_money_entry` (picks a category itself),
+  `list_finances` (with the carry-over, full schedules, `to_accept` with
+  ids, `month_to_close`, `savings`, entries' `saving_id`),
+  `update_money_entry`, `delete_money_entry`, `add_recurring` /
+  `update_recurring` / `delete_recurring` (schedules as above),
+  `set_budget`, `add_savings` / `update_savings` / `delete_savings`,
+  `put_in_savings` / `take_from_savings`, `accept_due` / `skip_due` and
+  `close_month` (only when asked); recorded as `finances` /
+  `subscriptions` / `budgets` / `savings` / `pending` / `months` items in
+  `changes.server.ts` (Undo; budgets have no id, so `recordBudget` keeps
+  the category and the amount before, and `undoBudget` puts it back; a
+  closed month keeps its entries and report in `recordMonthClose`, and
+  `undoMonth` re-opens it; a change to a savings-linked entry also
+  records the account before). `APP_PROMPT` also says how Finances works,
+  so Jarvis can explain it. `isFinancePart` (`lib/assistant.ts`) maps
+  these to Finances' query and page. So "Jarvis, spent 12 on lunch" or
+  "put 200 in the car fund" works from any app's field.
 - Not in the global search or `@` references; `AssistantBox phonesOnly`
   (the field on phones, the panel on desktop). `callModel` takes an empty tool list for
   plain calls.

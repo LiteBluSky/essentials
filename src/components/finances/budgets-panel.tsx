@@ -14,7 +14,7 @@ import { toast } from '@/components/ui/toast'
 import type { FinanceBudget, FinanceEntry } from '@/db/schema'
 import { BUDGET_WARN, budgetLines } from '@/lib/finances/budgets'
 import type { BudgetLine } from '@/lib/finances/budgets'
-import { EXPENSE_CATEGORIES } from '@/lib/finances/categories'
+import { BUDGET_CATEGORIES } from '@/lib/finances/categories'
 import type { CategoryKey } from '@/lib/finances/categories'
 import {
   centsToInput,
@@ -135,7 +135,7 @@ function BudgetFields({ budgets }: { budgets: Array<FinanceBudget> }) {
   const saved = new Map(budgets.map((b) => [b.category, b.cents]))
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(
-      EXPENSE_CATEGORIES.map((c) => {
+      BUDGET_CATEGORIES.map((c) => {
         const cents = saved.get(c.key)
         return [c.key, cents === undefined ? '' : centsToInput(cents)]
       }),
@@ -164,7 +164,7 @@ function BudgetFields({ budgets }: { budgets: Array<FinanceBudget> }) {
 
   return (
     <FieldGroup className="gap-3">
-      {EXPENSE_CATEGORIES.map((c) => (
+      {BUDGET_CATEGORIES.map((c) => (
         <Field key={c.key} orientation="horizontal">
           <FieldLabel htmlFor={`budget-${c.key}`} className="flex-1">
             <span

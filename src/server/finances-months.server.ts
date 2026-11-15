@@ -69,7 +69,8 @@ export async function assertCanAdd(day: string, q: Reader = db) {
 
 /** Closes the oldest open month: its entries are folded into its report
  * and deleted. Refused while it still has charges waiting to be accepted.
- * Returns the month closed. */
+ * Returns the month closed, with its entries and its report as it was
+ * before (for Jarvis's Undo). */
 export async function closeMonth() {
   const month = await openMonth()
   if (!month) throw new Error('There is no past month to close')
@@ -90,6 +91,10 @@ export async function closeMonth() {
       lt(financeEntries.day, next),
     )
     const rows = await tx.select().from(financeEntries).where(inMonth)
+    const reports = await tx
+      .select()
+      .from(financeMonths)
+      .where(eq(financeMonths.month, month))
     const lines = new Map<
       string,
       {
@@ -136,6 +141,6 @@ export async function closeMonth() {
         })
     }
     await tx.delete(financeEntries).where(inMonth)
-    return month
+    return { month, entries: rows, reports }
   })
 }

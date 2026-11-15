@@ -6,6 +6,9 @@ import {
   calendarEvents,
   financeBudgets,
   financeEntries,
+  financeMonths,
+  financePending,
+  financeSavings,
   financeSubscriptions,
   folders as bookmarkFolders,
   contactFolders,
@@ -38,6 +41,13 @@ export type App =
   // Budgets have no id: their changes keep the category and the amount
   // before in `before` (see `recordBudget`), and are undone apart.
   | 'budgets'
+  // Savings accounts.
+  | 'savings'
+  // Recurring money that fell due, waiting to be accepted / skipped.
+  | 'pending'
+  // A month closed: `before` keeps its entries and report (see
+  // `recordMonthClose`), undone apart.
+  | 'months'
 
 // The tables per app. They share the columns used here (id, folderId /
 // parentId), so one table type stands in for all of them. The Calendar and
@@ -52,6 +62,8 @@ const ITEMS = {
   calendar: calendarEvents,
   finances: financeEntries,
   subscriptions: financeSubscriptions,
+  savings: financeSavings,
+  pending: financePending,
 } as unknown as Record<App, ItemTable>
 const FOLDERS = {
   bookmarks: bookmarkFolders,
@@ -168,6 +180,46 @@ async function undoBudget(change: AssistantChange) {
         set: { cents, alertedMonth: null, alertedLevel: null },
       })
   }
+  return null
+}
+
+/** A month closed (undo re-opens it: its entries back, its report as it
+ * was before). */
+export function recordMonthClose(
+  runId: string,
+  label: string,
+  before: { month: string; entries: Array<Row>; reports: Array<unknown> },
+) {
+  return record(runId, {
+    app: 'months',
+    target: 'item',
+    op: 'update',
+    itemId: 0,
+    label,
+    before: JSON.stringify(before),
+  })
+}
+
+async function undoMonth(change: AssistantChange) {
+  if (!change.before) return `Couldn't re-open ${change.label}`
+  const { month, entries, reports } = JSON.parse(change.before) as {
+    month: string
+    entries: Array<Row>
+    reports: Array<typeof financeMonths.$inferInsert>
+  }
+  await db.transaction(async (tx) => {
+    await tx.delete(financeMonths).where(eq(financeMonths.month, month))
+    if (reports.length) await tx.insert(financeMonths).values(reports)
+    for (const entry of entries) {
+      const taken = (
+        await tx
+          .select({ id: financeEntries.id })
+          .from(financeEntries)
+          .where(eq(financeEntries.id, entry.id))
+      ).at(0)
+      if (!taken) await tx.insert(financeEntries).values(revive(entry) as never)
+    }
+  })
   return null
 }
 
@@ -311,6 +363,7 @@ export async function undoRun(runId: string): Promise<UndoResult> {
 async function undoChange(change: AssistantChange): Promise<string | null> {
   const app = change.app
   if (app === 'budgets') return undoBudget(change)
+  if (app === 'months') return undoMonth(change)
   const isFolder = change.target === 'folder'
   const table = isFolder ? FOLDERS[app] : ITEMS[app]
   const what = `${isFolder ? 'folder' : 'item'} “${change.label}”`
