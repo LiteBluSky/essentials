@@ -8,7 +8,7 @@ import {
   PlusIcon,
   SearchIcon,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { AppNav } from '@/components/app-nav'
 import { AssistantBox } from '@/components/assistant-box'
@@ -178,6 +178,130 @@ function CalendarPage() {
     grid.addEventListener('wheel', onWheel, { passive: false })
     return () => grid.removeEventListener('wheel', onWheel)
   }, [])
+
+  // A finger does the same: swiping up = next month, down = previous
+  // (once the grid, if it scrolls, is at that end when the swipe starts).
+  // The month follows the finger a little, then slides on or springs back.
+  // Sideways swipes are left to the app switcher (swipe-apps.tsx).
+  const slideRef = useRef<HTMLDivElement>(null)
+  // Animates the month; a grid that fits isn't let scroll meanwhile (the
+  // moved month would flash a scrollbar).
+  const slide = (frames: Array<Keyframe>, easing: string) => {
+    const grid = gridRef.current
+    const el = slideRef.current
+    if (!grid || !el) return
+    const fits = grid.scrollHeight <= grid.clientHeight
+    if (fits) grid.style.overflow = 'hidden'
+    const done = () => {
+      if (fits) grid.style.overflow = ''
+    }
+    const animation = el.animate(frames, { duration: SLIDE_MS, easing })
+    animation.onfinish = done
+    animation.oncancel = done
+  }
+  const slideFn = useRef(slide)
+  slideFn.current = slide
+  useEffect(() => {
+    const grid = gridRef.current
+    if (!grid) return
+    let from: {
+      x: number
+      y: number
+      atTop: boolean
+      atBottom: boolean
+      mode: 'flip' | 'none' | null
+      dy: number
+    } | null = null
+    const setOffset = (dy: number) => {
+      const el = slideRef.current
+      if (el) el.style.transform = dy ? `translateY(${dy}px)` : ''
+    }
+    const springBack = (dy: number) => {
+      setOffset(0)
+      slideFn.current(
+        [{ transform: `translateY(${dy}px)` }, { transform: 'none' }],
+        'ease-out',
+      )
+    }
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) {
+        if (from?.mode === 'flip') springBack(from.dy)
+        from = null
+        return
+      }
+      const touch = e.touches[0]
+      from = {
+        x: touch.clientX,
+        y: touch.clientY,
+        atTop: grid.scrollTop <= 0,
+        atBottom: grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 1,
+        mode: null,
+        dy: 0,
+      }
+    }
+    const onMove = (e: TouchEvent) => {
+      if (!from || from.mode === 'none') return
+      const touch = e.touches[0]
+      const dx = touch.clientX - from.x
+      const dy = touch.clientY - from.y
+      if (from.mode === null) {
+        if (Math.hypot(dx, dy) < 10) return
+        const vertical = Math.abs(dy) > Math.abs(dx)
+        const atEnd = dy < 0 ? from.atBottom : from.atTop
+        from.mode = vertical && atEnd && e.cancelable ? 'flip' : 'none'
+        if (from.mode === 'none') return
+      }
+      // Not a scroll (nor a pull-to-refresh): the month follows instead.
+      e.preventDefault()
+      from.dy = Math.max(-MAX_PULL, Math.min(MAX_PULL, dy * PULL))
+      setOffset(from.dy)
+    }
+    const onEnd = () => {
+      const swipe = from
+      from = null
+      if (swipe?.mode !== 'flip') return
+      if (Math.abs(swipe.dy) >= FLIP_PULL) {
+        // The month's own slide-in takes it from here.
+        setOffset(0)
+        setMonth((m) => addMonths(m, swipe.dy < 0 ? 1 : -1))
+      } else {
+        springBack(swipe.dy)
+      }
+    }
+    const onCancel = () => {
+      if (from?.mode === 'flip') springBack(from.dy)
+      from = null
+    }
+    grid.addEventListener('touchstart', onStart, { passive: true })
+    grid.addEventListener('touchmove', onMove, { passive: false })
+    grid.addEventListener('touchend', onEnd)
+    grid.addEventListener('touchcancel', onCancel)
+    return () => {
+      grid.removeEventListener('touchstart', onStart)
+      grid.removeEventListener('touchmove', onMove)
+      grid.removeEventListener('touchend', onEnd)
+      grid.removeEventListener('touchcancel', onCancel)
+    }
+  }, [])
+
+  // Every month change (buttons, keys, wheel, swipe) slides the new month
+  // in from the side it came from: a later month from below, an earlier
+  // one from above. Not with reduced motion.
+  const shownMonth = useRef(month)
+  useLayoutEffect(() => {
+    const before = shownMonth.current
+    shownMonth.current = month
+    if (before.getTime() === month.getTime()) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const sign = month > before ? 1 : -1
+    slide(
+      [
+        { transform: `translateY(${sign * SLIDE_FROM}px)`, opacity: 0 },
+        { transform: 'none', opacity: 1 },
+      ],
+      'cubic-bezier(0.2, 0.8, 0.2, 1)',
+    )
+  }, [month])
 
   const goToDay = (day: string) => {
     setMonth(startOfMonth(parseDay(day)))
@@ -402,16 +526,18 @@ function CalendarPage() {
       </header>
 
       <div ref={gridRef} className="min-h-0 flex-1 overflow-auto">
-        {hydrated && (
-          <MonthGrid
-            month={month}
-            onMonthChange={setMonth}
-            strips={strips}
-            selection={shown}
-            onDayPointerDown={onDayPointerDown}
-            onOpenStrip={openStrip}
-          />
-        )}
+        <div ref={slideRef} className="size-full">
+          {hydrated && (
+            <MonthGrid
+              month={month}
+              onMonthChange={setMonth}
+              strips={strips}
+              selection={shown}
+              onDayPointerDown={onDayPointerDown}
+              onOpenStrip={openStrip}
+            />
+          )}
+        </div>
       </div>
 
       <EventDialog
@@ -466,3 +592,12 @@ function CalendarPage() {
 // after one before the next.
 const WHEEL_STEP = 40
 const WHEEL_PAUSE_MS = 400
+
+// Swipe → month: the month follows the finger at PULL × its distance, at
+// most MAX_PULL px, and flips once pulled FLIP_PULL px. A new month slides
+// in from SLIDE_FROM px away over SLIDE_MS.
+const PULL = 0.4
+const MAX_PULL = 120
+const FLIP_PULL = 40
+const SLIDE_FROM = 48
+const SLIDE_MS = 220

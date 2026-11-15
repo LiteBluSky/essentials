@@ -425,6 +425,9 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] Switch apps with `Alt+H` / `Alt+L` (was Shift); `Shift+H` only
       collapses all folders
 - [x] Calendar: the mouse wheel flips to the next / previous month
+- [x] Calendar: a vertical swipe flips months on touch screens too, and
+      every month change slides in (from below / above) instead of jumping
+- [ ] Verify on a phone: swiping months on Calendar (and the slide)
 - [x] Find out if the mic button can be hold-to-speak on mobile: yes,
       done (tap = as before, hold = listen until let go; verify on a phone)
 - [x] Find out if Jarvis can make markdown files as reports when he

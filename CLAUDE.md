@@ -1099,7 +1099,12 @@ names its database).
   day filter and drops it from the URL, so the chip / `q` clear it), Esc
   cancels the range, `z`, `f`, `?`, `Alt+H/L`. The mouse wheel over the
   grid flips months (down = next; a grid that scrolls scrolls first;
-  `WHEEL_STEP` / `WHEEL_PAUSE_MS`, so a trackpad burst is one flip). In the strip dialog,
+  `WHEEL_STEP` / `WHEEL_PAUSE_MS`, so a trackpad burst is one flip); on
+  touch a vertical swipe over it does the same (up = next; once the grid
+  is at that end), the month following the finger (`PULL`, flips past
+  `FLIP_PULL`, else springs back). Every month change slides the new
+  month in from below (later) / above (earlier), `SLIDE_MS`, off with
+  reduced motion (Web Animations on a wrapper, so DayPicker keeps focus). In the strip dialog,
   `h`/`l` (`k`/`j`) step through the colours (8 a row) and pick them, and
   the range picker takes `h`/`j`/`k`/`l`, `m`/`M` and `b`/`e` too (`sendDayKey` in
   `components/calendar/day-keys.ts`, shared with the month grid);

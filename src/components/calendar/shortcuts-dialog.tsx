@@ -38,7 +38,8 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
       { keys: [['m'], ['PgDn']], action: 'Next month' },
       {
         keys: [['Scroll']],
-        action: 'Mouse wheel over the month: next / previous',
+        action:
+          'Mouse wheel / swipe up or down over the month: next / previous',
       },
       { keys: [['t']], action: 'Today' },
       { keys: [['o']], action: 'Open the focused day’s tasks in Tasks' },
