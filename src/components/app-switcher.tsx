@@ -16,8 +16,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { useAppSwitch } from '@/hooks/use-app-switch'
 import { APPS } from '@/lib/apps'
 import type { AppPath } from '@/lib/apps'
+import { appSwitchStep } from '@/lib/shortcuts'
 
 export function isTyping(target: EventTarget | null) {
   return (
@@ -35,7 +37,7 @@ export function popupOpen() {
 }
 
 /**
- * `f` on every app: a command palette (the same Dialog + Command as the
+ * `f` on every app (and Alt+H / Alt+L, see below): a command palette (the same Dialog + Command as the
  * global search, `z`) listing the apps. Type to filter and Enter, move with
  * ↑/↓ (or Ctrl+J / Ctrl+K), or press an app's number. Mounted once, in the
  * root layout, with its own key listener (off while typing or while any
@@ -62,6 +64,21 @@ export function AppSwitcher() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [current])
+
+  // Alt+H / Alt+L: previous / next app (wrapping), from anywhere, even
+  // while typing (it's a modifier combo), but not with a dialog / menu open.
+  // Matched on `code`, since Alt changes the character on some layouts.
+  const switchApp = useAppSwitch()
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const step = appSwitchStep(e)
+      if (step === null || e.defaultPrevented || popupOpen()) return
+      e.preventDefault()
+      switchApp(step)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [switchApp])
 
   // Navigated once the dialog is gone, so it doesn't hand focus back to the
   // page being left.

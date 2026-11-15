@@ -585,8 +585,21 @@ export const financeBudgets = sqliteTable('finance_budgets', {
   alertedLevel: integer('alerted_level'),
 })
 
+// A savings goal: something the user wants to buy (`cents` = its price).
+// Money is put in bit by bit (`savedCents`) until it reaches the price.
+// Not an expense, not a budget: no category, no month, never resets.
+export const financeSavings = sqliteTable('finance_savings', {
+  id: integer().primaryKey({ autoIncrement: true }),
+  name: text().notNull(),
+  cents: integer().notNull(),
+  savedCents: integer('saved_cents').notNull().default(0),
+  currency: text().notNull().default('EUR'),
+  ...timestamps,
+})
+
 export type FinanceEntry = typeof financeEntries.$inferSelect
 export type FinanceMonth = typeof financeMonths.$inferSelect
 export type FinanceSubscription = typeof financeSubscriptions.$inferSelect
 export type FinanceBudget = typeof financeBudgets.$inferSelect
 export type FinancePending = typeof financePending.$inferSelect
+export type FinanceSaving = typeof financeSavings.$inferSelect

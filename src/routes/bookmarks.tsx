@@ -41,7 +41,6 @@ import {
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { Separator } from '@/components/ui/separator'
 import { useCutLink } from '@/hooks/bookmarks/use-cut-link'
-import { useAppSwitch } from '@/hooks/use-app-switch'
 import { useExpandedFolders } from '@/hooks/use-expanded-folders'
 import { useGlobalSearch } from '@/hooks/use-global-search'
 import { useFavorite } from '@/hooks/bookmarks/use-favorite'
@@ -111,7 +110,6 @@ function Home() {
     onExpand: (id) => setOpen(id, true),
   })
 
-  const switchApp = useAppSwitch()
   const treeRef = useRef<HTMLDivElement>(null)
   useTreeKeyboard({
     containerRef: treeRef,
@@ -167,7 +165,6 @@ function Home() {
       const link = favorites.at(index)
       if (link) window.open(link.url, '_blank', 'noreferrer')
     },
-    onSwitchApp: switchApp,
     enabled: !dialogOpen,
   })
   // Disabled while a dialog is open so shortcuts don't stack editors.

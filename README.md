@@ -6,8 +6,8 @@ A handful of small personal apps in one: **Bookmarks** (links), **Notes**
 **Contacts** (people: phone, email, address, where you know them from, birthday); all but the Calendar are organised into folders and subfolders and shown as a file
 tree. Optionally, a **"Tell me…"** field on every app turns a typed or
 dictated sentence into a task or note, and a **Chat** app answers questions
-about everything you've saved. Switch between them with the navbar at the top, or `Shift+H` /
-`Shift+L`. No accounts, no sync. It runs on your own machine or home server
+about everything you've saved. Switch between them with the navbar at the top, or `Alt+H` /
+`Alt+L`. No accounts, no sync. It runs on your own machine or home server
 and serves on **http://localhost:8008**.
 
 Stack: TanStack Start (React 19) on Nitro/Node, SQLite via Drizzle, shadcn/ui

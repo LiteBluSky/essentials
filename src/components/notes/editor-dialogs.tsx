@@ -94,6 +94,7 @@ export function EditorDialogs({
   const isForm = isNote || state?.kind === 'folder'
   const isDelete =
     state?.kind === 'delete-note' || state?.kind === 'delete-folder'
+  const viewing = state?.kind === 'note' && state.mode === 'view'
   const viewed =
     state?.kind === 'note' && state.mode === 'view'
       ? notes.find((n) => n.id === state.noteId)
@@ -112,6 +113,8 @@ export function EditorDialogs({
         <DialogContent
           className={cn(
             isNote && 'max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-3xl',
+            // The preview: header and buttons stay put, the note scrolls.
+            viewing && 'flex flex-col overflow-hidden',
           )}
         >
           {state?.kind === 'note' && state.mode === 'view' && (
@@ -270,7 +273,7 @@ function NoteView({
 
   return (
     <div
-      className="flex flex-col gap-6"
+      className="flex min-h-0 flex-col gap-6"
       onKeyDown={(e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
           e.preventDefault()
@@ -286,15 +289,15 @@ function NoteView({
           e.preventDefault()
           onDelete(note)
         } else if (e.key === 'j' || e.key === 'k') {
-          // Scroll the dialog (it's the scroll container), vim-style.
+          // Scroll the note (the scroll container), vim-style.
           e.preventDefault()
           e.currentTarget
-            .closest('[data-slot="dialog-content"]')
+            .querySelector('[data-note-scroll]')
             ?.scrollBy({ top: e.key === 'j' ? SCROLL_STEP : -SCROLL_STEP })
         }
       }}
     >
-      <DialogHeader className="gap-1 pr-8">
+      <DialogHeader className="shrink-0 gap-1 pr-8">
         <DialogDescription>
           {[...path, `Edited ${edited.format(note.updatedAt)}`].join(' / ')}
         </DialogDescription>
@@ -307,22 +310,28 @@ function NoteView({
         </DialogTitle>
       </DialogHeader>
 
-      {note.body.trim() ? (
-        <Markdown
-          onToggleTask={(offset) => {
-            const body = toggleTaskAt(note.body, offset)
-            if (body !== null) toggleTask.mutate({ ...note, body })
-          }}
-        >
-          {note.body}
-        </Markdown>
-      ) : (
-        <p className="text-muted-foreground">
-          Nothing written yet. Press <Kbd>e</Kbd> to start.
-        </p>
-      )}
+      {/* Only the note scrolls; code blocks scroll on their own inside it. */}
+      <div
+        data-note-scroll
+        className="-mx-1 min-h-0 min-w-0 flex-1 overflow-y-auto px-1"
+      >
+        {note.body.trim() ? (
+          <Markdown
+            onToggleTask={(offset) => {
+              const body = toggleTaskAt(note.body, offset)
+              if (body !== null) toggleTask.mutate({ ...note, body })
+            }}
+          >
+            {note.body}
+          </Markdown>
+        ) : (
+          <p className="text-muted-foreground">
+            Nothing written yet. Press <Kbd>e</Kbd> to start.
+          </p>
+        )}
+      </div>
 
-      <DialogFooter>
+      <DialogFooter className="shrink-0">
         <Button variant="ghost" onClick={() => onDelete(note)}>
           <Trash2Icon data-icon="inline-start" />
           Delete

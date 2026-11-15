@@ -28,6 +28,7 @@ const TABLES = [
   schema.financeSubscriptions,
   schema.financePending,
   schema.financeBudgets,
+  schema.financeSavings,
   schema.chatConversations,
   schema.chatMessages,
   schema.assistantLog,

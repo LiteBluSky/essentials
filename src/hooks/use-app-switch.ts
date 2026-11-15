@@ -4,7 +4,7 @@ import { useCallback } from 'react'
 import { APPS } from '@/lib/apps'
 
 // Steps to the previous / next app in the navbar (wrapping around), for the
-// Shift+H / Shift+L shortcuts.
+// Alt+H / Alt+L shortcuts (and the phone swipe).
 export function useAppSwitch() {
   const navigate = useNavigate()
   const pathname = useLocation({ select: (l) => l.pathname })

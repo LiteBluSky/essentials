@@ -6,20 +6,27 @@ import {
   budgetInput,
   byId,
   categorizeInput,
+  depositInput,
   newEntryInput,
+  savingInput,
   subscriptionInput,
   updateEntryInput,
+  updateSavingInput,
   updateSubscriptionInput,
 } from '@/lib/finances/schemas'
 import {
   categorizeEntries,
+  depositSaving,
   editEntry,
+  editSaving,
   editSubscription,
   getAdvice,
   insertEntry,
+  insertSaving,
   insertSubscription,
   loadFinances,
   removeEntry,
+  removeSaving,
   removeSubscription,
   setBudget,
 } from './finances.server'
@@ -81,6 +88,27 @@ export const saveBudget = createServerFn({ method: 'POST' })
   .validator(budgetInput)
   .handler(async ({ data }) => {
     await setBudget(data.category, data.cents)
+  })
+
+/** Savings goals: something to buy, filled up bit by bit. */
+export const createSaving = createServerFn({ method: 'POST' })
+  .validator(savingInput)
+  .handler(({ data }) => insertSaving(data))
+
+export const updateSaving = createServerFn({ method: 'POST' })
+  .validator(updateSavingInput)
+  .handler(async ({ data: { id, ...input } }) => {
+    await editSaving(id, input)
+  })
+
+export const addToSaving = createServerFn({ method: 'POST' })
+  .validator(depositInput)
+  .handler(({ data }) => depositSaving(data.id, data.cents))
+
+export const deleteSaving = createServerFn({ method: 'POST' })
+  .validator(byId)
+  .handler(async ({ data }) => {
+    await removeSaving(data.id)
   })
 
 export const askFinanceAdvice = createServerFn({ method: 'POST' })

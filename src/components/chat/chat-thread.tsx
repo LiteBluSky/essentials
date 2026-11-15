@@ -444,7 +444,7 @@ function FoundMarker({
 
 /**
  * The message box under the conversation: Enter sends, Shift+Enter is a
- * new line, Esc leaves it (so Shift+H / Shift+L and `z` work). `s` (or a
+ * new line, Esc leaves it (so Alt+H / Alt+L and `z` work). `s` (or a
  * tap) comes back. Not focused on its own.
  */
 export function ChatComposer({

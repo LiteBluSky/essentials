@@ -63,7 +63,6 @@ import {
 import { Kbd } from '@/components/ui/kbd'
 import { toast } from '@/components/ui/toast'
 import type { ChatConversation } from '@/db/schema'
-import { useAppSwitch } from '@/hooks/use-app-switch'
 import { useConfirmKey } from '@/hooks/use-confirm-key'
 import { APP_NAME } from '@/lib/config'
 import { databasesQueryOptions } from '@/server/databases.functions'
@@ -193,8 +192,7 @@ function ChatPage() {
   // Keys (while not typing and no dialog is open; listed in
   // chat/shortcuts-dialog.tsx): j/k (↓/↑) step through the conversations,
   // gg/G latest/oldest, a new chat, d/Delete delete the open one (d again
-  // confirms), z search everything, Shift+H/L switch apps, ? help.
-  const switchApp = useAppSwitch()
+  // confirms), z search everything, Alt+H/L switch apps, ? help.
   const lastG = useRef(0)
   useEffect(() => {
     if (dialogOpen) return
@@ -256,11 +254,6 @@ function ChatPage() {
         case '?':
           e.preventDefault()
           setHelpOpen(true)
-          break
-        case 'H':
-        case 'L':
-          e.preventDefault()
-          switchApp(e.key === 'H' ? -1 : 1)
           break
       }
     }

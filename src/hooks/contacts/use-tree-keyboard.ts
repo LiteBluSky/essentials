@@ -44,7 +44,6 @@ export function useTreeKeyboard({
   onHelp,
   onEdit,
   onDelete,
-  onSwitchApp,
   onNew,
   onCut,
   onPaste,
@@ -61,8 +60,6 @@ export function useTreeKeyboard({
   onHelp: () => void
   onEdit: (kind: 'folder' | 'contact', id: number) => void
   onDelete: (kind: 'folder' | 'contact', id: number) => void
-  /** Previous (-1) / next (1) app in the navbar. */
-  onSwitchApp: (step: -1 | 1) => void
   /** New contact, pre-filled with this folder (null = top level). */
   onNew: (folderId: number | null) => void
   onCut: (contactId: number) => void
@@ -83,7 +80,6 @@ export function useTreeKeyboard({
     onHelp,
     onEdit,
     onDelete,
-    onSwitchApp,
     onNew,
     onCut,
     onPaste,
@@ -183,10 +179,8 @@ export function useTreeKeyboard({
               el.dataset.kind === 'folder' &&
               cb.expanded.has(Number(el.dataset.id)),
           )
-          if (!anyOpen) {
-            cb.onSwitchApp(-1)
-            return
-          }
+          // Shift+H only collapses (Alt+H switches apps).
+          if (!anyOpen) return
           // Keep focus visible: move it to the row's top-level folder.
           let top = current
           while (top?.dataset.parentId) {
@@ -200,10 +194,6 @@ export function useTreeKeyboard({
           if (top && top !== current) focus(top)
           return
         }
-        case 'L':
-          handled()
-          cb.onSwitchApp(1)
-          return
         case 'h':
         case 'ArrowLeft': {
           if (!current) return

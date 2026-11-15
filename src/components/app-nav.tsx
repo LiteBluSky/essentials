@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/tooltip'
 import { APPS } from '@/lib/apps'
 
-// Switches between the bundled apps (also Shift+H / Shift+L, and `f`):
+// Switches between the bundled apps (also Alt+H / Alt+L, and `f`):
 // from `lg` up, one icon per app, the current one highlighted, its name in
 // a tooltip on hover (and as the accessible name); on phones, a select
 // showing the current app's icon and name, listing every app the same way.

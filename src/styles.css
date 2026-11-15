@@ -228,6 +228,15 @@ body {
 .markdown > :last-child {
   margin-bottom: 0;
 }
+/* Code blocks scroll inside their box (both ways) instead of stretching
+   or scrolling what holds them. */
+.markdown pre {
+  max-width: 100%;
+  max-height: 28rem;
+  overflow: auto;
+  overflow-wrap: normal;
+  white-space: pre;
+}
 .markdown :not(pre) > code {
   border-radius: var(--radius-sm);
   background: var(--muted);
@@ -286,5 +295,12 @@ body {
   }
   [data-note-print] [data-task-checkbox] {
     opacity: 1;
+  }
+  /* On paper a code block can't scroll: show all of it, wrapped. */
+  [data-note-print] .markdown pre {
+    max-height: none;
+    overflow: visible;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
 }

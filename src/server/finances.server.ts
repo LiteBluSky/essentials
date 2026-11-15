@@ -7,6 +7,7 @@ import {
   financeEntries,
   financeMonths,
   financePending,
+  financeSavings,
   financeSubscriptions,
 } from '@/db/schema'
 import {
@@ -21,7 +22,11 @@ import {
   monthOf,
   addMonth,
 } from '@/lib/finances/money'
-import type { EntryInput, SubscriptionInput } from '@/lib/finances/schemas'
+import type {
+  EntryInput,
+  SavingInput,
+  SubscriptionInput,
+} from '@/lib/finances/schemas'
 import { monthTotals } from '@/lib/finances/summary'
 import { describeSchedule, monthlyAmount } from '@/lib/finances/schedule'
 import { ASSISTANT_NAME } from '@/lib/assistant'
@@ -50,8 +55,8 @@ export async function loadFinances() {
   const day = today()
   const month = monthOf(day)
   await queueDue(day)
-  const [entries, reports, subscriptions, pending, budgets] = await Promise.all(
-    [
+  const [entries, reports, subscriptions, pending, budgets, savings] =
+    await Promise.all([
       db
         .select()
         .from(financeEntries)
@@ -69,8 +74,8 @@ export async function loadFinances() {
         ),
       listPending(),
       db.select().from(financeBudgets),
-    ],
-  )
+      db.select().from(financeSavings).orderBy(asc(financeSavings.id)),
+    ])
   return {
     today: day,
     month,
@@ -79,6 +84,7 @@ export async function loadFinances() {
     subscriptions,
     pending,
     budgets,
+    savings,
     openMonth: await openMonth(),
   }
 }
@@ -160,6 +166,36 @@ export async function setBudget(categoryKey: string, cents: number | null) {
       target: financeBudgets.category,
       set: { cents, alertedMonth: null, alertedLevel: null },
     })
+}
+
+// ---- Savings goals (not expenses, not budgets: no month, no category) ------
+
+export async function insertSaving(input: SavingInput) {
+  const [row] = await db
+    .insert(financeSavings)
+    .values(input)
+    .returning({ id: financeSavings.id })
+  return row
+}
+
+export async function editSaving(id: number, input: SavingInput) {
+  await db.update(financeSavings).set(input).where(eq(financeSavings.id, id))
+}
+
+/** Puts money into a goal; returns it as it is now. */
+export async function depositSaving(id: number, cents: number) {
+  const rows = await db
+    .update(financeSavings)
+    .set({ savedCents: sql`${financeSavings.savedCents} + ${cents}` })
+    .where(eq(financeSavings.id, id))
+    .returning()
+  const row = rows.at(0)
+  if (!row) throw new Error('That savings goal is gone')
+  return row
+}
+
+export async function removeSaving(id: number) {
+  await db.delete(financeSavings).where(eq(financeSavings.id, id))
 }
 
 // ---- AI (only when asked) ---------------------------------------------------

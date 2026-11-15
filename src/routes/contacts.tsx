@@ -40,7 +40,6 @@ import {
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { Separator } from '@/components/ui/separator'
 import { useCutContact } from '@/hooks/contacts/use-cut-contact'
-import { useAppSwitch } from '@/hooks/use-app-switch'
 import { useExpandedFolders } from '@/hooks/use-expanded-folders'
 import { useGlobalSearch } from '@/hooks/use-global-search'
 import { useTreeKeyboard } from '@/hooks/contacts/use-tree-keyboard'
@@ -104,7 +103,6 @@ function Home() {
     onExpand: (id) => setOpen(id, true),
   })
 
-  const switchApp = useAppSwitch()
   const treeRef = useRef<HTMLDivElement>(null)
   useTreeKeyboard({
     containerRef: treeRef,
@@ -162,7 +160,6 @@ function Home() {
     onCut: clipboard.cut,
     onPaste: clipboard.paste,
     onCancelCut: clipboard.cancel,
-    onSwitchApp: switchApp,
     enabled: !dialogOpen,
   })
   // Disabled while a dialog is open so shortcuts don't stack editors.

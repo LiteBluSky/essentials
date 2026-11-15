@@ -28,7 +28,6 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Kbd } from '@/components/ui/kbd'
-import { useAppSwitch } from '@/hooks/use-app-switch'
 import { useHydrated } from '@/hooks/use-hydrated'
 import { isoDay, orderedRange, parseDay } from '@/lib/calendar/layout'
 import type { Strip } from '@/lib/calendar/layout'
@@ -148,6 +147,38 @@ function CalendarPage() {
     setEditorOpen(true)
   }
 
+  // The mouse wheel over the grid flips months: down = next, up =
+  // previous. If the grid itself scrolls (a short window), it scrolls
+  // first and flips once at its end. A trackpad sends a burst of small
+  // deltas: they add up to one flip, then a short pause before the next.
+  const gridRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const grid = gridRef.current
+    if (!grid) return
+    let total = 0
+    let lastFlip = 0
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) return // zoom
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
+      const down = e.deltaY > 0
+      const canScroll = down
+        ? grid.scrollTop + grid.clientHeight < grid.scrollHeight - 1
+        : grid.scrollTop > 0
+      if (canScroll) return
+      e.preventDefault()
+      const now = Date.now()
+      if (now - lastFlip < WHEEL_PAUSE_MS) return
+      // Lines / pages (Firefox) count as a full step.
+      total += e.deltaMode === 0 ? e.deltaY : Math.sign(e.deltaY) * WHEEL_STEP
+      if (Math.abs(total) < WHEEL_STEP) return
+      setMonth((m) => addMonths(m, total > 0 ? 1 : -1))
+      total = 0
+      lastFlip = now
+    }
+    grid.addEventListener('wheel', onWheel, { passive: false })
+    return () => grid.removeEventListener('wheel', onWheel)
+  }, [])
+
   const goToDay = (day: string) => {
     setMonth(startOfMonth(parseDay(day)))
     // After the month has rendered.
@@ -213,7 +244,6 @@ function CalendarPage() {
   // calendar/shortcuts-dialog.tsx). DayPicker moves between days with the
   // arrows / PageUp / PageDown / Home / End; h/j/k/l, m/M and b/e are
   // sent as those.
-  const switchApp = useAppSwitch()
   useEffect(() => {
     if (dialogOpen) return
     const onFocusIn = () => {
@@ -281,11 +311,6 @@ function CalendarPage() {
         case '?':
           e.preventDefault()
           setHelpOpen(true)
-          break
-        case 'H':
-        case 'L':
-          e.preventDefault()
-          switchApp(e.key === 'H' ? -1 : 1)
           break
       }
     }
@@ -376,7 +401,7 @@ function CalendarPage() {
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div ref={gridRef} className="min-h-0 flex-1 overflow-auto">
         {hydrated && (
           <MonthGrid
             month={month}
@@ -436,3 +461,8 @@ function CalendarPage() {
     </main>
   )
 }
+
+// Wheel → month: how much scrolling makes one flip (px), and the pause
+// after one before the next.
+const WHEEL_STEP = 40
+const WHEEL_PAUSE_MS = 400

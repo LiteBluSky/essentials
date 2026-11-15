@@ -52,6 +52,14 @@ export function isNewChatKey(e: KeyboardEvent) {
   )
 }
 
+/** Alt+H / Alt+L (previous / next app): -1 / 1, else null. */
+export function appSwitchStep(e: KeyboardEvent): -1 | 1 | null {
+  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return null
+  if (e.code === 'KeyH') return -1
+  if (e.code === 'KeyL') return 1
+  return null
+}
+
 export const NEW_CHAT_KEYS = [MOD_LABEL, 'Shift', 'O']
 
 /** Focus the chat message box once it's rendered. */

@@ -98,7 +98,7 @@ Each app is self-contained and namespaced; only the shell is shared.
   TASKS.md); keep the copies behaving alike.
 - **Adding an app**: route + `APPS` entry + its namespaced files + tables
   prefixed with the app name; render `<AppNav />` at the left of its header
-  and pass `onSwitchApp` to its tree keyboard hook; call `useGlobalSearch`,
+  (Alt+H / Alt+L reach it on their own); call `useGlobalSearch`,
   render `<GlobalSearch>` and the header search button, and add its folders
   and items to `search.server.ts`; render `<AssistantBox>` under the header
   and prefetch `assistantEnabledQueryOptions` in its loader; add its page to
@@ -186,6 +186,10 @@ One SQLite file holds every app. Bookmark tables keep their original names.
 - `finance_budgets` — optional monthly budget per expense `category`
   (primary key), `cents` in euros, `alertedMonth` / `alertedLevel` (the
   last budget alert pushed: month + 80 / 100).
+- `finance_savings` — **savings goals** (not expenses, not budgets: no
+  category, no month, never reset): `name`, `cents` (the price),
+  `savedCents` (put in so far; `depositSaving` adds to it), `currency`,
+  timestamps. Putting money in doesn't touch the entries.
 - `assistant_log` — one row per "Tell me…" request or chat turn (`source`
   `tell` | `chat`; `finances` for Finances' own AI calls): `text`, `provider`,
   `model`, `ok`, `result` (one line per item done, or the error),
@@ -384,7 +388,9 @@ copy text, move up/down, delete.
 `editor.ts`), never a separate page:
 
 - `mode: 'view'` — the preview: folder path + edited date, the title large,
-  a gap, then the rendered markdown (`markdown.tsx`, `.markdown` styles in
+  a gap, then the rendered markdown (the only part that scrolls,
+  `data-note-scroll`: the header and buttons stay put; a code block
+  scrolls inside its own box, `.markdown pre`, both ways) (`markdown.tsx`, `.markdown` styles in
   `styles.css`). Task boxes are clickable: `toggleTaskAt` flips `[ ]`/`[x]`
   at the list item's source offset and saves optimistically. Reads the note
   live from the tree query by id. `j`/`k` scroll, `e` edits, `d` deletes. The Download
@@ -812,7 +818,7 @@ step through the conversations (opening each; arrows scroll the thread
 instead when it has focus), `gg`/`G` latest/oldest, `a` new chat, `d` /
 `Delete` delete the open one (`d` again confirms), `s` focuses the message
 box (Enter sends, Shift+Enter new line, Esc leaves it), `z` global search,
-`Shift+H` / `Shift+L` switch apps.
+`Alt+H` / `Alt+L` switch apps.
 
 ### Calendar (`/calendar`)
 
@@ -928,8 +934,9 @@ call. **The AI is never called otherwise.**
   per currency (`carriedInto` / `monthTotals` in `summary.ts`): the month
   view shows Carried over, In, Out and Left = carried + in − out.
 - **Tabs** (shadcn `Tabs` under the banners): **Month** (the month view
-  below; `m` / `M` / `t` come back to it), **Recurring** (`u`) and
-  **Budgets** (`b`), on the page rather than in pop-ups.
+  below; `m` / `M` / `t` come back to it), **Recurring** (`u`),
+  **Budgets** (`b`) and **Savings** (`g`), on the page rather than in
+  pop-ups.
 - **Recurring** (`u`; `recurring-panel.tsx`; each due day
   waits in To accept): income first,
   then expenses, each with its schedule in words and the next day, the
@@ -951,6 +958,16 @@ call. **The AI is never called otherwise.**
   (`sendBudgetAlerts` in `finances-due.server.ts`; `alertedMonth` /
   `alertedLevel` on `finance_budgets`, cleared when the budget changes,
   Undo too); a tap opens `/finances`.
+- **Savings** (`g`; `savings-panel.tsx`): goals the user saves up for,
+  kept apart from budgets (a budget is a monthly cap per expense
+  category that resets; a goal is a price to reach, with no cap, no
+  category and no reset). Each shows a `Progress` gauge (saved / price,
+  `success` colour once full), "€x of €y · n%", what's to go or "Ready to
+  buy", and a "Put money in" field (Enter / Add; `addToSaving`). The
+  pencil edits name, price, currency and the saved amount; the trash
+  (a bag "Bought it" once full) deletes it (`d` `d`). The form below
+  adds a goal (what for, price, currency, already saved). Jarvis and
+  Advice don't see them (yet).
 - **Advice** (`r` or the header button, with an API key; `advice-dialog.tsx`
   → `getAdvice`): one plain call with the month asked about and the five
   before it, subscriptions, budgets and this month's entries, plus an
@@ -1019,10 +1036,12 @@ names its database).
 
 ### Keyboard
 
-- Switch apps: `Shift+L` next, `Shift+H` previous — but `Shift+H` first
-  collapses all folders if any are open (press again to switch). Wraps
-  around; order follows `APPS`. Handled in each app's tree keyboard hook
-  (`onSwitchApp`, from `useAppSwitch`). On phones (below `lg`) a quick
+- Switch apps: `Alt+L` next, `Alt+H` previous, from anywhere (even
+  while typing; not with a dialog / menu open). Wraps around; order
+  follows `APPS`. One listener in `AppSwitcher` (`appSwitchStep` in
+  `lib/shortcuts.ts`, matched on `e.code` since Alt changes the
+  character on some layouts; `useAppSwitch`). `Shift+H` in the four trees
+  only collapses all folders. On phones (below `lg`) a quick
   sideways **swipe** does the same (left = next, right = previous):
   `components/swipe-apps.tsx`, mounted once in `__root.tsx`, listening in
   the capture phase (the long-press rows stop their touches); not from
@@ -1069,8 +1088,8 @@ names its database).
   `components/finances/shortcuts-dialog.tsx`): `a` opens the money
   pop-up (Enter saves), `m`/`M` next / previous month, `t` this
   month (all three on the Month tab), `u` the Recurring tab, `b` the
-  Budgets tab, `r` advice, `z`, `f`, `?`,
-  `Shift+H/L`.
+  Budgets tab, `g` the Savings tab, `r` advice, `z`, `f`, `?`,
+  `Alt+H/L`.
 - Calendar (`src/routes/calendar.tsx`; help in
   `components/calendar/shortcuts-dialog.tsx`): `h`/`l` day, `k`/`j` week
   (arrows too), `m`/`M` (PageDown/PageUp) month, `b`/`e` (Home/End)
@@ -1078,7 +1097,9 @@ names its database).
   range, `a` new strip, `i` the strip list, `o` that day's tasks (navigates to
   `/tasks?day=YYYY-MM-DD`; Tasks' `validateSearch` takes it into its
   day filter and drops it from the URL, so the chip / `q` clear it), Esc
-  cancels the range, `z`, `f`, `?`, `Shift+H/L`. In the strip dialog,
+  cancels the range, `z`, `f`, `?`, `Alt+H/L`. The mouse wheel over the
+  grid flips months (down = next; a grid that scrolls scrolls first;
+  `WHEEL_STEP` / `WHEEL_PAUSE_MS`, so a trackpad burst is one flip). In the strip dialog,
   `h`/`l` (`k`/`j`) step through the colours (8 a row) and pick them, and
   the range picker takes `h`/`j`/`k`/`l`, `m`/`M` and `b`/`e` too (`sendDayKey` in
   `components/calendar/day-keys.ts`, shared with the month grid);

@@ -30,6 +30,7 @@ import { MonthReport } from '@/components/finances/month-report'
 import { PendingList } from '@/components/finances/pending-list'
 import { ShortcutsDialog } from '@/components/finances/shortcuts-dialog'
 import { RecurringPanel } from '@/components/finances/recurring-panel'
+import { SavingsPanel } from '@/components/finances/savings-panel'
 import { GlobalSearch } from '@/components/global-search'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
@@ -44,7 +45,6 @@ import { Kbd } from '@/components/ui/kbd'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toast'
 import type { FinanceEntry } from '@/db/schema'
-import { useAppSwitch } from '@/hooks/use-app-switch'
 import { ASSISTANT_NAME } from '@/lib/assistant'
 import { APP_NAME } from '@/lib/config'
 import { UNCATEGORIZED } from '@/lib/finances/categories'
@@ -56,7 +56,7 @@ import {
   financesQueryOptions,
 } from '@/server/finances.functions'
 
-// The Finances app (three tabs: the month, Recurring, Budgets): type what you spent or got ("12.50 coffee", "+1800
+// The Finances app (four tabs: the month, Recurring, Budgets, Savings): type what you spent or got ("12.50 coffee", "+1800
 // payroll") and see the month at a glance: in, out, left, and a circle of
 // where it went. Recurring expenses and income wait to be accepted when
 // they fall due (a phone push at 9:00); past months keep
@@ -88,7 +88,7 @@ function FinancesPage() {
 
   const [editing, setEditing] = useState<FinanceEntry | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
-  // The page's tabs: the month, recurring money, budgets.
+  // The page's tabs: the month, recurring money, budgets, savings goals.
   const [tab, setTab] = useState<FinancesTab>('month')
   const [adviceOpen, setAdviceOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
@@ -149,7 +149,6 @@ function FinancesPage() {
 
   // Keys (not while typing or with a dialog open; listed in
   // finances/shortcuts-dialog.tsx).
-  const switchApp = useAppSwitch()
   useEffect(() => {
     if (dialogOpen) return
     const onKeyDown = (e: KeyboardEvent) => {
@@ -171,11 +170,10 @@ function FinancesPage() {
         },
         u: () => setTab('recurring'),
         b: () => setTab('budgets'),
+        g: () => setTab('savings'),
         r: aiAvailable ? () => setAdviceOpen(true) : undefined,
         z: () => setSearchOpen(true),
         '?': () => setHelpOpen(true),
-        H: () => switchApp(-1),
-        L: () => switchApp(1),
       }
       const action = actions[e.key]
       if (!action) return
@@ -270,6 +268,10 @@ function FinancesPage() {
             Budgets
             <Kbd className="max-lg:hidden">b</Kbd>
           </TabsTrigger>
+          <TabsTrigger value="savings">
+            Savings
+            <Kbd className="max-lg:hidden">g</Kbd>
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="month" className="flex flex-col gap-6">
           <div className="flex items-center justify-between gap-3">
@@ -353,6 +355,9 @@ function FinancesPage() {
             today={data.today}
           />
         </TabsContent>
+        <TabsContent value="savings">
+          <SavingsPanel savings={data.savings} />
+        </TabsContent>
       </Tabs>
 
       <AmountDialog
@@ -379,7 +384,7 @@ function FinancesPage() {
   )
 }
 
-type FinancesTab = 'month' | 'recurring' | 'budgets'
+type FinancesTab = 'month' | 'recurring' | 'budgets' | 'savings'
 
 // Icon-only below lg, like the other apps' New buttons.
 const ICON_ON_PHONES = 'max-lg:w-8 max-lg:p-0!'

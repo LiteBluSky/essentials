@@ -5,7 +5,7 @@ import { useAppSwitch } from '@/hooks/use-app-switch'
 
 // On phones (below `lg`), a quick horizontal swipe switches app: left goes
 // to the next one, right to the previous (in `APPS` order, wrapping, like
-// Shift+L / Shift+H). Mounted once, in `__root.tsx`. Left alone: swipes that
+// Alt+L / Alt+H). Mounted once, in `__root.tsx`. Left alone: swipes that
 // start in a field, in something that scrolls sideways, next to the
 // screen's edges (the browser's own back / forward), with two fingers, while a dialog / menu is
 // open or while text is selected. Opt out with `data-no-swipe`.
