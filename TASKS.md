@@ -482,6 +482,19 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       add, the hold timings (grab 300 ms, menu 900 ms), the strip menu
 - [ ] `pnpm build` + restart the server (not run: the server was up)
 
+## 26. Toasts and Jarvis feedback (Nov 2026)
+
+- [x] Esc dismisses the toasts on screen (they keep the app keys waiting
+      on purpose); listed in every app's shortcuts help
+- [x] A spinner again while Jarvis works (the field: "Thinking…" /
+      "Searching the web…"; Chat's box and the panel: next to Stop)
+- [x] A web search answer from the Ask Jarvis field opens in Chat instead
+      of a 10 s, 300-character toast
+- [ ] Verify in a real browser with web search on (OpenRouter): the field
+      shows "Searching the web…", then Chat opens on the answer
+- [ ] Verify in a real browser: Esc with a toast up (alone, with a dialog
+      open, while Jarvis is working, with something cut)
+
 ## History of the notes app (before the merge)
 
 ### Notes 0. Scaffold (from the bookmarks app)

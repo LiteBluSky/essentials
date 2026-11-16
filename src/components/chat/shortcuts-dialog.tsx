@@ -36,6 +36,7 @@ const GROUPS: Array<ShortcutGroup> = [
       COMMON.appSwitcher,
       COMMON.theme,
       COMMON.profile,
+      COMMON.toasts,
       {
         keys: [['@']],
         action: 'In the message box: link to a bookmark, note, task or contact',

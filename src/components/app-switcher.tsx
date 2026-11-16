@@ -29,10 +29,19 @@ export function isTyping(target: EventTarget | null) {
   )
 }
 
-/** A dialog, menu or popover is open: the page's keys are off. */
+/** A dialog, menu or popover is open: the page's keys are off. A toast
+ * counts (on purpose): Esc dismisses it, see `ToastEscape`. */
 export function popupOpen() {
   return !!document.querySelector(
     '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]',
+  )
+}
+
+/** The same, toasts aside (Base UI gives a toast `role="dialog"` too): what
+ * Esc belongs to before it may dismiss the toasts or stop Jarvis. */
+export function overlayOpen() {
+  return !!document.querySelector(
+    '[role="dialog"]:not([data-slot="toast"]), [role="alertdialog"]:not([data-slot="toast"]), [role="menu"], [role="listbox"]',
   )
 }
 

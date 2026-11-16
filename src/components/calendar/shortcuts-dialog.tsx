@@ -104,6 +104,7 @@ const GROUPS: Array<ShortcutGroup> = [
       COMMON.newChat,
       COMMON.theme,
       COMMON.profile,
+      COMMON.toasts,
       COMMON.prevApp,
       COMMON.nextApp,
       COMMON.help,

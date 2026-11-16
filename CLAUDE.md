@@ -716,7 +716,9 @@ file). The created item carries its `folder` path for the toast / chat
 marker. It now runs the tool loop above
 (`tellPrompt` in `assistant.server.ts`), so it can also edit, delete and
 answer quick questions. Edits show one toast listing the changes with
-**Undo**; an answer with nothing done shows as a toast. On success the field clears, the trees
+**Undo**; an answer with nothing done shows as a toast (a **web search**
+answer opens in Chat instead, where it was saved: it's long and its sources
+are links). On success the field clears, the trees
 are invalidated and a toast per item offers **Open** (`requestOpen`, like
 the global search).
 
@@ -734,7 +736,9 @@ click, a toast offers "Open link"), any others are toasts with **Open**,
 and no match is a "Couldn't find" toast.
 
 **Stop** (every Jarvis prompt: the field, Chat's box, the panel, Advice):
-while a request runs the send button is a Stop button (Esc too), which
+while a request runs the send button is a Stop button (Esc too) with a
+`Spinner` before it (the field also says "Thinking…" / "Searching the
+web…"; keep the spinner: it's how one sees Jarvis is working), which
 calls it off so Jarvis doesn't do it. The browser gives each request a
 `requestId` (`useCancelRequest`, `hooks/use-cancel-request.ts`);
 `cancelAssistant` aborts it on the server (`cancel.server.ts`: an
@@ -1222,6 +1226,13 @@ The keys below are the defaults.
   editing and removing stay in Settings. In Bookmarks / Notes / Tasks /
   Contacts a tree's `p` pastes first when something is cut (`paste`
   returns false when nothing is, leaving the key to the switcher).
+- **Esc dismisses the toasts** (all of them; `components/toast-escape.tsx`,
+  mounted once in `__root.tsx`). Base UI gives a toast `role="dialog"`, so
+  while one shows `popupOpen()` is true and the app-level keys (Alt+H /
+  Alt+L, `f`, `p`, Shift+T, the swipe) wait: that's deliberate (the owner
+  likes it), and Esc is the way out. An Esc something else took (a dialog
+  or menu, a tree's cut, stopping Jarvis) is left alone; code that must
+  ignore toasts uses `overlayOpen()` (`app-switcher.tsx`).
 - `Shift+T` cycles the theme (Light → Dark → System, with a toast) on
   every app: a listener in `ThemeToggle` (each header has one; off while
   typing or while a dialog / menu is open), `nextTheme` in `lib/theme.ts`.

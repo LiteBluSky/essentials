@@ -17,6 +17,7 @@ const GROUPS: Array<ShortcutGroup> = [
       COMMON.appSwitcher,
       COMMON.theme,
       COMMON.profile,
+      COMMON.toasts,
       COMMON.reference,
       COMMON.assistant,
       COMMON.hideAssistant,

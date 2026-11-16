@@ -12,6 +12,7 @@ import {
   AssistantSidebar,
   useDesktopAssistant,
 } from '@/components/assistant-sidebar'
+import { overlayOpen } from '@/components/app-switcher'
 import { DictateButton } from '@/components/dictate-button'
 import { WebSearchToggle } from '@/components/web-search-toggle'
 import { MobileDock } from '@/components/mobile-dock'
@@ -23,6 +24,7 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from '@/components/ui/input-group'
+import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
 import { ASSISTANT_NAME, UNSORTED_FOLDER } from '@/lib/assistant'
 import { refreshKey } from '@/lib/chat'
@@ -127,14 +129,10 @@ function AssistantField({ enabled }: { enabled: boolean }) {
           requestId,
         },
       }),
-    onSuccess: async ({
-      created,
-      found,
-      changed,
-      runId,
-      answer,
-      conversationId,
-    }) => {
+    onSuccess: async (
+      { created, found, changed, runId, answer, conversationId },
+      { web },
+    ) => {
       setText('')
       history.reset()
       await Promise.all(
@@ -165,6 +163,12 @@ function AssistantField({ enabled }: { enabled: boolean }) {
           }),
         })
       } else if (!created.length && !found.length && answer) {
+        // A web answer (long, with its sources as links) doesn't fit a
+        // toast: it opens in Chat, where it was saved.
+        if (web && conversationId) {
+          void navigate({ to: '/chat', search: { c: conversationId } })
+          return
+        }
         // A question answered: just say it.
         toast.add({
           title: <ReferenceText>{answer.slice(0, 300)}</ReferenceText>,
@@ -228,17 +232,19 @@ function AssistantField({ enabled }: { enabled: boolean }) {
   const cancelRef = useRef(cancel)
   cancelRef.current = cancel
   // Esc stops it too (the field is disabled meanwhile, so it can't hear it).
+  // On `document`, so it comes before the Esc that dismisses toasts
+  // (`ToastEscape`, on `window`): a toast on screen doesn't keep Esc from
+  // stopping the request.
   const pending = ask.isPending
   useEffect(() => {
     if (!pending) return
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || e.defaultPrevented) return
-      if (document.querySelector('[role="dialog"], [role="menu"]')) return
+      if (e.key !== 'Escape' || e.defaultPrevented || overlayOpen()) return
       e.preventDefault()
       cancelRef.current()
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
   }, [pending])
 
   const openMatch = (match: NonNullable<AssistantFound['match']>) => {
@@ -389,17 +395,22 @@ function AssistantField({ enabled }: { enabled: boolean }) {
               onChange={setWebSearch}
               disabled={ask.isPending}
             />
+            {ask.isPending && (
+              <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Spinner />
+                {ask.variables.web ? 'Searching the web…' : 'Thinking…'}
+              </span>
+            )}
             {ask.isPending ? (
               <InputGroupButton
                 variant="default"
                 size="icon-sm"
                 type="button"
-                className="ml-auto"
                 aria-label="Stop"
                 title="Stop: cancel this request (Esc)"
                 onClick={cancel}
               >
-                <SquareIcon className="animate-pulse fill-current" />
+                <SquareIcon className="fill-current" />
               </InputGroupButton>
             ) : (
               <InputGroupButton

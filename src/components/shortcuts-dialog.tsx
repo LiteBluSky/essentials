@@ -58,6 +58,10 @@ export const COMMON = {
   },
   theme: { id: 'global.theme', action: 'Next theme (light, dark, system)' },
   profile: { id: 'global.profile', action: 'Switch profile (database)' },
+  toasts: {
+    keys: [['Esc']],
+    action: 'Dismiss the notifications (the app keys wait while one shows)',
+  },
   reference: {
     keys: [['@']],
     action: 'In a text box: link to a bookmark, note, task or contact',

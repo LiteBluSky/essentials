@@ -557,17 +557,17 @@ export function ChatComposer({
             onChange={setWebSearch}
             disabled={busy}
           />
+          {busy && <Spinner className="ml-auto text-muted-foreground" />}
           {busy ? (
             <InputGroupButton
               variant="default"
               size="icon-sm"
               type="button"
-              className="ml-auto"
               aria-label="Stop"
               title="Stop: cancel this message (Esc)"
               onClick={onCancel}
             >
-              <SquareIcon className="animate-pulse fill-current" />
+              <SquareIcon className="fill-current" />
             </InputGroupButton>
           ) : (
             <InputGroupButton
