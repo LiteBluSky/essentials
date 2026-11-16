@@ -237,6 +237,17 @@ body {
   overflow-wrap: normal;
   white-space: pre;
 }
+/* A code block in the notes preview sits in a box holding its copy button
+   (outside the scrolling `pre`, so it stays put): the box takes the
+   block's margins (prose's 1.714em at the pre's 0.875em; `:where` so the
+   first / last child rules above still win). */
+.markdown :where([data-code-block]) {
+  position: relative;
+  margin-block: 1.5em;
+}
+.markdown [data-code-block] > pre {
+  margin-block: 0;
+}
 .markdown :not(pre) > code {
   border-radius: var(--radius-sm);
   background: var(--muted);

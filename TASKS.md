@@ -455,6 +455,14 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       (`/api/chat`, NDJSON events; both providers stream), no AI SDK
 - [ ] Verify with the real providers (Anthropic and OpenRouter): the
       answer appears as it's written, tool lines in between
+- [x] Copy button on code blocks in the notes preview (one click copies
+      the snippet; hover / focus with a mouse, always on touch, not printed)
+- [x] Swipe and Alt+H / Alt+L slide the new app in like a Calendar month
+      (sideways: next from the right, previous from the left)
+- [x] The app slide leaves the header (navbar + buttons) still; only the
+      page below it moves
+- [ ] Verify in a real browser: the code copy button (hover, phone, print),
+      the app slide on Alt+H / Alt+L and on a phone swipe
 
 ## 25. Round of fixes (Nov 2026)
 

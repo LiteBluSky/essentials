@@ -400,7 +400,9 @@ copy text, move up/down, delete.
 - `mode: 'view'` — the preview: folder path + edited date, the title large,
   a gap, then the rendered markdown (the only part that scrolls,
   `data-note-scroll`: the header and buttons stay put; a code block
-  scrolls inside its own box, `.markdown pre`, both ways) (`markdown.tsx`, `.markdown` styles in
+  scrolls inside its own box, `.markdown pre`, both ways, with a copy
+  button at its top right: `CodeBlock`, shown on hover / focus, always on
+  touch, not printed) (`markdown.tsx`, `.markdown` styles in
   `styles.css`). Task boxes are clickable: `toggleTaskAt` flips `[ ]`/`[x]`
   at the list item's source offset and saves optimistically. Reads the note
   live from the tree query by id. `j`/`k` scroll, `e` edits, `d` deletes. The Download
@@ -1133,7 +1135,12 @@ The keys below are the defaults.
   while typing; not with a dialog / menu open). Wraps around; order
   follows `APPS`. One listener in `AppSwitcher` (`appSwitchStep` in
   `lib/shortcuts.ts`, matched on `e.code` since Alt changes the
-  character on some layouts; `useAppSwitch`). `Shift+H` in the four trees
+  character on some layouts; `useAppSwitch`). The new app's page slides
+  in like a Calendar month, sideways (next from the right), all but its
+  `<header>`, so the navbar and buttons stay put (`slideIn` in
+  `use-app-switch.ts`, once the router's `onRendered` fires; each part of
+  `<main>` moved with `left`, not a transform, so the fixed Jarvis field
+  stays put; off with reduced motion). `Shift+H` in the four trees
   only collapses all folders. On phones (below `lg`) a quick
   sideways **swipe** does the same (left = next, right = previous):
   `components/swipe-apps.tsx`, mounted once in `__root.tsx`, listening in
