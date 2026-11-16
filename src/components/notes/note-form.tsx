@@ -44,7 +44,8 @@ import {
 import type { Edit, LineStyle } from '@/lib/notes/markdown-edit'
 import { noteInput } from '@/lib/notes/schemas'
 import type { NoteInput } from '@/lib/notes/schemas'
-import { MOD_LABEL } from '@/lib/shortcuts'
+import { MOD_LABEL, isShortcut, useShortcutLabels } from '@/lib/shortcuts'
+import type { ShortcutId } from '@/lib/shortcuts'
 import { isNoteEmpty } from '@/lib/notes/tree'
 import type { FolderOption } from '@/lib/notes/tree'
 import {
@@ -61,19 +62,20 @@ type Sel = { value: string; start: number; end: number }
 
 const TOOLBAR: Array<{
   label: string
-  keys?: string
+  /** Its shortcut while writing (lib/shortcuts.ts). */
+  shortcut?: ShortcutId
   icon: typeof BoldIcon
   edit: (sel: Sel) => Edit
 }> = [
   {
     label: 'Bold',
-    keys: 'B',
+    shortcut: 'editor.bold',
     icon: BoldIcon,
     edit: (s) => toggleWrap(s, '**'),
   },
   {
     label: 'Italic',
-    keys: 'I',
+    shortcut: 'editor.italic',
     icon: ItalicIcon,
     edit: (s) => toggleWrap(s, '_'),
   },
@@ -83,7 +85,12 @@ const TOOLBAR: Array<{
     edit: (s) => toggleWrap(s, '~~'),
   },
   { label: 'Code', icon: CodeIcon, edit: (s) => toggleWrap(s, '`') },
-  { label: 'Link', keys: 'K', icon: LinkIcon, edit: insertLink },
+  {
+    label: 'Link',
+    shortcut: 'editor.link',
+    icon: LinkIcon,
+    edit: insertLink,
+  },
 ]
 
 const LINE_TOOLS: Array<{
@@ -155,6 +162,7 @@ export function NoteForm({
       }),
   })
 
+  const keyLabel = useShortcutLabels()
   const form = useForm({
     defaultValues: {
       title: note?.title ?? '',
@@ -206,7 +214,7 @@ export function NoteForm({
     at: number,
   ) => {
     const mod = e.ctrlKey || e.metaKey
-    if (mod && !e.altKey && e.key.toLowerCase() === 'm') {
+    if (isShortcut(e, 'editor.format')) {
       e.preventDefault()
       setFormatAt(null)
       return
@@ -252,19 +260,19 @@ export function NoteForm({
   const onBodyKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (formatAt !== null) return onFormatKeyDown(e, formatAt)
     const mod = e.ctrlKey || e.metaKey
-    if (mod && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'm') {
+    // The editor's own shortcuts (they can be changed: lib/shortcuts.ts).
+    if (isShortcut(e, 'editor.format')) {
       e.preventDefault()
       setFormatAt(lastFormat.current)
       return
     }
-    if (mod && !e.altKey && !e.shiftKey) {
-      const tool = TOOLBAR.find((t) => t.keys?.toLowerCase() === e.key)
-      if (tool) {
-        e.preventDefault()
-        runEdit(tool.edit)
-      }
+    const tool = TOOLBAR.find((t) => t.shortcut && isShortcut(e, t.shortcut))
+    if (tool) {
+      e.preventDefault()
+      runEdit(tool.edit)
       return
     }
+    if (mod && !e.altKey && !e.shiftKey) return
     if (e.key === 'Enter' && !mod && !e.shiftKey && !e.altKey) {
       if (runEdit(continueList)) e.preventDefault()
       return
@@ -285,7 +293,7 @@ export function NoteForm({
       onKeyDown={(e) => {
         // Ctrl+Enter / Ctrl+S: save and show the note.
         const mod = e.ctrlKey || e.metaKey
-        if (mod && (e.key === 'Enter' || e.key === 's')) {
+        if ((mod && e.key === 'Enter') || isShortcut(e, 'editor.save')) {
           e.preventDefault()
           void submit('view')
         }
@@ -355,7 +363,7 @@ export function NoteForm({
                         <ToolButton
                           key={tool.label}
                           label={tool.label}
-                          keys={tool.keys}
+                          shortcut={tool.shortcut}
                           icon={tool.icon}
                           active={formatAt === i}
                           onClick={() => {
@@ -400,9 +408,9 @@ export function NoteForm({
                 <FieldDescription className="max-lg:hidden" aria-live="polite">
                   {formatAt === null ? (
                     <>
-                      Lists continue on Enter, Tab indents, {MOD_LABEL}+M
-                      formats the line. Esc or clicking outside saves and
-                      closes.
+                      Lists continue on Enter, Tab indents,{' '}
+                      {keyLabel('editor.format')} formats the line. Esc or
+                      clicking outside saves and closes.
                     </>
                   ) : (
                     <>
@@ -448,18 +456,19 @@ export function NoteForm({
 
 function ToolButton({
   label,
-  keys,
+  shortcut,
   icon: Icon,
-  active = false,
+  active,
   onClick,
 }: {
   label: string
-  keys?: string
+  shortcut?: ShortcutId
   icon: typeof BoldIcon
   /** Highlighted while choosing a format with Ctrl+M. */
   active?: boolean
   onClick: () => void
 }) {
+  const keyLabel = useShortcutLabels()
   return (
     <Button
       type="button"
@@ -467,7 +476,7 @@ function ToolButton({
       aria-pressed={active}
       size="icon-sm"
       aria-label={label}
-      title={keys ? `${label} (${MOD_LABEL}+${keys})` : label}
+      title={shortcut ? `${label} (${keyLabel(shortcut)})` : label}
       // Keep the textarea's selection: don't take focus on press.
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}

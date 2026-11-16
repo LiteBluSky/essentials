@@ -4,6 +4,8 @@ import type { DayButtonProps, DayProps } from 'react-day-picker'
 
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
+import type { CalendarEvent } from '@/db/schema'
+import type { StripEdge, StripEdit } from '@/hooks/calendar/use-strip-edit'
 import { cn } from '@/lib/utils'
 import { colorClass } from '@/lib/calendar/colors'
 import { WEEK_STARTS_ON, layoutWeeks, monthWeeks } from '@/lib/calendar/layout'
@@ -13,12 +15,18 @@ import type { Slot, Strip } from '@/lib/calendar/layout'
 // over the page, each day cell holding its lanes of strips. A strip is drawn
 // once per week, in its first day there, as wide as the days it covers;
 // the days it passes over keep an empty lane so everything lines up.
+// Strips are moved and resized with the pointer (use-strip-edit.ts): the
+// selected one shows a handle at each end.
 
 type GridContextValue = {
   slots: Map<string, Array<Slot>>
   selection: { from: string; to: string } | null
   onDayPointerDown: (day: string, e: React.PointerEvent) => void
+  /** A task strip was clicked (it opens in Tasks). */
   onOpenStrip: (strip: Strip) => void
+  /** The strips' events by id, and moving / resizing / selecting them. */
+  events: Map<number, CalendarEvent>
+  edit: StripEdit
 }
 
 const GridContext = createContext<GridContextValue | null>(null)
@@ -36,6 +44,8 @@ export function MonthGrid({
   selection,
   onDayPointerDown,
   onOpenStrip,
+  events,
+  edit,
 }: {
   month: Date
   onMonthChange: (month: Date) => void
@@ -47,7 +57,7 @@ export function MonthGrid({
   )
   return (
     <GridContext.Provider
-      value={{ slots, selection, onDayPointerDown, onOpenStrip }}
+      value={{ slots, selection, onDayPointerDown, onOpenStrip, events, edit }}
     >
       <Calendar
         month={month}
@@ -155,35 +165,93 @@ function DayNumber({ day, modifiers, className, ...props }: DayButtonProps) {
 }
 
 function StripBar({ slot }: { slot: Exclude<Slot, null | 'covered'> }) {
-  const { onOpenStrip } = useGrid()
+  const { onOpenStrip, events, edit } = useGrid()
   const { strip, span, continued, continues } = slot
   const left = continued ? 0 : 3
   const right = continues ? 0 : 3
   const Icon = strip.done ? CircleCheckIcon : CircleIcon
+  // A calendar strip (not a task): it can be moved, resized and has a menu.
+  const event = strip.kind === 'event' ? events.get(strip.id) : undefined
+  const selected = event !== undefined && edit.selectedId === event.id
+  const grabbed = event !== undefined && edit.grabbedId === event.id
+  const dragging = event !== undefined && edit.preview?.id === event.id
   return (
     <button
       type="button"
       title={strip.title || undefined}
+      data-strip={strip.kind}
+      // A finger on a strip grabs it: not a swipe to the next app.
+      data-no-swipe={event ? '' : undefined}
+      aria-pressed={event ? selected : undefined}
       // Drawn over the next days of the week (they keep an empty lane).
       style={{
         width: `calc(${span * 100}% - ${left + right}px)`,
         marginLeft: left,
+        WebkitTouchCallout: 'none',
       }}
       className={cn(
-        'relative z-10 flex h-5 shrink-0 items-center gap-1 rounded-sm px-1.5 text-left text-xs leading-none outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'relative z-10 flex h-5 shrink-0 items-center gap-1 rounded-sm px-1.5 text-left text-xs leading-none outline-none select-none focus-visible:ring-2 focus-visible:ring-ring',
         continued && 'rounded-l-none',
         continues && 'rounded-r-none',
         strip.kind === 'event'
           ? colorClass(strip.color ?? '')
           : 'bg-muted text-foreground ring-1 ring-border ring-inset',
         strip.done && 'text-muted-foreground line-through',
+        event && 'cursor-grab transition-[box-shadow,scale,opacity]',
+        selected &&
+          'z-20 ring-2 ring-ring ring-offset-1 ring-offset-background',
+        (grabbed || dragging) &&
+          'z-30 scale-[1.03] cursor-grabbing opacity-85 shadow-lg',
       )}
-      // A strip is opened, not the start of a new range.
-      onPointerDown={(e) => e.stopPropagation()}
-      onClick={() => onOpenStrip(strip)}
+      onPointerDown={(e) => {
+        if (event) edit.onStripPointerDown(event, e)
+        // A task is opened, not the start of a new range.
+        else e.stopPropagation()
+      }}
+      onContextMenu={event && ((e) => edit.onStripContextMenu(event, e))}
+      onClick={(e) => {
+        if (!event) onOpenStrip(strip)
+        // From the keyboard (Enter / Space): the pointer selects on its own.
+        else if (e.detail === 0) edit.select(event.id)
+      }}
     >
       {strip.kind === 'task' && <Icon className="size-3 shrink-0" />}
       <span className="truncate">{strip.title}</span>
+      {event && selected && !continued && (
+        <StripHandle
+          edge="start"
+          onPointerDown={(e) => edit.onHandlePointerDown(event, 'start', e)}
+        />
+      )}
+      {event && selected && !continues && (
+        <StripHandle
+          edge="end"
+          onPointerDown={(e) => edit.onHandlePointerDown(event, 'end', e)}
+        />
+      )}
     </button>
+  )
+}
+
+/** A selected strip's end: drag it to make the strip longer or shorter. */
+function StripHandle({
+  edge,
+  onPointerDown,
+}: {
+  edge: StripEdge
+  onPointerDown: (e: React.PointerEvent) => void
+}) {
+  return (
+    <span
+      aria-hidden
+      data-strip-handle={edge}
+      className={cn(
+        // The grip itself is small; its hit area (`before`) is finger-sized
+        // on touch screens.
+        'absolute top-1/2 h-4 w-2 -translate-y-1/2 cursor-ew-resize touch-none rounded-full border border-ring bg-background shadow-sm before:absolute before:-inset-1.5 pointer-coarse:before:-inset-3',
+        edge === 'start' ? '-left-1.5' : '-right-1.5',
+      )}
+      onPointerDown={onPointerDown}
+    />
   )
 }

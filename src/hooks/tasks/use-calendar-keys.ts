@@ -2,8 +2,11 @@ import { addDays, addMonths, addYears } from 'date-fns'
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 
+import { shortcutKey } from '@/lib/shortcuts'
+
 // Vim-style keys inside a calendar: h/l a day, j/k a week, m/M a month
-// forward/back, y/Y a year forward/back. The selection moves with them.
+// forward/back, y/Y a year forward/back (the `days.*` shortcuts, keyed here
+// by their default key). The selection moves with them.
 const STEPS: Record<string, (date: Date) => Date> = {
   h: (d) => addDays(d, -1),
   l: (d) => addDays(d, 1),
@@ -36,8 +39,10 @@ export function useCalendarKeys(value: Date, onChange: (date: Date) => void) {
   }, [value, month])
 
   const onKeyDownCapture = (e: KeyboardEvent) => {
-    if (e.ctrlKey || e.metaKey || e.altKey) return
-    const step = Object.hasOwn(STEPS, e.key) ? STEPS[e.key] : undefined
+    // The keys can be changed: looked up by the shortcut's default key.
+    const key = shortcutKey(e, ['days'])
+    const step =
+      key !== null && Object.hasOwn(STEPS, key) ? STEPS[key] : undefined
     if (!step) return
     e.preventDefault()
     e.stopPropagation()

@@ -16,6 +16,29 @@ export function chatCutoff(now = Date.now()) {
   return new Date(now - CHAT_TTL_DAYS * 24 * 60 * 60 * 1000)
 }
 
+// The conversation Chat had open last (per browser), so leaving Chat and
+// coming back carries on with it instead of starting a new one. "New chat"
+// forgets it.
+const LAST_KEY = 'chat:conversation'
+
+export function lastConversation(): number | null {
+  try {
+    const id = Number(localStorage.getItem(LAST_KEY))
+    return Number.isInteger(id) && id > 0 ? id : null
+  } catch {
+    return null
+  }
+}
+
+export function rememberConversation(id: number | null) {
+  try {
+    if (id === null) localStorage.removeItem(LAST_KEY)
+    else localStorage.setItem(LAST_KEY, String(id))
+  } catch {
+    // Not kept; fine.
+  }
+}
+
 export const chatInput = z.object({
   /** null = start a new conversation. */
   conversationId: z.number().int().positive().nullable(),
@@ -25,6 +48,8 @@ export const chatInput = z.object({
   timeZone: z.string().min(1).max(100),
   /** Let Jarvis search the web for this one request (off by default). */
   webSearch: z.boolean().default(false),
+  /** The browser's id for this request, to cancel it (`cancelAssistant`). */
+  requestId: z.uuid().optional(),
 })
 export type ChatInput = z.infer<typeof chatInput>
 

@@ -16,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Kbd } from '@/components/ui/kbd'
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
 import { useConfirmKey } from '@/hooks/use-confirm-key'
@@ -31,6 +30,7 @@ import {
 import type { EditorState } from './editor'
 import { FolderForm } from './folder-form'
 import { LinkForm } from './link-form'
+import { ShortcutKey } from '@/components/shortcut-key'
 
 // `state` is kept around after closing (only `open` flips) so the dialog
 // content doesn't blank out during its exit animation.
@@ -136,7 +136,7 @@ function DeleteConfirm({
         type: 'error',
       }),
   })
-  useConfirmKey('d', () => {
+  useConfirmKey(() => {
     if (!remove.isPending) remove.mutate()
   })
 
@@ -175,7 +175,7 @@ function DeleteConfirm({
         >
           {remove.isPending && <Spinner data-icon="inline-start" />}
           Delete
-          <Kbd className="max-lg:hidden">d</Kbd>
+          <ShortcutKey id="global.confirm" className="max-lg:hidden" />
         </AlertDialogAction>
       </AlertDialogFooter>
     </>

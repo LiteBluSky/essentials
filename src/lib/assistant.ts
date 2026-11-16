@@ -21,6 +21,8 @@ export const assistantInput = z.object({
   timeZone: z.string().min(1).max(100),
   /** Let Jarvis search the web for this one request (off by default). */
   webSearch: z.boolean().default(false),
+  /** The browser's id for this request, to cancel it (`cancelAssistant`). */
+  requestId: z.uuid().optional(),
 })
 export type AssistantInput = z.infer<typeof assistantInput>
 

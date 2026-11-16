@@ -14,20 +14,13 @@ import {
 import { toast } from '@/components/ui/toast'
 import { nextTheme, readTheme, setTheme } from '@/lib/theme'
 import type { Theme } from '@/lib/theme'
+import { isShortcut } from '@/lib/shortcuts'
 
 const OPTIONS = [
   { value: 'light', label: 'Light', icon: SunIcon },
   { value: 'dark', label: 'Dark', icon: MoonIcon },
   { value: 'system', label: 'System', icon: MonitorIcon },
 ] as const
-
-function isTyping(target: EventTarget | null) {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable ||
-      ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
-  )
-}
 
 function popupOpen() {
   return !!document.querySelector(
@@ -46,7 +39,7 @@ export function ThemeToggle() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
-      if (e.key !== 'T' || isTyping(e.target) || popupOpen()) return
+      if (!isShortcut(e, 'global.theme') || popupOpen()) return
       e.preventDefault()
       const next = nextTheme(readTheme())
       setTheme(next)

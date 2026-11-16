@@ -1,107 +1,109 @@
-import { Fragment } from 'react'
+import { COMMON, ShortcutsHelp } from '@/components/shortcuts-dialog'
+import type { ShortcutGroup } from '@/components/shortcuts-dialog'
+import { MOD_LABEL } from '@/lib/shortcuts'
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Kbd, KbdGroup } from '@/components/ui/kbd'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { MOD_LABEL, SHORTCUTS, NEW_CHAT_KEYS } from '@/lib/shortcuts'
-import { ASSISTANT_NAME } from '@/lib/assistant'
+// Notes' shortcuts, as shown (and changed) in the shared dialog
+// (components/shortcuts-dialog.tsx). Rows with an `id` are shortcuts from
+// lib/shortcuts.ts: the dialog shows the key each is on now; `keys` are
+// fixed ones. Keep it in sync when adding or changing a shortcut.
 
-// Each entry: alternative key combos (joined with "or"), each a list of keys
-// pressed together or in sequence.
-type Shortcut = { keys: Array<Array<string>>; action: string }
-
-const mod = (key: string) => [MOD_LABEL, key]
-
-const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
+const GROUPS: Array<ShortcutGroup> = [
   {
     title: 'Anywhere',
     shortcuts: [
-      { keys: [mod(SHORTCUTS.search.label), ['/']], action: 'Search this app' },
-      { keys: [['z']], action: 'Search everything (all apps)' },
-      { keys: [['f']], action: 'Switch app (type its name, or pick it)' },
-      { keys: [['Shift', 'T']], action: 'Next theme (light, dark, system)' },
-      { keys: [['p']], action: 'Switch profile (database)' },
-      {
-        keys: [['@']],
-        action: 'In a text box: link to a bookmark, note, task or contact',
-      },
-      {
-        keys: [['s']],
-        action: `Ask ${ASSISTANT_NAME}… (tasks, notes, questions; ↑/↓ past requests; Esc goes back)`,
-      },
-      {
-        keys: [['Shift', 'S']],
-        action: `Hide the ${ASSISTANT_NAME} panel (wide screens)`,
-      },
-      {
-        keys: [NEW_CHAT_KEYS],
-        action: `New chat with ${ASSISTANT_NAME}`,
-      },
-      { keys: [mod(SHORTCUTS.newFolder.label)], action: 'New folder' },
+      { id: 'global.search', action: 'Search this app' },
+      { id: 'tree.searchBox', action: 'Search this app (from the tree)' },
+      COMMON.globalSearch,
+      COMMON.appSwitcher,
+      COMMON.theme,
+      COMMON.profile,
+      COMMON.reference,
+      COMMON.assistant,
+      COMMON.hideAssistant,
+      COMMON.newChat,
+      { id: 'global.newFolder', action: 'New folder' },
       { keys: [['1'], ['…'], ['4']], action: 'Open recent note 1–4' },
       { keys: [['5'], ['…'], ['8']], action: 'Open most viewed note 5–8' },
-      { keys: [['Shift', 'H']], action: 'Collapse all folders' },
-      { keys: [['Alt', 'H']], action: 'Previous app' },
-      { keys: [['Alt', 'L']], action: 'Next app' },
-      { keys: [['?']], action: 'Show keyboard shortcuts' },
+      COMMON.prevApp,
+      COMMON.nextApp,
+      COMMON.help,
+      COMMON.confirm,
     ],
   },
   {
     title: 'Tree',
     shortcuts: [
-      { keys: [['j'], ['↓']], action: 'Next row' },
-      { keys: [['k'], ['↑']], action: 'Previous row' },
-      { keys: [['h'], ['←']], action: 'Collapse folder / go to parent' },
-      { keys: [['l'], ['→']], action: 'Expand folder / into first child' },
-      { keys: [['g', 'g']], action: 'First row' },
-      { keys: [['G']], action: 'Last row' },
-      { keys: [['n']], action: 'Next note' },
-      { keys: [['Shift', 'N']], action: 'Previous note' },
-      { keys: [['o'], ['Enter']], action: 'Open note / toggle folder' },
-      { keys: [['e'], ['r']], action: 'Edit note / rename folder' },
-      { keys: [['a']], action: 'New note in hovered or focused folder' },
+      { id: 'tree.down', keys: [['↓']], action: 'Next row' },
+      { id: 'tree.up', keys: [['↑']], action: 'Previous row' },
       {
-        keys: [['d']],
-        action: 'Delete hovered or focused row (d again confirms)',
+        id: 'tree.collapse',
+        keys: [['←']],
+        action: 'Collapse folder / go to parent',
       },
-      { keys: [['x']], action: 'Cut note' },
-      { keys: [['p']], action: 'Paste cut note here (when one is cut)' },
+      {
+        id: 'tree.expand',
+        keys: [['→']],
+        action: 'Expand folder / into first child',
+      },
+      { id: 'tree.first', action: 'First row' },
+      { id: 'tree.last', action: 'Last row' },
+      { id: 'tree.nextItem', action: 'Next note' },
+      { id: 'tree.prevItem', action: 'Previous note' },
+      {
+        id: 'tree.open',
+        keys: [['Enter']],
+        action: 'Open note / toggle folder',
+      },
+      {
+        id: 'tree.new',
+        action: 'New note in hovered or focused folder',
+      },
+      {
+        id: 'tree.edit',
+        keys: [['e']],
+        action: 'Edit note / rename or move folder',
+      },
+      {
+        id: 'tree.delete',
+        action: 'Delete hovered or focused row (asks first)',
+      },
+      { id: 'tree.cut', action: 'Cut note' },
+      {
+        id: 'tree.paste',
+        action: 'Paste cut note here (when one is cut)',
+      },
       { keys: [['Esc']], action: 'Cancel cut' },
-      { keys: [['q']], action: 'Clear search' },
+      { id: 'tree.clearSearch', action: 'Clear search' },
+      { id: 'tree.collapseAll', action: 'Collapse all folders' },
     ],
   },
   {
     title: 'Open note',
     shortcuts: [
-      { keys: [['j'], ['k']], action: 'Scroll down / up' },
-      { keys: [['e']], action: 'Edit' },
-      { keys: [['d']], action: 'Delete (d again confirms)' },
-      { keys: [mod('P')], action: 'Print (or Save as PDF)' },
+      { id: 'viewer.scrollDown', action: 'Scroll down' },
+      { id: 'viewer.scrollUp', action: 'Scroll up' },
+      { id: 'viewer.edit', keys: [['r']], action: 'Edit' },
+      { id: 'viewer.delete', action: 'Delete (asks first)' },
+      { keys: [[MOD_LABEL, 'P']], action: 'Print (or Save as PDF)' },
       { keys: [['Esc']], action: 'Close' },
     ],
   },
   {
     title: 'Writing',
     shortcuts: [
-      { keys: [mod('Enter'), mod('S')], action: 'Save and show the note' },
+      {
+        id: 'editor.save',
+        keys: [[MOD_LABEL, 'Enter']],
+        action: 'Save and show the note',
+      },
       { keys: [['Esc']], action: 'Save and close' },
-      { keys: [mod('B')], action: 'Bold' },
-      { keys: [mod('I')], action: 'Italic' },
-      { keys: [mod('K')], action: 'Link' },
-      { keys: [mod('M')], action: 'Format the line: pick from the toolbar' },
+      { id: 'editor.bold', action: 'Bold' },
+      { id: 'editor.italic', action: 'Italic' },
+      { id: 'editor.link', action: 'Link' },
+      {
+        id: 'editor.format',
+        action: 'Format the line: pick from the toolbar',
+      },
       { keys: [['h'], ['l']], action: '… previous / next format' },
       { keys: [['0'], ['$']], action: '… first / last format' },
       { keys: [['Enter']], action: '… apply it (Esc cancels)' },
@@ -126,47 +128,6 @@ export function ShortcutsDialog({
   onOpenChange: (open: boolean) => void
 }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Keyboard shortcuts</DialogTitle>
-          <DialogDescription>
-            Tree keys are off while typing in a field or while a dialog is open.
-          </DialogDescription>
-        </DialogHeader>
-        {GROUPS.map((group) => (
-          <Table key={group.title}>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{group.title}</TableHead>
-                <TableHead className="text-right">Keys</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {group.shortcuts.map(({ keys, action }) => (
-                <TableRow key={action}>
-                  {/* Wrap the action so the keys always fit (no sideways scroll). */}
-                  <TableCell className="whitespace-normal">{action}</TableCell>
-                  <TableCell className="w-px text-right">
-                    <KbdGroup className="justify-end">
-                      {keys.map((combo, i) => (
-                        <Fragment key={combo.join('+')}>
-                          {i > 0 && (
-                            <span className="text-muted-foreground">or</span>
-                          )}
-                          {combo.map((key, j) => (
-                            <Kbd key={j}>{key}</Kbd>
-                          ))}
-                        </Fragment>
-                      ))}
-                    </KbdGroup>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ))}
-      </DialogContent>
-    </Dialog>
+    <ShortcutsHelp open={open} onOpenChange={onOpenChange} groups={GROUPS} />
   )
 }

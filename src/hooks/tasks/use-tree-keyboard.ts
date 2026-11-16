@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
+import { isShortcut, shortcutKey } from '@/lib/shortcuts'
 
 import type { TaskInput } from '@/lib/tasks/schemas'
 
@@ -29,6 +30,10 @@ import type { TaskInput } from '@/lib/tasks/schemas'
 //   data-tree-item, data-kind="folder|task", data-id, data-parent-id
 // (data-parent-id is "" at the top level). The row's hover area (the element
 // that also holds its menu) is marked with data-tree-row.
+
+const SCOPES = ['tree', 'tasks'] as const
+/** Stands for the help shortcut in the switch below. */
+const HELP = 'help'
 
 const ITEM = '[data-tree-item]'
 const HOVERED_ROW = '[data-tree-row]:hover'
@@ -127,8 +132,11 @@ export function useTreeKeyboard({
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return
       if (isTyping(e.target)) return
+      // The keys can be changed (lib/shortcuts.ts): `key` is the default
+      // key of the shortcut that was pressed, so the cases below hold.
+      const key = isShortcut(e, 'global.help') ? HELP : shortcutKey(e, SCOPES)
+      if (key === null) return
       const active = document.activeElement
       if (active instanceof HTMLElement && active.closest('[role="menu"]')) {
         return
@@ -151,13 +159,13 @@ export function useTreeKeyboard({
           ?.querySelector(HOVERED_ROW)
           ?.querySelector<HTMLElement>(ITEM) ?? current
 
-      if (/^[1-9]$/.test(e.key)) {
+      if (/^[1-9]$/.test(key)) {
         handled()
-        cb.onOpenUpNext(Number(e.key) - 1)
+        cb.onOpenUpNext(Number(key) - 1)
         return
       }
 
-      switch (e.key) {
+      switch (key) {
         case 'j':
         case 'ArrowDown':
           handled()
@@ -175,7 +183,7 @@ export function useTreeKeyboard({
           handled()
           const at = (el: HTMLElement) => list.indexOf(el)
           focus(
-            e.key === 'n'
+            key === 'n'
               ? (tasks.find((el) => at(el) > index) ?? tasks[0])
               : ([...tasks]
                   .reverse()
@@ -333,7 +341,7 @@ export function useTreeKeyboard({
           handled()
           cb.onSearch()
           return
-        case '?':
+        case HELP:
           handled()
           cb.onHelp()
           return

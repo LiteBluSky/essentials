@@ -7,11 +7,14 @@ import type { ChatInput, ChatStreamEvent } from '@/lib/chat'
 export async function streamChatMessage(
   input: ChatInput,
   onEvent: (event: ChatStreamEvent) => void,
+  /** Aborting it stops listening (see `useCancelRequest` to call it off). */
+  signal?: AbortSignal,
 ): Promise<{ conversationId: number; apps: Array<string> }> {
   const res = await fetch('/api/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
+    signal,
   })
   if (!res.ok || !res.body) {
     const body = (await res.json().catch(() => null)) as {

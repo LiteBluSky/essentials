@@ -34,7 +34,6 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from '@/components/ui/empty'
-import { Kbd } from '@/components/ui/kbd'
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
 import type { Contact } from '@/db/schema'
@@ -61,6 +60,8 @@ import {
 import { ContactForm } from './contact-form'
 import type { EditorState, OpenEditor } from './editor'
 import { FolderForm } from './folder-form'
+import { shortcutKey } from '@/lib/shortcuts'
+import { ShortcutKey } from '@/components/shortcut-key'
 
 // `state` is kept around after closing (only `open` flips) so the dialog
 // content doesn't blank out during its exit animation.
@@ -262,12 +263,14 @@ function ContactView({
     <div
       className="flex flex-col gap-6"
       onKeyDown={(e) => {
-        if (e.ctrlKey || e.metaKey || e.altKey) return
         if ((e.target as Element).closest('input, textarea')) return
-        if (e.key === 'e' || e.key === 'r') {
+        // The keys can be changed: `key` is the shortcut's default key.
+        const key = shortcutKey(e, ['viewer'])
+        if (key === null) return
+        if (key === 'e' || key === 'r') {
           e.preventDefault()
           onEdit(contact)
-        } else if (e.key === 'd' || e.key === 'Delete') {
+        } else if (key === 'd' || key === 'Delete') {
           e.preventDefault()
           onDelete(contact)
         }
@@ -317,7 +320,8 @@ function ContactView({
         </div>
       ) : (
         <p className="text-muted-foreground">
-          No phone, email or address yet. Press <Kbd>e</Kbd> to add them.
+          No phone, email or address yet. Press <ShortcutKey id="viewer.edit" />{' '}
+          to add them.
         </p>
       )}
 
@@ -336,7 +340,7 @@ function ContactView({
         <Button autoFocus onClick={() => onEdit(contact)}>
           <PencilIcon data-icon="inline-start" />
           Edit
-          <Kbd className="max-lg:hidden">E</Kbd>
+          <ShortcutKey id="viewer.edit" className="max-lg:hidden" />
         </Button>
       </DialogFooter>
     </div>
@@ -376,7 +380,7 @@ function DeleteConfirm({
         type: 'error',
       }),
   })
-  useConfirmKey('d', () => {
+  useConfirmKey(() => {
     if (!remove.isPending) remove.mutate()
   })
 
@@ -415,7 +419,7 @@ function DeleteConfirm({
         >
           {remove.isPending && <Spinner data-icon="inline-start" />}
           Delete
-          <Kbd className="max-lg:hidden">d</Kbd>
+          <ShortcutKey id="global.confirm" className="max-lg:hidden" />
         </AlertDialogAction>
       </AlertDialogFooter>
     </>

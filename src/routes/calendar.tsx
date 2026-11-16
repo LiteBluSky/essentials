@@ -5,7 +5,6 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   KeyboardIcon,
-  PlusIcon,
   SearchIcon,
 } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -21,13 +20,15 @@ import type { EventEditor } from '@/components/calendar/event-dialog'
 import { DAY_KEY_ALIASES, sendDayKey } from '@/components/calendar/day-keys'
 import { MonthGrid } from '@/components/calendar/month-grid'
 import { ShortcutsDialog } from '@/components/calendar/shortcuts-dialog'
+import { StripMenu } from '@/components/calendar/strip-menu'
 import { StripsDialog } from '@/components/calendar/strips-dialog'
 import { GlobalSearch } from '@/components/global-search'
 import { ProfileButton } from '@/components/profile-switcher'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
-import { Kbd } from '@/components/ui/kbd'
+import { useStripEdit } from '@/hooks/calendar/use-strip-edit'
 import { useHydrated } from '@/hooks/use-hydrated'
 import { isoDay, orderedRange, parseDay } from '@/lib/calendar/layout'
 import type { Strip } from '@/lib/calendar/layout'
@@ -36,11 +37,15 @@ import { requestOpen } from '@/lib/global-search'
 import type { CalendarEvent } from '@/db/schema'
 import { assistantEnabledQueryOptions } from '@/server/assistant.functions'
 import { calendarQueryOptions } from '@/server/calendar.functions'
+import { isShortcut, shortcutKey, useShortcutLabels } from '@/lib/shortcuts'
 
 // The Calendar app: a month of coloured strips, each over a day or a range
 // of days (no times, no reminders), plus the tasks with a due date on their
-// day. Drag over days (or click one) to add a strip; click a strip to edit
-// it (a task opens in Tasks). Fills the whole page.
+// day. Strips are made by picking days on the grid: drag over them (or
+// click one) with a mouse; with a finger, tap the first day, then the last.
+// A strip is dragged to move it, its ends (once selected) to resize it, and
+// right click / a long hold opens its menu (use-strip-edit.ts). A task
+// opens in Tasks. Fills the whole page.
 export const Route = createFileRoute('/calendar')({
   loader: ({ context }) =>
     Promise.all([
@@ -59,8 +64,13 @@ function isTyping(target: EventTarget | null) {
   )
 }
 
-/** A range being picked: by dragging, or with Enter then moving. */
-type Selection = { anchor: string; focus: string; by: 'pointer' | 'key' }
+/** A range being picked: by dragging, with Enter then moving, or (touch)
+ * its first day tapped, waiting for the last. */
+type Selection = {
+  anchor: string
+  focus: string
+  by: 'pointer' | 'key' | 'touch'
+}
 
 /** The day of the focused day button, if one has focus. */
 function focusedDay() {
@@ -75,6 +85,7 @@ function focusDayButton(day: string) {
 }
 
 function CalendarPage() {
+  const keyLabel = useShortcutLabels()
   const navigate = useNavigate()
   const { data } = useSuspenseQuery(calendarQueryOptions)
   // Days are the browser's (timezone), so the grid renders once hydrated.
@@ -103,16 +114,36 @@ function CalendarPage() {
     listOpen ||
     deleteOpen
 
+  const editEvent = (event: CalendarEvent) => {
+    setEditor({ mode: 'edit', event })
+    setEditorOpen(true)
+  }
+  // Moving / resizing / selecting strips, and their menu.
+  const stripEdit = useStripEdit({ events: data.events, onEdit: editEvent })
+  const eventsById = useMemo(
+    () => new Map(data.events.map((e) => [e.id, e])),
+    [data.events],
+  )
+  const selectedEvent =
+    stripEdit.selectedId === null
+      ? undefined
+      : eventsById.get(stripEdit.selectedId)
+  const { preview } = stripEdit
+
   const strips = useMemo<Array<Strip>>(() => {
-    const events: Array<Strip> = data.events.map((event) => ({
-      key: `event-${event.id}`,
-      kind: 'event',
-      id: event.id,
-      title: event.title,
-      start: event.startDay,
-      end: event.endDay,
-      color: event.color,
-    }))
+    const events: Array<Strip> = data.events.map((event) => {
+      // A strip being dragged is laid out where it would land.
+      const moved = preview?.id === event.id ? preview : null
+      return {
+        key: `event-${event.id}`,
+        kind: 'event',
+        id: event.id,
+        title: event.title,
+        start: moved?.start ?? event.startDay,
+        end: moved?.end ?? event.endDay,
+        color: event.color,
+      }
+    })
     if (!hydrated) return events
     const tasks: Array<Strip> = data.tasks.map((task) => {
       const day = isoDay(task.dueAt)
@@ -127,7 +158,7 @@ function CalendarPage() {
       }
     })
     return [...events, ...tasks]
-  }, [data, hydrated])
+  }, [data, hydrated, preview])
 
   const openNew = (from: string, to: string) => {
     setSelection(null)
@@ -135,16 +166,15 @@ function CalendarPage() {
     setEditorOpen(true)
   }
 
+  /** A task's strip opens it in Tasks. */
   const openStrip = (strip: Strip) => {
-    if (strip.kind === 'task') {
-      requestOpen({ app: 'tasks', kind: 'item', id: strip.id })
-      void navigate({ to: '/tasks' })
-      return
-    }
-    const event = data.events.find((e) => e.id === strip.id)
-    if (!event) return
-    setEditor({ mode: 'edit', event })
-    setEditorOpen(true)
+    if (strip.kind !== 'task') return
+    requestOpen({ app: 'tasks', kind: 'item', id: strip.id })
+    void navigate({ to: '/tasks' })
+  }
+  const askDelete = (event: CalendarEvent) => {
+    setToDelete(event)
+    setDeleteOpen(true)
   }
 
   // The mouse wheel over the grid flips months: down = next, up =
@@ -211,6 +241,7 @@ function CalendarPage() {
   }
   const slideFn = useRef(slide)
   slideFn.current = slide
+  const stripBusy = stripEdit.busy
   useEffect(() => {
     const grid = gridRef.current
     if (!grid) return
@@ -251,6 +282,12 @@ function CalendarPage() {
     }
     const onMove = (e: TouchEvent) => {
       if (!from || from.mode === 'none') return
+      // A strip (or its handle) is being dragged: not a month swipe.
+      if (stripBusy.current) {
+        if (from.mode === 'flip') springBack(from.dy)
+        from = null
+        return
+      }
       const touch = e.touches[0]
       const dx = touch.clientX - from.x
       const dy = touch.clientY - from.y
@@ -321,8 +358,8 @@ function CalendarPage() {
 
   // Dragging over days: the pointer is followed over the grid, and letting
   // go adds a strip over the days covered (a click = one day). A finger
-  // only taps a day (a swipe switches app instead; the dialog sets the
-  // range).
+  // taps the first day, then the last (the same one again for one day): a
+  // swipe switches app / month instead.
   const dragging = useRef(false)
   const tapped = useRef<{ day: string; x: number; y: number } | null>(null)
   useEffect(() => {
@@ -340,7 +377,9 @@ function CalendarPage() {
       const tap = tapped.current
       tapped.current = null
       if (tap && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < 10) {
-        openNew(tap.day, tap.day)
+        const s = selectionRef.current
+        if (s?.by === 'touch') openNew(s.anchor, tap.day)
+        else setSelection({ anchor: tap.day, focus: tap.day, by: 'touch' })
         return
       }
       if (!dragging.current) return
@@ -366,6 +405,11 @@ function CalendarPage() {
 
   const onDayPointerDown = (day: string, e: React.PointerEvent) => {
     if (e.button !== 0) return
+    // With a strip selected, a press elsewhere only lets go of it.
+    if (stripEdit.selectedId !== null) {
+      stripEdit.select(null)
+      return
+    }
     if (e.pointerType === 'touch') {
       tapped.current = { day, x: e.clientX, y: e.clientY }
       return
@@ -387,22 +431,55 @@ function CalendarPage() {
       }
     }
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
-      if (isTyping(e.target)) return
-      const day = focusedDay()
+      if (e.defaultPrevented || isTyping(e.target)) return
+      if (isShortcut(e, 'global.globalSearch')) {
+        e.preventDefault()
+        setSearchOpen(true)
+        return
+      }
+      if (isShortcut(e, 'global.help')) {
+        e.preventDefault()
+        setHelpOpen(true)
+        return
+      }
+      // The keys can be changed: `key` is the shortcut's default key.
+      const key = shortcutKey(e, ['calendar'])
+      if (key === null) return
+      // The selected strip: Enter edits it, d / Delete deletes it, Esc lets
+      // go of it.
+      if (selectedEvent) {
+        if (key === 'Escape') {
+          e.preventDefault()
+          stripEdit.select(null)
+          return
+        }
+        if (key === 'Enter') {
+          e.preventDefault()
+          editEvent(selectedEvent)
+          return
+        }
+        if (key === 'd' || key === 'Delete') {
+          e.preventDefault()
+          askDelete(selectedEvent)
+          return
+        }
+      }
+      // A focused strip takes Enter / Space itself (it gets selected).
+      const onStrip = !!document.activeElement?.closest('[data-strip]')
+      const day = onStrip ? null : focusedDay()
       const today = isoDay(new Date())
-      if (e.key in DAY_KEY_ALIASES) {
+      if (key in DAY_KEY_ALIASES) {
         e.preventDefault()
         if (day) {
-          sendDayKey(document.activeElement, e.key)
-        } else if (e.key === 'm' || e.key === 'M') {
-          setMonth((m) => addMonths(m, e.key === 'm' ? 1 : -1))
+          sendDayKey(document.activeElement, key)
+        } else if (key === 'm' || key === 'M') {
+          setMonth((m) => addMonths(m, key === 'm' ? 1 : -1))
         } else {
           goToDay(today)
         }
         return
       }
-      switch (e.key) {
+      switch (key) {
         case 'Enter':
         case ' ': {
           if (!day) return
@@ -438,14 +515,6 @@ function CalendarPage() {
           e.preventDefault()
           setListOpen(true)
           break
-        case 'z':
-          e.preventDefault()
-          setSearchOpen(true)
-          break
-        case '?':
-          e.preventDefault()
-          setHelpOpen(true)
-          break
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -461,7 +530,7 @@ function CalendarPage() {
     : null
 
   return (
-    <main className="flex h-dvh w-full flex-col gap-3 p-3 sm:p-4">
+    <main className="flex h-dvh w-full flex-col gap-3 px-4 pt-8 pb-3 sm:pb-4">
       <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 max-lg:flex-col max-lg:items-stretch">
         <AppNav />
         <div className="flex items-center gap-3 max-lg:order-last max-lg:justify-between">
@@ -470,7 +539,7 @@ function CalendarPage() {
               variant="outline"
               size="icon"
               aria-label="Previous month"
-              title="Previous month (M)"
+              title={`Previous month (${keyLabel('calendar.prevMonth')})`}
               onClick={() => setMonth((m) => addMonths(m, -1))}
             >
               <ChevronLeftIcon />
@@ -485,7 +554,7 @@ function CalendarPage() {
               variant="outline"
               size="icon"
               aria-label="Next month"
-              title="Next month (m)"
+              title={`Next month (${keyLabel('calendar.nextMonth')})`}
               onClick={() => setMonth((m) => addMonths(m, 1))}
             >
               <ChevronRightIcon />
@@ -495,23 +564,13 @@ function CalendarPage() {
             {hydrated ? format(month, 'MMMM yyyy') : ''}
           </h1>
         </div>
-        <div className="flex justify-between gap-2">
-          <Button
-            onClick={() => {
-              const today = isoDay(new Date())
-              openNew(today, today)
-            }}
-          >
-            <PlusIcon data-icon="inline-start" />
-            New
-            <Kbd className="max-lg:hidden">a</Kbd>
-          </Button>
+        <div className="flex justify-end gap-2">
           <ButtonGroup aria-label="Settings">
             <Button
               variant="outline"
               size="icon"
               aria-label="Search everything"
-              title="Search everything (z)"
+              title={`Search everything (${keyLabel('global.globalSearch')})`}
               onClick={() => setSearchOpen(true)}
             >
               <SearchIcon />
@@ -524,7 +583,7 @@ function CalendarPage() {
               variant="outline"
               size="icon"
               aria-label="Keyboard shortcuts"
-              title="Keyboard shortcuts (?)"
+              title={`Keyboard shortcuts (${keyLabel('global.help')})`}
               onClick={() => setHelpOpen(true)}
             >
               <KeyboardIcon />
@@ -535,20 +594,53 @@ function CalendarPage() {
         </div>
       </header>
 
-      <div ref={gridRef} className="min-h-0 flex-1 overflow-auto">
-        <div ref={slideRef} className="size-full">
-          {hydrated && (
-            <MonthGrid
-              month={month}
-              onMonthChange={setMonth}
-              strips={strips}
-              selection={shown}
-              onDayPointerDown={onDayPointerDown}
-              onOpenStrip={openStrip}
-            />
-          )}
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        {/* Touch: the first day is tapped; the next tap makes the strip. */}
+        {selection?.by === 'touch' && (
+          <div className="pointer-events-none absolute inset-x-0 top-8 z-20 flex justify-center">
+            <Badge
+              variant="secondary"
+              className="pointer-events-auto h-auto gap-2 py-1 pr-1 pl-3 shadow-md"
+            >
+              From {format(parseDay(selection.anchor), 'EEE d MMM')}: tap the
+              last day
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={() => setSelection(null)}
+              >
+                Cancel
+              </Button>
+            </Badge>
+          </div>
+        )}
+        <div ref={gridRef} className="min-h-0 flex-1 overflow-auto">
+          <div ref={slideRef} className="size-full">
+            {hydrated && (
+              <MonthGrid
+                month={month}
+                onMonthChange={setMonth}
+                strips={strips}
+                selection={shown}
+                onDayPointerDown={onDayPointerDown}
+                onOpenStrip={openStrip}
+                events={eventsById}
+                edit={stripEdit}
+              />
+            )}
+          </div>
         </div>
       </div>
+      <StripMenu
+        at={stripEdit.menu}
+        event={
+          stripEdit.menu ? (eventsById.get(stripEdit.menu.id) ?? null) : null
+        }
+        onClose={stripEdit.closeMenu}
+        onEdit={editEvent}
+        onColor={stripEdit.setColor}
+        onDelete={askDelete}
+      />
 
       <EventDialog
         editor={editor}
@@ -570,13 +662,11 @@ function CalendarPage() {
         onGo={(event) => goToDay(event.startDay)}
         onEdit={(event) => {
           backToList.current = true
-          setEditor({ mode: 'edit', event })
-          setEditorOpen(true)
+          editEvent(event)
         }}
         onDelete={(event) => {
           backToList.current = true
-          setToDelete(event)
-          setDeleteOpen(true)
+          askDelete(event)
         }}
       />
       <DeleteStripDialog

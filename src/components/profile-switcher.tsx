@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { CloudIcon, HardDriveIcon, UserIcon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import { isTyping, popupOpen } from '@/components/app-switcher'
+import { popupOpen } from '@/components/app-switcher'
 import { Button } from '@/components/ui/button'
 import {
   Command,
@@ -26,6 +26,7 @@ import {
   databasesQueryOptions,
   switchDatabase,
 } from '@/server/databases.functions'
+import { isShortcut, useShortcutLabel } from '@/lib/shortcuts'
 
 const OPEN_EVENT = 'profile-switcher:open'
 
@@ -36,12 +37,13 @@ function openProfileSwitcher() {
 
 /** The header's user icon (every app): opens the profile switcher, `p`. */
 export function ProfileButton() {
+  const key = useShortcutLabel('global.profile')
   return (
     <Button
       variant="outline"
       size="icon"
       aria-label="Switch profile"
-      title="Switch profile (p)"
+      title={`Switch profile (${key})`}
       onClick={openProfileSwitcher}
     >
       <UserIcon />
@@ -78,7 +80,7 @@ export function ProfileSwitcher() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
-      if (e.key !== 'p' || isTyping(e.target) || popupOpen()) return
+      if (!isShortcut(e, 'global.profile') || popupOpen()) return
       e.preventDefault()
       setOpen(true)
     }

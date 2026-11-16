@@ -14,18 +14,19 @@ export const ACTION_TOOLS: Array<ToolDef> = [
   {
     name: 'create_task',
     description:
-      'Create a to-do task. Use for anything to do, buy, call or remember to do, and for anything with a day or time.',
+      'Create a to-do task. Use for anything to do, buy, call or remember to do, and for anything with a day or time. Work out the description first, then make the title from it.',
     parameters: {
       type: 'object',
       properties: {
+        description: {
+          type: 'string',
+          description:
+            'Write this first: what is to be done, in full. Everything the user said about it (the details, who, where, what for, amounts, links, references), tidied into clear sentences, without the due date or time. Never invent details. Leave it empty only when the title alone already says everything the user said.',
+        },
         title: {
           type: 'string',
           description:
-            'Short imperative title, e.g. "Call the dentist", without the date or time.',
-        },
-        description: {
-          type: 'string',
-          description: 'Extra details, only if the user gave any.',
+            'A fitting title made from the description: its gist as a short imperative phrase (a few words, e.g. "Call the dentist about the crown"), specific enough to tell the task apart in a list, without the date or time. Not a copy of the description.',
         },
         due: {
           type: 'string',
@@ -191,6 +192,6 @@ export function tellPrompt(now: string, timeZone: string) {
     'Creating: a task is one thing to do; a note is information to keep. "Remind me…" is always a task. Separate unrelated actions ("call the dentist and pay the bill") are separate tasks.',
     'When they ask to open, show, find or go to something ("open…", "show me…", "where is…"), call open_item (it shows it to them).',
     `The user's local time is ${localTime(new Date(now), timeZone)} (day/month/year, ${timeZone}). Resolve relative dates ("tomorrow", "Friday", "in 2 hours", "tonight") against it and give due times in that local time. A weekday means the next one to come.`,
-    "Keep titles short and in the user's language. Never invent details.",
+    "For a task, the description comes first: put what the user said about it there in full, then give it a short, fitting title made from that description. Keep titles short and in the user's language. Never invent details.",
   ].join('\n')
 }

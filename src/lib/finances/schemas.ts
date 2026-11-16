@@ -126,6 +126,8 @@ export const adviceInput = z.object({
   month: z.string().regex(/^\d{4}-\d{2}$/),
   /** Let Jarvis search the web for this question (off by default). */
   webSearch: z.boolean().default(false),
+  /** The browser's id for this request, to cancel it (`cancelAssistant`). */
+  requestId: z.uuid().optional(),
 })
 
 export const categorizeInput = z.object({

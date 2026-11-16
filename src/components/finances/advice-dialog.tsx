@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { GlobeIcon, MessagesSquareIcon, SparklesIcon } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { ChatMarkdown } from '@/components/chat/chat-markdown'
 import { Button } from '@/components/ui/button'
@@ -18,6 +18,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/toast'
 import { Toggle } from '@/components/ui/toggle'
+import { useCancelRequest } from '@/hooks/use-cancel-request'
 import { ASSISTANT_NAME } from '@/lib/assistant'
 import { monthLabel } from '@/lib/finances/money'
 import { submitOnModEnter } from '@/lib/submit-shortcut'
@@ -55,27 +56,44 @@ function Advice({ month }: { month: string }) {
   const [webSearch, setWebSearch] = useState(false)
   const ref = useRef<HTMLTextAreaElement>(null)
 
+  const request = useCancelRequest()
   const ask = useMutation({
-    mutationFn: (web: boolean) =>
-      askFinanceAdvice({ data: { question, month, webSearch: web } }),
-    onSettled: () =>
-      Promise.all([
+    mutationFn: ({ web, requestId }: { web: boolean; requestId: string }) =>
+      askFinanceAdvice({
+        data: { question, month, webSearch: web, requestId },
+      }),
+    onSettled: (_data, _error, { requestId }) => {
+      request.finish(requestId)
+      return Promise.all([
         queryClient.invalidateQueries(assistantHistoryQueryOptions),
         queryClient.invalidateQueries({ queryKey: ['chat'] }),
-      ]),
-    onError: (error) =>
+      ])
+    },
+    onError: (error, { requestId }) => {
+      // Stopped by the user.
+      if (request.wasCancelled(requestId)) return
       toast.add({
         title: "Couldn't get advice",
         description: error.message,
         type: 'error',
-      }),
+      })
+    },
   })
 
   const submit = () => {
     if (ask.isPending) return
-    ask.mutate(webSearch)
+    ask.mutate({ web: webSearch, requestId: request.start().requestId })
     setWebSearch(false)
   }
+
+  // Stop: the question is called off and stays in the box.
+  const cancel = () => {
+    if (ask.isPending && request.cancel()) ask.reset()
+  }
+  // Closing the dialog while it's thinking calls it off too.
+  const cancelRef = useRef(cancel)
+  cancelRef.current = cancel
+  useEffect(() => () => cancelRef.current(), [])
 
   return (
     <>
@@ -155,14 +173,17 @@ function Advice({ month }: { month: string }) {
               <GlobeIcon />
               Search the web
             </Toggle>
-            <Button disabled={ask.isPending} onClick={() => submit()}>
-              {ask.isPending ? (
+            {ask.isPending ? (
+              <Button variant="outline" onClick={cancel}>
                 <Spinner data-icon="inline-start" />
-              ) : (
+                Thinking… Stop
+              </Button>
+            ) : (
+              <Button onClick={() => submit()}>
                 <SparklesIcon data-icon="inline-start" />
-              )}
-              {ask.isPending ? 'Thinking…' : 'Get advice'}
-            </Button>
+                Get advice
+              </Button>
+            )}
           </>
         )}
       </DialogFooter>

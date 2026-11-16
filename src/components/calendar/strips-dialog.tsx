@@ -20,6 +20,8 @@ import { colorClass } from '@/lib/calendar/colors'
 import { isoDay } from '@/lib/calendar/layout'
 import { cn } from '@/lib/utils'
 import { rangeLabel } from './event-dialog'
+import { shortcutKey } from '@/lib/shortcuts'
+import { ShortcutKey } from '@/components/shortcut-key'
 
 /**
  * `i` in the Calendar: every strip in one list, earliest first (those
@@ -119,12 +121,12 @@ export function StripsDialog({
   const go = (event: CalendarEvent | undefined) => after(onGo, event)
 
   const onKeyDownCapture = (e: React.KeyboardEvent) => {
-    if (e.ctrlKey || e.metaKey || e.altKey) return
     const handled = () => {
       e.preventDefault()
       e.stopPropagation()
     }
     if (e.target === inputRef.current) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return
       // Esc in the filter: back to the list (the dialog stays open).
       if (e.key === 'Escape') {
         handled()
@@ -138,7 +140,10 @@ export function StripsDialog({
       }
       return
     }
-    switch (e.key) {
+    // The keys can be changed: `key` is the shortcut's default key.
+    const key = shortcutKey(e, ['strips'])
+    if (key === null) return
+    switch (key) {
       case 'j':
       case 'ArrowDown':
         handled()
@@ -260,19 +265,20 @@ export function StripsDialog({
           </Command>
           <p className="flex flex-wrap gap-x-3 gap-y-1 border-t px-3 py-2 text-xs text-muted-foreground">
             <span>
-              <Kbd>j</Kbd> <Kbd>k</Kbd> move
+              <ShortcutKey id="strips.down" /> <ShortcutKey id="strips.up" />{' '}
+              move
             </span>
             <span>
               <Kbd>Enter</Kbd> go to it
             </span>
             <span>
-              <Kbd>e</Kbd> edit
+              <ShortcutKey id="strips.edit" /> edit
             </span>
             <span>
-              <Kbd>d</Kbd> delete
+              <ShortcutKey id="strips.delete" /> delete
             </span>
             <span>
-              <Kbd>/</Kbd> filter
+              <ShortcutKey id="strips.filter" /> filter
             </span>
           </p>
         </div>

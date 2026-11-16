@@ -5,7 +5,7 @@ import {
 } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { format } from 'date-fns'
-import { ArrowUpIcon } from 'lucide-react'
+import { ArrowUpIcon, SquareIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import {
@@ -23,8 +23,6 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from '@/components/ui/input-group'
-import { Kbd } from '@/components/ui/kbd'
-import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
 import { ASSISTANT_NAME, UNSORTED_FOLDER } from '@/lib/assistant'
 import { refreshKey } from '@/lib/chat'
@@ -34,6 +32,7 @@ import type {
   ChangeSummary,
 } from '@/lib/assistant'
 import { requestOpen } from '@/lib/global-search'
+import { useCancelRequest } from '@/hooks/use-cancel-request'
 import { useDictation } from '@/hooks/use-dictation'
 import { useRequestHistory } from '@/hooks/use-request-history'
 import { useUndoRun } from '@/hooks/use-undo-run'
@@ -42,14 +41,8 @@ import {
   assistantEnabledQueryOptions,
   assistantHistoryQueryOptions,
 } from '@/server/assistant.functions'
-
-function isTyping(target: EventTarget | null) {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable ||
-      ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
-  )
-}
+import { isShortcut } from '@/lib/shortcuts'
+import { ShortcutKey } from '@/components/shortcut-key'
 
 /**
  * The "Tell me…" field at the top of every app: type (or dictate: the mic
@@ -105,7 +98,7 @@ function AssistantField({ enabled }: { enabled: boolean }) {
     if (!enabled) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
-      if (e.key !== 's' || isTyping(e.target)) return
+      if (!isShortcut(e, 'global.assistant')) return
       e.preventDefault()
       ref.current?.focus()
     }
@@ -114,14 +107,24 @@ function AssistantField({ enabled }: { enabled: boolean }) {
   }, [enabled])
 
   const undo = useUndoRun()
+  const request = useCancelRequest()
   const ask = useMutation({
-    mutationFn: ({ sentence, web }: { sentence: string; web: boolean }) =>
+    mutationFn: ({
+      sentence,
+      web,
+      requestId,
+    }: {
+      sentence: string
+      web: boolean
+      requestId: string
+    }) =>
       askAssistant({
         data: {
           text: sentence,
           now: new Date().toISOString(),
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           webSearch: web,
+          requestId,
         },
       }),
     onSuccess: async ({
@@ -196,18 +199,47 @@ function AssistantField({ enabled }: { enabled: boolean }) {
       }
     },
     // Every request (failed ones too) is in the history, and saved as a chat.
-    onSettled: () =>
-      Promise.all([
+    onSettled: (_data, _error, { requestId }) => {
+      request.finish(requestId)
+      return Promise.all([
         queryClient.invalidateQueries(assistantHistoryQueryOptions),
         queryClient.invalidateQueries({ queryKey: ['chat'] }),
-      ]),
-    onError: (error) =>
+      ])
+    },
+    onError: (error, { requestId }) => {
+      // Stopped by the user: already said so.
+      if (request.wasCancelled(requestId)) return
       toast.add({
         title: "Couldn't do that",
         description: error.message,
         type: 'error',
-      }),
+      })
+    },
   })
+
+  // Stop: the request is called off (what it had already changed is put
+  // back) and the sentence stays in the field, to fix and send again.
+  const cancel = () => {
+    if (!ask.isPending || !request.cancel()) return
+    ask.reset()
+    toast.add({ title: 'Cancelled', description: 'Nothing was done.' })
+    requestAnimationFrame(() => ref.current?.focus())
+  }
+  const cancelRef = useRef(cancel)
+  cancelRef.current = cancel
+  // Esc stops it too (the field is disabled meanwhile, so it can't hear it).
+  const pending = ask.isPending
+  useEffect(() => {
+    if (!pending) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      if (document.querySelector('[role="dialog"], [role="menu"]')) return
+      e.preventDefault()
+      cancelRef.current()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [pending])
 
   const openMatch = (match: NonNullable<AssistantFound['match']>) => {
     requestOpen({ app: match.app, kind: match.kind, id: match.id })
@@ -273,7 +305,11 @@ function AssistantField({ enabled }: { enabled: boolean }) {
     const sentence = text.trim()
     if (!sentence || ask.isPending) return
     dictation.stop()
-    ask.mutate({ sentence, web: webSearch })
+    ask.mutate({
+      sentence,
+      web: webSearch,
+      requestId: request.start().requestId,
+    })
     setWebSearch(false)
   }
 
@@ -340,7 +376,7 @@ function AssistantField({ enabled }: { enabled: boolean }) {
           {/* The same bottom row as Chat's box. */}
           <InputGroupAddon align="block-end" className="p-2">
             {!text && !ask.isPending && !dictation.listening && (
-              <Kbd className="max-lg:hidden">s</Kbd>
+              <ShortcutKey id="global.assistant" className="max-lg:hidden" />
             )}
             <DictateButton
               dictation={dictation}
@@ -353,17 +389,31 @@ function AssistantField({ enabled }: { enabled: boolean }) {
               onChange={setWebSearch}
               disabled={ask.isPending}
             />
-            <InputGroupButton
-              variant="default"
-              size="icon-sm"
-              type="submit"
-              className="ml-auto"
-              disabled={!text.trim() || ask.isPending}
-              aria-label="Send"
-              title="Send (Enter)"
-            >
-              {ask.isPending ? <Spinner /> : <ArrowUpIcon />}
-            </InputGroupButton>
+            {ask.isPending ? (
+              <InputGroupButton
+                variant="default"
+                size="icon-sm"
+                type="button"
+                className="ml-auto"
+                aria-label="Stop"
+                title="Stop: cancel this request (Esc)"
+                onClick={cancel}
+              >
+                <SquareIcon className="animate-pulse fill-current" />
+              </InputGroupButton>
+            ) : (
+              <InputGroupButton
+                variant="default"
+                size="icon-sm"
+                type="submit"
+                className="ml-auto"
+                disabled={!text.trim()}
+                aria-label="Send"
+                title="Send (Enter)"
+              >
+                <ArrowUpIcon />
+              </InputGroupButton>
+            )}
           </InputGroupAddon>
         </InputGroup>
       </form>

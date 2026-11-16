@@ -1,73 +1,52 @@
-import { Fragment } from 'react'
-
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Kbd, KbdGroup } from '@/components/ui/kbd'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { COMMON, ShortcutsHelp } from '@/components/shortcuts-dialog'
+import type { ShortcutGroup } from '@/components/shortcuts-dialog'
 import { ASSISTANT_NAME } from '@/lib/assistant'
-import { NEW_CHAT_KEYS } from '@/lib/shortcuts'
+import { MOD_LABEL } from '@/lib/shortcuts'
 
-// Each entry: alternative key combos (joined with "or"), each a list of keys
-// pressed together or in sequence.
-type Shortcut = { keys: Array<Array<string>>; action: string }
+// Finances' shortcuts, as shown (and changed) in the shared dialog
+// (components/shortcuts-dialog.tsx). Rows with an `id` are shortcuts from
+// lib/shortcuts.ts: the dialog shows the key each is on now; `keys` are
+// fixed ones. Keep it in sync when adding or changing a shortcut.
 
-// Keep in sync with the keys handled in routes/finances.tsx.
-const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
+const GROUPS: Array<ShortcutGroup> = [
   {
     title: 'Money',
     shortcuts: [
       {
-        keys: [['a']],
+        id: 'finances.add',
         action: 'Add money out / in (−/+ in front of the amount switches)',
       },
       { keys: [['Enter']], action: 'In the pop-up: save it' },
-      { keys: [['M']], action: 'Previous month (Month tab)' },
-      { keys: [['m']], action: 'Next month (Month tab)' },
-      { keys: [['t']], action: 'This month (Month tab)' },
+      { id: 'finances.prevMonth', action: 'Previous month (Month tab)' },
+      { id: 'finances.nextMonth', action: 'Next month (Month tab)' },
+      { id: 'finances.thisMonth', action: 'This month (Month tab)' },
       {
-        keys: [['u']],
+        id: 'finances.recurring',
         action: 'Recurring tab (bills, subscriptions, income)',
       },
-      { keys: [['b']], action: 'Budgets tab' },
-      { keys: [['g']], action: 'Savings tab' },
-      { keys: [['r']], action: 'Ask for advice (Jarvis)' },
-      { keys: [['Ctrl', 'Enter']], action: 'In a form: save' },
+      { id: 'finances.budgets', action: 'Budgets tab' },
+      { id: 'finances.savings', action: 'Savings tab' },
+      {
+        id: 'finances.advice',
+        action: `Ask for advice (${ASSISTANT_NAME})`,
+      },
+      { keys: [[MOD_LABEL, 'Enter']], action: 'In a form: save' },
     ],
   },
   {
     title: 'Anywhere',
     shortcuts: [
-      { keys: [['z']], action: 'Search everything (all apps)' },
-      { keys: [['f']], action: 'Switch app (type its name, or pick it)' },
-      {
-        keys: [['s']],
-        action: `Open the ${ASSISTANT_NAME} panel and type (wide screens)`,
-      },
-      {
-        keys: [['Shift', 'S']],
-        action: `Hide the ${ASSISTANT_NAME} panel (wide screens)`,
-      },
-      {
-        keys: [NEW_CHAT_KEYS],
-        action: `New chat with ${ASSISTANT_NAME}`,
-      },
-      { keys: [['Shift', 'T']], action: 'Next theme (light, dark, system)' },
-      { keys: [['p']], action: 'Switch profile (database)' },
-      { keys: [['Alt', 'H']], action: 'Previous app' },
-      { keys: [['Alt', 'L']], action: 'Next app' },
-      { keys: [['?']], action: 'Show keyboard shortcuts' },
+      COMMON.globalSearch,
+      COMMON.appSwitcher,
+      COMMON.assistantPanel,
+      COMMON.hideAssistant,
+      COMMON.newChat,
+      COMMON.theme,
+      COMMON.profile,
+      COMMON.prevApp,
+      COMMON.nextApp,
+      COMMON.help,
+      COMMON.confirm,
     ],
   },
 ]
@@ -80,47 +59,6 @@ export function ShortcutsDialog({
   onOpenChange: (open: boolean) => void
 }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Keyboard shortcuts</DialogTitle>
-          <DialogDescription>
-            These are off while typing or while a dialog is open.
-          </DialogDescription>
-        </DialogHeader>
-        {GROUPS.map((group) => (
-          <Table key={group.title}>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{group.title}</TableHead>
-                <TableHead className="text-right">Keys</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {group.shortcuts.map(({ keys, action }) => (
-                <TableRow key={action}>
-                  {/* Wrap the action so the keys always fit (no sideways scroll). */}
-                  <TableCell className="whitespace-normal">{action}</TableCell>
-                  <TableCell className="w-px text-right">
-                    <KbdGroup className="justify-end">
-                      {keys.map((combo, i) => (
-                        <Fragment key={combo.join('+')}>
-                          {i > 0 && (
-                            <span className="text-muted-foreground">or</span>
-                          )}
-                          {combo.map((key, j) => (
-                            <Kbd key={j}>{key}</Kbd>
-                          ))}
-                        </Fragment>
-                      ))}
-                    </KbdGroup>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ))}
-      </DialogContent>
-    </Dialog>
+    <ShortcutsHelp open={open} onOpenChange={onOpenChange} groups={GROUPS} />
   )
 }

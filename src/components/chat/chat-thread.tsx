@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { format } from 'date-fns'
 import {
   ArrowUpIcon,
+  SquareIcon,
   CheckIcon,
   ExternalLinkIcon,
   ListChecksIcon,
@@ -29,7 +30,6 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from '@/components/ui/input-group'
-import { Kbd } from '@/components/ui/kbd'
 import { Marker, MarkerContent, MarkerIcon } from '@/components/ui/marker'
 import { Message, MessageContent } from '@/components/ui/message'
 import {
@@ -57,6 +57,8 @@ import type { SearchApp } from '@/lib/global-search'
 import { saveAnswerAsNote } from '@/server/chat.functions'
 import { ChatMarkdown } from './chat-markdown'
 import { ASSISTANT_NAME, isFinancePart } from '@/lib/assistant'
+import { isShortcut } from '@/lib/shortcuts'
+import { ShortcutKey } from '@/components/shortcut-key'
 
 /** A message being sent (shown until the server has saved the turn), with
  * the answer so far as it streams in, and the tool it's using meanwhile. */
@@ -451,11 +453,15 @@ function FoundMarker({
 export function ChatComposer({
   busy,
   onSend,
+  onCancel,
   enabled,
 }: {
   busy: boolean
   /** `webSearch`: let Jarvis search the web for this message. */
   onSend: (text: string, webSearch: boolean) => Promise<boolean>
+  /** Stop (the button while busy, or Esc in the box): calls the message
+   * off; `onSend` then resolves false and the text comes back. */
+  onCancel: () => void
   /** `s` focuses it (no dialog open). */
   enabled: boolean
 }) {
@@ -477,12 +483,7 @@ export function ChatComposer({
     if (!enabled) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
-      const target = e.target
-      const typing =
-        target instanceof HTMLElement &&
-        (target.isContentEditable ||
-          ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
-      if (e.key !== 's' || typing) return
+      if (!isShortcut(e, 'global.assistant')) return
       e.preventDefault()
       ref.current?.focus()
     }
@@ -529,6 +530,12 @@ export function ChatComposer({
               e.preventDefault()
               void send()
             } else if (e.key === 'Escape') {
+              if (busy) {
+                // Esc first stops the answer being written.
+                e.preventDefault()
+                onCancel()
+                return
+              }
               dictation.finish()
               e.currentTarget.blur()
             }
@@ -537,7 +544,7 @@ export function ChatComposer({
         <ReferenceAutocomplete target={ref} />
         <InputGroupAddon align="block-end" className="p-2">
           {!text && !dictation.listening && (
-            <Kbd className="max-lg:hidden">s</Kbd>
+            <ShortcutKey id="global.assistant" className="max-lg:hidden" />
           )}
           <DictateButton
             dictation={dictation}
@@ -550,17 +557,31 @@ export function ChatComposer({
             onChange={setWebSearch}
             disabled={busy}
           />
-          <InputGroupButton
-            variant="default"
-            size="icon-sm"
-            type="submit"
-            className="ml-auto"
-            disabled={!text.trim() || busy}
-            aria-label="Send"
-            title="Send (Enter)"
-          >
-            {busy ? <Spinner /> : <ArrowUpIcon />}
-          </InputGroupButton>
+          {busy ? (
+            <InputGroupButton
+              variant="default"
+              size="icon-sm"
+              type="button"
+              className="ml-auto"
+              aria-label="Stop"
+              title="Stop: cancel this message (Esc)"
+              onClick={onCancel}
+            >
+              <SquareIcon className="animate-pulse fill-current" />
+            </InputGroupButton>
+          ) : (
+            <InputGroupButton
+              variant="default"
+              size="icon-sm"
+              type="submit"
+              className="ml-auto"
+              disabled={!text.trim()}
+              aria-label="Send"
+              title="Send (Enter)"
+            >
+              <ArrowUpIcon />
+            </InputGroupButton>
+          )}
         </InputGroupAddon>
       </InputGroup>
     </form>

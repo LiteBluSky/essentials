@@ -19,6 +19,8 @@ import { useCalendarKeys } from '@/hooks/tasks/use-calendar-keys'
 import { taskDay, taskTone, todayName } from '@/lib/tasks/tree'
 import { cn } from '@/lib/utils'
 import type { TaskTone } from '@/lib/tasks/tree'
+import { shortcutKey } from '@/lib/shortcuts'
+import { ShortcutKey } from '@/components/shortcut-key'
 
 // One dot per task on that day (due then, else created then), in the task's
 // colour (as in the tree).
@@ -65,11 +67,13 @@ export function CalendarKeysHint({
 }) {
   return (
     <p className="flex flex-wrap items-center gap-1 border-t px-3 py-2 text-xs text-muted-foreground">
-      <Kbd>h</Kbd>
-      <Kbd>l</Kbd> day · <Kbd>j</Kbd>
-      <Kbd>k</Kbd> week · <Kbd>m</Kbd>
-      <Kbd>M</Kbd> month · <Kbd>y</Kbd>
-      <Kbd>Y</Kbd> year · <Kbd>{actionKey}</Kbd> {action}
+      <ShortcutKey id="days.prevDay" />
+      <ShortcutKey id="days.nextDay" /> day · <ShortcutKey id="days.nextWeek" />
+      <ShortcutKey id="days.prevWeek" /> week ·{' '}
+      <ShortcutKey id="days.nextMonth" />
+      <ShortcutKey id="days.prevMonth" /> month ·{' '}
+      <ShortcutKey id="days.nextYear" />
+      <ShortcutKey id="days.prevYear" /> year · <Kbd>{actionKey}</Kbd> {action}
     </p>
   )
 }
@@ -177,12 +181,12 @@ function CalendarBody({
       ref={keys.ref}
       className="flex flex-col gap-4"
       onKeyDownCapture={(e) => {
-        const plain = !e.ctrlKey && !e.metaKey && !e.altKey
-        if (plain && (e.key === 'a' || e.key === 'Enter')) {
+        const key = shortcutKey(e, ['days'])
+        if (key === 'a' || key === 'Enter') {
           // Before the focused day's own Enter (which would just select it).
           e.preventDefault()
           e.stopPropagation()
-          if (e.key === 'a') onNewTask(date)
+          if (key === 'a') onNewTask(date)
           else onShowDay(date)
           return
         }
@@ -222,7 +226,7 @@ function CalendarBody({
         <Button onClick={() => onNewTask(date)}>
           <PlusIcon data-icon="inline-start" />
           New task due {format(date, 'd MMM')}
-          <Kbd>a</Kbd>
+          <ShortcutKey id="days.newTask" />
         </Button>
       </DialogFooter>
     </div>

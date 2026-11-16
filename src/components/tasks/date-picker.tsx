@@ -10,7 +10,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { useCalendarKeys } from '@/hooks/tasks/use-calendar-keys'
-import { CalendarKeysHint } from './calendar-dialog'
 
 /**
  * A day picker (shadcn Calendar in a Popover) for a task's due date. Only
@@ -81,7 +80,6 @@ export function DatePicker({
           month={keys.month}
           onMonthChange={keys.setMonth}
         />
-        <CalendarKeysHint action="pick" actionKey="Enter" />
       </PopoverContent>
     </Popover>
   )

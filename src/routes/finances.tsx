@@ -41,7 +41,6 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from '@/components/ui/empty'
-import { Kbd } from '@/components/ui/kbd'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/components/ui/toast'
 import type { FinanceEntry } from '@/db/schema'
@@ -55,6 +54,8 @@ import {
   categorizeFinanceEntries,
   financesQueryOptions,
 } from '@/server/finances.functions'
+import { isShortcut, shortcutKey, useShortcutLabels } from '@/lib/shortcuts'
+import { ShortcutKey } from '@/components/shortcut-key'
 
 // The Finances app (four tabs: the month, Recurring, Budgets, Savings): type what you spent or got ("12.50 coffee", "+1800
 // payroll") and see the month at a glance: in, out, left, and a circle of
@@ -81,6 +82,7 @@ function isTyping(target: EventTarget | null) {
 }
 
 function FinancesPage() {
+  const keyLabel = useShortcutLabels()
   const queryClient = useQueryClient()
   const { data } = useSuspenseQuery(financesQueryOptions)
   const { data: aiAvailable } = useSuspenseQuery(assistantEnabledQueryOptions)
@@ -152,8 +154,20 @@ function FinancesPage() {
   useEffect(() => {
     if (dialogOpen) return
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
-      if (isTyping(e.target)) return
+      if (e.defaultPrevented || isTyping(e.target)) return
+      if (isShortcut(e, 'global.globalSearch')) {
+        e.preventDefault()
+        setSearchOpen(true)
+        return
+      }
+      if (isShortcut(e, 'global.help')) {
+        e.preventDefault()
+        setHelpOpen(true)
+        return
+      }
+      // Keyed by each shortcut's default key (the keys can be changed).
+      const key = shortcutKey(e, ['finances'])
+      if (key === null) return
       const actions: Record<string, (() => void) | undefined> = {
         a: () => setAdding('expense'),
         m: () => {
@@ -172,10 +186,8 @@ function FinancesPage() {
         b: () => setTab('budgets'),
         g: () => setTab('savings'),
         r: aiAvailable ? () => setAdviceOpen(true) : undefined,
-        z: () => setSearchOpen(true),
-        '?': () => setHelpOpen(true),
       }
-      const action = actions[e.key]
+      const action = Object.hasOwn(actions, key) ? actions[key] : undefined
       if (!action) return
       e.preventDefault()
       action()
@@ -196,13 +208,13 @@ function FinancesPage() {
           >
             <PlusIcon data-icon="inline-start" />
             <span className="max-lg:hidden">Add</span>
-            <Kbd className="max-lg:hidden">a</Kbd>
+            <ShortcutKey id="finances.add" className="max-lg:hidden" />
           </Button>
           {aiAvailable && (
             <Button variant="outline" onClick={() => setAdviceOpen(true)}>
               <SparklesIcon data-icon="inline-start" />
               Advice
-              <Kbd className="max-lg:hidden">r</Kbd>
+              <ShortcutKey id="finances.advice" className="max-lg:hidden" />
             </Button>
           )}
           <ButtonGroup aria-label="Settings">
@@ -210,7 +222,7 @@ function FinancesPage() {
               variant="outline"
               size="icon"
               aria-label="Search everything"
-              title="Search everything (z)"
+              title={`Search everything (${keyLabel('global.globalSearch')})`}
               onClick={() => setSearchOpen(true)}
             >
               <SearchIcon />
@@ -227,7 +239,7 @@ function FinancesPage() {
               variant="outline"
               size="icon"
               aria-label="Keyboard shortcuts"
-              title="Keyboard shortcuts (?)"
+              title={`Keyboard shortcuts (${keyLabel('global.help')})`}
               onClick={() => setHelpOpen(true)}
             >
               <KeyboardIcon />
@@ -262,15 +274,15 @@ function FinancesPage() {
           <TabsTrigger value="month">Month</TabsTrigger>
           <TabsTrigger value="recurring">
             Recurring
-            <Kbd className="max-lg:hidden">u</Kbd>
+            <ShortcutKey id="finances.recurring" className="max-lg:hidden" />
           </TabsTrigger>
           <TabsTrigger value="budgets">
             Budgets
-            <Kbd className="max-lg:hidden">b</Kbd>
+            <ShortcutKey id="finances.budgets" className="max-lg:hidden" />
           </TabsTrigger>
           <TabsTrigger value="savings">
             Savings
-            <Kbd className="max-lg:hidden">g</Kbd>
+            <ShortcutKey id="finances.savings" className="max-lg:hidden" />
           </TabsTrigger>
         </TabsList>
         <TabsContent value="month" className="flex flex-col gap-6">
@@ -281,7 +293,7 @@ function FinancesPage() {
                 variant="outline"
                 size="icon"
                 aria-label="Previous month"
-                title="Previous month (M)"
+                title={`Previous month (${keyLabel('finances.prevMonth')})`}
                 onClick={() => setMonth((m) => addMonth(m, -1))}
               >
                 <ChevronLeftIcon />
@@ -297,7 +309,7 @@ function FinancesPage() {
                 variant="outline"
                 size="icon"
                 aria-label="Next month"
-                title="Next month (m)"
+                title={`Next month (${keyLabel('finances.nextMonth')})`}
                 onClick={() => setMonth((m) => addMonth(m, 1))}
               >
                 <ChevronRightIcon />

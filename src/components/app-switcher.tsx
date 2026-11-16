@@ -19,7 +19,7 @@ import {
 import { useAppSwitch } from '@/hooks/use-app-switch'
 import { APPS } from '@/lib/apps'
 import type { AppPath } from '@/lib/apps'
-import { appSwitchStep } from '@/lib/shortcuts'
+import { appSwitchStep, isShortcut } from '@/lib/shortcuts'
 
 export function isTyping(target: EventTarget | null) {
   return (
@@ -55,7 +55,7 @@ export function AppSwitcher() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
-      if (e.key !== 'f' || isTyping(e.target) || popupOpen()) return
+      if (!isShortcut(e, 'global.appSwitcher') || popupOpen()) return
       e.preventDefault()
       const index = APPS.findIndex((app) => app === current)
       setValue(APPS[(index + 1) % APPS.length].name)

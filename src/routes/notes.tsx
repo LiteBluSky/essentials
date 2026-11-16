@@ -38,7 +38,6 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group'
-import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { Separator } from '@/components/ui/separator'
 import { useCutNote } from '@/hooks/notes/use-cut-note'
 import { useExpandedFolders } from '@/hooks/use-expanded-folders'
@@ -46,8 +45,7 @@ import { useGlobalSearch } from '@/hooks/use-global-search'
 import { useTreeKeyboard } from '@/hooks/notes/use-tree-keyboard'
 import { useViewNote } from '@/hooks/notes/use-view-note'
 import { APP_NAME } from '@/lib/config'
-import { MOD_LABEL, SHORTCUTS, useShortcuts } from '@/lib/shortcuts'
-import type { ShortcutName } from '@/lib/shortcuts'
+import { useShortcutLabels, useShortcuts } from '@/lib/shortcuts'
 import {
   QUICK_COUNT,
   buildTree,
@@ -58,6 +56,7 @@ import {
 import { databasesQueryOptions } from '@/server/databases.functions'
 import { assistantEnabledQueryOptions } from '@/server/assistant.functions'
 import { notesTreeQueryOptions } from '@/server/notes.functions'
+import { ShortcutKey } from '@/components/shortcut-key'
 
 export const Route = createFileRoute('/notes')({
   loader: ({ context }) =>
@@ -71,6 +70,7 @@ export const Route = createFileRoute('/notes')({
 })
 
 function Home() {
+  const keyLabel = useShortcutLabels()
   const { data } = useSuspenseQuery(notesTreeQueryOptions)
   const tree = useMemo(() => buildTree(data.folders, data.notes), [data])
 
@@ -181,8 +181,8 @@ function Home() {
   // Disabled while a dialog is open so shortcuts don't stack editors.
   useShortcuts(
     {
-      search: focusSearch,
-      newFolder: () => openEditor({ kind: 'folder', parentId: null }),
+      'global.search': focusSearch,
+      'global.newFolder': () => openEditor({ kind: 'folder', parentId: null }),
     },
     !dialogOpen,
   )
@@ -205,7 +205,7 @@ function Home() {
             >
               <FolderPlusIcon data-icon="inline-start" />
               <span className="max-lg:hidden">Folder</span>
-              <ShortcutHint name="newFolder" />
+              <ShortcutKey id="global.newFolder" className="max-lg:hidden" />
             </Button>
             <Button
               aria-label="New note"
@@ -214,7 +214,7 @@ function Home() {
             >
               <PlusIcon data-icon="inline-start" />
               <span className="max-lg:hidden">Note</span>
-              <Kbd className="max-lg:hidden">a</Kbd>
+              <ShortcutKey id="tree.new" className="max-lg:hidden" />
             </Button>
           </div>
           <ButtonGroup aria-label="Settings">
@@ -222,7 +222,7 @@ function Home() {
               variant="outline"
               size="icon"
               aria-label="Search everything"
-              title="Search everything (z)"
+              title={`Search everything (${keyLabel('global.globalSearch')})`}
               onClick={() => globalSearch.setOpen(true)}
             >
               <SearchIcon />
@@ -232,7 +232,7 @@ function Home() {
               variant="outline"
               size="icon"
               aria-label="Keyboard shortcuts"
-              title="Keyboard shortcuts (?)"
+              title={`Keyboard shortcuts (${keyLabel('global.help')})`}
               onClick={() => setHelpOpen(true)}
             >
               <KeyboardIcon />
@@ -287,7 +287,7 @@ function Home() {
         />
         {!searching && (
           <InputGroupAddon align="inline-end">
-            <ShortcutHint name="search" />
+            <ShortcutKey id="global.search" className="max-lg:hidden" />
           </InputGroupAddon>
         )}
       </InputGroup>
@@ -363,12 +363,3 @@ function Home() {
 
 /** Header buttons that show only their icon below `lg` (phones, folds, upright tablets). */
 const ICON_ON_PHONES = 'max-lg:w-8 max-lg:p-0!'
-
-function ShortcutHint({ name }: { name: ShortcutName }) {
-  return (
-    <KbdGroup className="max-lg:hidden">
-      <Kbd>{MOD_LABEL}</Kbd>
-      <Kbd>{SHORTCUTS[name].label}</Kbd>
-    </KbdGroup>
-  )
-}

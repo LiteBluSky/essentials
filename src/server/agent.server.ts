@@ -6,6 +6,8 @@ import type { AssistantResult } from '@/lib/assistant'
 import type { ChatStreamEvent } from '@/lib/chat'
 import { referencesByName } from '@/lib/references'
 import { ALL_TOOLS, runTool } from './agent-tools.server'
+import { CancelledError } from './cancel.server'
+import { undoRunEverywhere } from './changes.server'
 import { addUsage, callModel, llmConfig } from './llm.server'
 import type { ModelUsage, ToolDef, Turn } from './llm.server'
 import { WEB_SEARCH_PROMPT } from './prompts.server'
@@ -70,6 +72,7 @@ export async function runAgent({
   timeZone,
   webSearch = false,
   onEvent,
+  signal,
 }: {
   system: string
   turns: Array<Turn>
@@ -78,6 +81,9 @@ export async function runAgent({
   webSearch?: boolean
   /** Streams the run: the answer's text as it comes, and each tool used. */
   onEvent?: (event: ChatStreamEvent) => void
+  /** Aborted when the user cancels: the run stops, what it changed so far
+   * is undone, and it throws `CancelledError`. */
+  signal?: AbortSignal
 }): Promise<AgentRun> {
   const config = await llmConfig()
   if (!config) {
@@ -147,12 +153,14 @@ ${profilesPrompt(profiles)}`
 
   try {
     for (let step = 0; ; step++) {
+      signal?.throwIfAborted()
       const { calls, text, raw, ...cost } = await callModel(config, {
         system,
         turns: conversation,
         tools,
         webSearch,
         onText: onEvent && ((delta) => onEvent({ type: 'text', delta })),
+        signal,
       })
       usage = addUsage(usage, cost)
       if (!calls.length) {
@@ -169,6 +177,7 @@ ${profilesPrompt(profiles)}`
       onEvent?.({ type: 'step' })
       const results = []
       for (const call of calls) {
+        signal?.throwIfAborted()
         onEvent?.({ type: 'tool', name: call.name })
         let output: unknown
         try {
@@ -197,6 +206,17 @@ ${profilesPrompt(profiles)}`
   }
 
   const changedAnything = result.created.length + result.changed.length > 0
+  if (signal?.aborted) {
+    // Cancelled: as if it was never asked.
+    if (changedAnything) {
+      try {
+        await undoRunEverywhere(runId)
+      } catch (undoError) {
+        console.error("Couldn't undo a cancelled request:", undoError)
+      }
+    }
+    throw new CancelledError()
+  }
   result.runId = changedAnything ? runId : null
   result.answer = answer
   return { answer, result, usage, error }

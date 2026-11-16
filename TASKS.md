@@ -456,6 +456,32 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [ ] Verify with the real providers (Anthropic and OpenRouter): the
       answer appears as it's written, tool lines in between
 
+## 25. Round of fixes (Nov 2026)
+
+- [x] Chat keeps the conversation that was open when you leave and come
+      back (`chat:conversation`); "New chat" starts another
+- [x] Keyboard shortcuts can be changed in the app: one registry
+      (`lib/shortcuts.ts`), kept per browser, edited in the shortcuts dialog
+      (click a key, press the new one; reset one or all; clash warning)
+- [x] README is the user guide (icon, what it is, install / deploy / run);
+      the developer guide moved to `DEVELOPMENT.md`
+- [x] Calendar: no "New" button; strips made by picking days (touch: tap
+      the first day, then the last); no day picker in the strip form; drag
+      a strip to move it, its ends to resize it (touch: hold to grab /
+      select); right click or a longer hold opens Edit / Colour / Delete
+- [x] Tasks: no key hints in the due date picker
+- [x] Stop button on every Jarvis prompt (field, Chat, panel, Advice):
+      cancels the request and undoes what it had already changed
+- [x] Same space above the app select on Calendar and Chat as elsewhere
+- [x] Jarvis writes a task's description first and makes a fitting title
+      from it
+- [ ] Verify in a real browser: changing a key (and the hints following
+      it), Chat reopening the last conversation, Stop mid-request with a
+      real provider (changes undone)
+- [ ] Verify on a PC and a phone: dragging / resizing strips, tap-tap to
+      add, the hold timings (grab 300 ms, menu 900 ms), the strip menu
+- [ ] `pnpm build` + restart the server (not run: the server was up)
+
 ## History of the notes app (before the merge)
 
 ### Notes 0. Scaffold (from the bookmarks app)

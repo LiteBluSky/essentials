@@ -15,7 +15,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Calendar } from '@/components/ui/calendar'
 import {
   Dialog,
   DialogClose,
@@ -27,13 +26,11 @@ import {
 } from '@/components/ui/dialog'
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Kbd } from '@/components/ui/kbd'
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -45,7 +42,7 @@ import {
   DEFAULT_COLOR,
 } from '@/lib/calendar/colors'
 import type { CalendarColor } from '@/lib/calendar/colors'
-import { WEEK_STARTS_ON, isoDay, parseDay } from '@/lib/calendar/layout'
+import { parseDay } from '@/lib/calendar/layout'
 import { eventInput } from '@/lib/calendar/schemas'
 import type { EventInput } from '@/lib/calendar/schemas'
 import { submitOnModEnter } from '@/lib/submit-shortcut'
@@ -56,14 +53,16 @@ import {
   deleteEvent,
   updateEvent,
 } from '@/server/calendar.functions'
-import { sendDayKey } from './day-keys'
+import { shortcutKey } from '@/lib/shortcuts'
+import { ShortcutKey } from '@/components/shortcut-key'
 
 /** What the dialog is doing: a new strip over a range, or editing one. */
 export type EventEditor =
   | { mode: 'new'; from: string; to: string }
   | { mode: 'edit'; event: CalendarEvent }
 
-/** The colour swatches are 8 to a row: h/l step one, k/j a row. */
+/** The colour swatches are 8 to a row: h/l step one, k/j a row (the
+ * Calendar's left / right / up / down keys, by their default key). */
 const COLOR_COLUMNS = 8
 const COLOR_STEPS: Record<string, number | undefined> = {
   h: -1,
@@ -171,7 +170,7 @@ function EventForm({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{event ? 'Edit' : 'New'}</DialogTitle>
+        <DialogTitle>{event ? 'Edit strip' : 'New strip'}</DialogTitle>
         <form.Subscribe
           selector={(s) => [s.values.startDay, s.values.endDay] as const}
           children={([from, to]) => (
@@ -187,7 +186,7 @@ function EventForm({
           e.preventDefault()
           void form.handleSubmit()
         }}
-        // Ctrl+Enter saves from any field (swatches and range picker too).
+        // Ctrl+Enter saves from any field (the swatches too).
         onKeyDownCapture={submitOnModEnter(() => void form.handleSubmit())}
         className="flex flex-col gap-6"
       >
@@ -222,8 +221,8 @@ function EventForm({
                   // h/l previous / next colour, k/j the row above / below:
                   // picks it straight away (the arrows only move focus).
                   onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => {
-                    const step = COLOR_STEPS[e.key]
-                    if (!step || e.ctrlKey || e.metaKey || e.altKey) return
+                    const step = COLOR_STEPS[shortcutKey(e, ['calendar']) ?? '']
+                    if (!step) return
                     e.preventDefault()
                     e.stopPropagation()
                     const i = COLOR_KEYS.indexOf(field.state.value)
@@ -260,65 +259,20 @@ function EventForm({
               </Field>
             )}
           />
-          <form.Field
-            name="endDay"
-            children={(endField) => (
-              <form.Field
-                name="startDay"
-                children={(startField) => {
-                  const errors = [
-                    ...startField.state.meta.errors,
-                    ...endField.state.meta.errors,
-                  ]
-                  const from = startField.state.value
-                  const to = endField.state.value
-                  return (
-                    <Field data-invalid={errors.length > 0}>
-                      <FieldLabel>Days</FieldLabel>
-                      {/* h/j/k/l move between days, m/M months (as the
-                          arrows / PageDown / PageUp); Enter picks. */}
-                      <div
-                        className="w-fit"
-                        onKeyDownCapture={(e) => {
-                          if (e.ctrlKey || e.metaKey || e.altKey) return
-                          if (sendDayKey(e.target, e.key)) {
-                            e.preventDefault()
-                            e.stopPropagation()
-                          }
-                        }}
-                      >
-                        <Calendar
-                          mode="range"
-                          weekStartsOn={WEEK_STARTS_ON}
-                          defaultMonth={from ? parseDay(from) : undefined}
-                          selected={
-                            from
-                              ? {
-                                  from: parseDay(from),
-                                  to: parseDay(to || from),
-                                }
-                              : undefined
-                          }
-                          onSelect={(range) => {
-                            if (!range?.from) return
-                            startField.handleChange(isoDay(range.from))
-                            endField.handleChange(
-                              isoDay(range.to ?? range.from),
-                            )
-                          }}
-                          className="rounded-lg border"
-                        />
-                      </div>
-                      <FieldDescription>
-                        One day, or a first and a last day (click, or move with
-                        h/j/k/l and press Enter).
-                      </FieldDescription>
-                      {errors.length > 0 && <FieldError errors={errors} />}
-                    </Field>
-                  )
-                }}
-              />
-            )}
+          {/* The days come from the grid (picked there, or changed by
+              dragging the strip or its ends); an error on them shows here. */}
+          <form.Subscribe
+            selector={(state) => [
+              ...(state.fieldMeta.startDay?.errors ?? []),
+              ...(state.fieldMeta.endDay?.errors ?? []),
+            ]}
+            children={(errors) =>
+              errors.length > 0 ? (
+                <Field data-invalid>
+                  <FieldError errors={errors} />
+                </Field>
+              ) : null
+            }
           />
         </FieldGroup>
         <DialogFooter className="sm:justify-between">
@@ -414,7 +368,7 @@ function DeleteConfirm({
   pending: boolean
   onConfirm: () => void
 }) {
-  useConfirmKey('d', onConfirm)
+  useConfirmKey(onConfirm)
   return (
     <>
       <AlertDialogHeader>
@@ -431,7 +385,7 @@ function DeleteConfirm({
           onClick={onConfirm}
         >
           Delete
-          <Kbd>d</Kbd>
+          <ShortcutKey id="global.confirm" />
         </AlertDialogAction>
       </AlertDialogFooter>
     </>

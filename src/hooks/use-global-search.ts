@@ -2,16 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 
 import { onTarget, takeTarget } from '@/lib/global-search'
 import type { SearchApp } from '@/lib/global-search'
+import { isShortcut } from '@/lib/shortcuts'
 
 type FolderRow = { id: number; parentId: number | null }
-
-function isTyping(target: EventTarget | null) {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable ||
-      ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
-  )
-}
 
 // Focus a folder's row once it has rendered (its ancestors were just opened).
 function focusFolderRow(id: number, tries = 5) {
@@ -56,7 +49,7 @@ export function useGlobalSearch({
     if (!enabled) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
-      if (e.key !== 'z' || isTyping(e.target)) return
+      if (!isShortcut(e, 'global.globalSearch')) return
       e.preventDefault()
       setOpen(true)
     }

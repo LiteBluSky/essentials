@@ -1,101 +1,94 @@
-import { Fragment } from 'react'
+import { COMMON, ShortcutsHelp } from '@/components/shortcuts-dialog'
+import type { ShortcutGroup } from '@/components/shortcuts-dialog'
+import { MOD_LABEL } from '@/lib/shortcuts'
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Kbd, KbdGroup } from '@/components/ui/kbd'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { MOD_LABEL, SHORTCUTS, NEW_CHAT_KEYS } from '@/lib/shortcuts'
-import { ASSISTANT_NAME } from '@/lib/assistant'
+// Tasks' shortcuts, as shown (and changed) in the shared dialog
+// (components/shortcuts-dialog.tsx). Rows with an `id` are shortcuts from
+// lib/shortcuts.ts: the dialog shows the key each is on now; `keys` are
+// fixed ones. Keep it in sync when adding or changing a shortcut.
 
-// Each entry: alternative key combos (joined with "or"), each a list of keys
-// pressed together or in sequence.
-type Shortcut = { keys: Array<Array<string>>; action: string }
-
-const mod = (key: string) => [MOD_LABEL, key]
-
-const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
+const GROUPS: Array<ShortcutGroup> = [
   {
     title: 'Anywhere',
     shortcuts: [
-      { keys: [mod(SHORTCUTS.search.label), ['/']], action: 'Search this app' },
-      { keys: [['z']], action: 'Search everything (all apps)' },
-      { keys: [['f']], action: 'Switch app (type its name, or pick it)' },
-      { keys: [['Shift', 'T']], action: 'Next theme (light, dark, system)' },
-      { keys: [['p']], action: 'Switch profile (database)' },
-      {
-        keys: [['@']],
-        action: 'In a text box: link to a bookmark, note, task or contact',
-      },
-      {
-        keys: [['s']],
-        action: `Ask ${ASSISTANT_NAME}… (tasks, notes, questions; ↑/↓ past requests; Esc goes back)`,
-      },
-      {
-        keys: [['Shift', 'S']],
-        action: `Hide the ${ASSISTANT_NAME} panel (wide screens)`,
-      },
-      {
-        keys: [NEW_CHAT_KEYS],
-        action: `New chat with ${ASSISTANT_NAME}`,
-      },
-      {
-        keys: [['a']],
-        action: 'New task',
-      },
-      { keys: [mod(SHORTCUTS.newFolder.label)], action: 'New folder' },
+      { id: 'global.search', action: 'Search this app' },
+      { id: 'tree.searchBox', action: 'Search this app (from the tree)' },
+      COMMON.globalSearch,
+      COMMON.appSwitcher,
+      COMMON.theme,
+      COMMON.profile,
+      COMMON.reference,
+      COMMON.assistant,
+      COMMON.hideAssistant,
+      COMMON.newChat,
+      { id: 'global.newFolder', action: 'New folder' },
       { keys: [['1'], ['…'], ['9']], action: 'Open an “Up next” task' },
-      { keys: [['t']], action: 'Show completed / open tasks' },
-      { keys: [['v']], action: 'Folders / one list' },
-      { keys: [['i']], action: 'Calendar of the month' },
-      { keys: [['Shift', 'H']], action: 'Collapse all folders' },
-      { keys: [['Alt', 'H']], action: 'Previous app' },
-      { keys: [['Alt', 'L']], action: 'Next app' },
-      { keys: [['?']], action: 'Show keyboard shortcuts' },
+      { id: 'tasks.showDone', action: 'Show completed / open tasks' },
+      { id: 'tasks.layout', action: 'Folders / one list' },
+      { id: 'tasks.calendar', action: 'Calendar of the month' },
+      COMMON.prevApp,
+      COMMON.nextApp,
+      COMMON.help,
+      COMMON.confirm,
     ],
   },
   {
     title: 'Tree',
     shortcuts: [
-      { keys: [['j'], ['↓']], action: 'Next row' },
-      { keys: [['k'], ['↑']], action: 'Previous row' },
-      { keys: [['h'], ['←']], action: 'Collapse folder / go to parent' },
-      { keys: [['l'], ['→']], action: 'Expand folder / into first child' },
-      { keys: [['g', 'g']], action: 'First row' },
-      { keys: [['G']], action: 'Last row' },
-      { keys: [['n']], action: 'Next task' },
-      { keys: [['Shift', 'N']], action: 'Previous task' },
-      { keys: [['o'], ['Enter']], action: 'Open task / toggle folder' },
-      { keys: [['a']], action: 'New task in hovered or focused folder' },
-      { keys: [['c']], action: 'Complete / reopen hovered or focused task' },
-      { keys: [['e'], ['r']], action: 'Edit task / rename folder' },
+      { id: 'tree.down', keys: [['↓']], action: 'Next row' },
+      { id: 'tree.up', keys: [['↑']], action: 'Previous row' },
       {
-        keys: [['d'], ['Del']],
-        action: 'Delete hovered or focused row (d again confirms)',
+        id: 'tree.collapse',
+        keys: [['←']],
+        action: 'Collapse folder / go to parent',
       },
-      { keys: [['x']], action: 'Cut task' },
-      { keys: [['p']], action: 'Paste cut task here (when one is cut)' },
+      {
+        id: 'tree.expand',
+        keys: [['→']],
+        action: 'Expand folder / into first child',
+      },
+      { id: 'tree.first', action: 'First row' },
+      { id: 'tree.last', action: 'Last row' },
+      { id: 'tree.nextItem', action: 'Next task' },
+      { id: 'tree.prevItem', action: 'Previous task' },
+      {
+        id: 'tree.open',
+        keys: [['Enter']],
+        action: 'Open task / toggle folder',
+      },
+      {
+        id: 'tree.new',
+        action: 'New task in hovered or focused folder',
+      },
+      {
+        id: 'tasks.complete',
+        action: 'Complete / reopen hovered or focused task',
+      },
+      {
+        id: 'tree.edit',
+        keys: [['e']],
+        action: 'Edit task / rename or move folder',
+      },
+      {
+        id: 'tree.delete',
+        action: 'Delete hovered or focused row (asks first)',
+      },
+      { id: 'tree.cut', action: 'Cut task' },
+      {
+        id: 'tree.paste',
+        action: 'Paste cut task here (when one is cut)',
+      },
       { keys: [['Esc']], action: 'Cancel cut' },
-      { keys: [['q']], action: 'Clear search and date filter' },
+      { id: 'tree.clearSearch', action: 'Clear search and date filter' },
+      { id: 'tree.collapseAll', action: 'Collapse all folders' },
     ],
   },
   {
     title: 'Open task',
     shortcuts: [
-      { keys: [['c']], action: 'Complete / reopen' },
-      { keys: [['e']], action: 'Edit' },
-      { keys: [['d'], ['Del']], action: 'Delete (d again confirms)' },
+      { id: 'viewer.complete', action: 'Complete / reopen' },
+      { id: 'viewer.edit', keys: [['r']], action: 'Edit' },
+      { id: 'viewer.delete', keys: [['Del']], action: 'Delete (asks first)' },
       { keys: [['Esc']], action: 'Close' },
     ],
   },
@@ -103,19 +96,26 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
     title: 'Task form',
     shortcuts: [
       { keys: [['Enter']], action: 'Save (from the task field)' },
-      { keys: [mod('Enter')], action: 'Save (from the description)' },
+      { keys: [[MOD_LABEL, 'Enter']], action: 'Save (from the description)' },
       { keys: [['Esc']], action: 'Cancel' },
     ],
   },
   {
     title: 'Due date picker and calendar',
     shortcuts: [
-      { keys: [['h'], ['l']], action: 'Previous / next day' },
-      { keys: [['k'], ['j']], action: 'Previous / next week' },
-      { keys: [['m'], ['Shift', 'M']], action: 'Next / previous month' },
-      { keys: [['y'], ['Shift', 'Y']], action: 'Next / previous year' },
-      { keys: [['Enter']], action: 'Pick the date (calendar: show its tasks)' },
-      { keys: [['a']], action: 'Calendar: new task due that day' },
+      { id: 'days.prevDay', action: 'Previous day' },
+      { id: 'days.nextDay', action: 'Next day' },
+      { id: 'days.prevWeek', action: 'Previous week' },
+      { id: 'days.nextWeek', action: 'Next week' },
+      { id: 'days.nextMonth', action: 'Next month' },
+      { id: 'days.prevMonth', action: 'Previous month' },
+      { id: 'days.nextYear', action: 'Next year' },
+      { id: 'days.prevYear', action: 'Previous year' },
+      {
+        keys: [['Enter']],
+        action: 'Pick the date (calendar: show its tasks)',
+      },
+      { id: 'days.newTask', action: 'Calendar: new task due that day' },
     ],
   },
   {
@@ -135,47 +135,6 @@ export function ShortcutsDialog({
   onOpenChange: (open: boolean) => void
 }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Keyboard shortcuts</DialogTitle>
-          <DialogDescription>
-            Tree keys are off while typing in a field or while a dialog is open.
-          </DialogDescription>
-        </DialogHeader>
-        {GROUPS.map((group) => (
-          <Table key={group.title}>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{group.title}</TableHead>
-                <TableHead className="text-right">Keys</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {group.shortcuts.map(({ keys, action }) => (
-                <TableRow key={action}>
-                  {/* Wrap the action so the keys always fit (no sideways scroll). */}
-                  <TableCell className="whitespace-normal">{action}</TableCell>
-                  <TableCell className="w-px text-right">
-                    <KbdGroup className="justify-end">
-                      {keys.map((combo, i) => (
-                        <Fragment key={combo.join('+')}>
-                          {i > 0 && (
-                            <span className="text-muted-foreground">or</span>
-                          )}
-                          {combo.map((key, j) => (
-                            <Kbd key={j}>{key}</Kbd>
-                          ))}
-                        </Fragment>
-                      ))}
-                    </KbdGroup>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ))}
-      </DialogContent>
-    </Dialog>
+    <ShortcutsHelp open={open} onOpenChange={onOpenChange} groups={GROUPS} />
   )
 }

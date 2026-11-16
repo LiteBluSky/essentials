@@ -5,6 +5,7 @@ import type { AssistantResult } from '@/lib/assistant'
 import { z } from 'zod'
 
 import { runAgent } from './agent.server'
+import { cancelRequest, isCancelled, trackRequest } from './cancel.server'
 import type { AgentRun } from './agent.server'
 import { tellPrompt } from './assistant.server'
 import { describe } from './assistant-actions.server'
@@ -38,12 +39,14 @@ export const askAssistant = createServerFn({ method: 'POST' })
     const started = Date.now()
     let run: AgentRun | null = null
     let failure: string | null = null
+    const tracked = trackRequest(data.requestId)
     try {
       run = await runAgent({
         system: tellPrompt(data.now, data.timeZone),
         turns: [{ role: 'user', text: data.text }],
         timeZone: data.timeZone,
         webSearch: data.webSearch,
+        signal: tracked.signal,
       })
       const { result } = run
       const didSomething =
@@ -53,7 +56,11 @@ export const askAssistant = createServerFn({ method: 'POST' })
         failure = "Couldn't make anything of that"
       }
     } catch (error) {
+      // Cancelled by the user: nothing done, nothing saved or logged.
+      if (isCancelled(error)) throw error
       failure = error instanceof Error ? error.message : String(error)
+    } finally {
+      tracked.done()
     }
 
     // Every request that reached the model is also a Chat conversation, so
@@ -101,6 +108,15 @@ export const askAssistant = createServerFn({ method: 'POST' })
     })
     if (failure !== null || !result) throw new Error(failure ?? 'Failed')
     return { ...result, conversationId }
+  })
+
+/** "Stop": calls off a request that's under way (Ask Jarvis, Chat, the
+ * panel, Advice) by the id the browser sent with it. The model call is
+ * dropped and what the request had already changed is undone. */
+export const cancelAssistant = createServerFn({ method: 'POST' })
+  .validator(z.object({ requestId: z.uuid() }))
+  .handler(({ data }) => {
+    cancelRequest(data.requestId)
   })
 
 /** Undoes everything a run (a Tell me request or chat turn) changed. */

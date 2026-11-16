@@ -1,102 +1,113 @@
-import { Fragment } from 'react'
+import { COMMON, ShortcutsHelp } from '@/components/shortcuts-dialog'
+import type { ShortcutGroup } from '@/components/shortcuts-dialog'
+import { MOD_LABEL } from '@/lib/shortcuts'
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Kbd, KbdGroup } from '@/components/ui/kbd'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { ASSISTANT_NAME } from '@/lib/assistant'
-import { NEW_CHAT_KEYS } from '@/lib/shortcuts'
+// The Calendar's shortcuts, as shown (and changed) in the shared dialog
+// (components/shortcuts-dialog.tsx). Rows with an `id` are shortcuts from
+// lib/shortcuts.ts: the dialog shows the key each is on now; `keys` are
+// fixed ones. Keep it in sync when adding or changing a shortcut.
 
-// Each entry: alternative key combos (joined with "or"), each a list of keys
-// pressed together or in sequence.
-type Shortcut = { keys: Array<Array<string>>; action: string }
-
-// Keep in sync with the keys handled in routes/calendar.tsx.
-const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
+const GROUPS: Array<ShortcutGroup> = [
   {
     title: 'Days',
     shortcuts: [
-      { keys: [['h'], ['←']], action: 'Previous day' },
-      { keys: [['l'], ['→']], action: 'Next day' },
-      { keys: [['k'], ['↑']], action: 'Same day last week' },
-      { keys: [['j'], ['↓']], action: 'Same day next week' },
-      { keys: [['b'], ['Home']], action: 'Beginning of the week' },
-      { keys: [['e'], ['End']], action: 'End of the week' },
-      { keys: [['M'], ['PgUp']], action: 'Previous month' },
-      { keys: [['m'], ['PgDn']], action: 'Next month' },
+      { id: 'calendar.left', keys: [['←']], action: 'Previous day' },
+      { id: 'calendar.right', keys: [['→']], action: 'Next day' },
+      { id: 'calendar.up', keys: [['↑']], action: 'Same day last week' },
+      { id: 'calendar.down', keys: [['↓']], action: 'Same day next week' },
+      {
+        id: 'calendar.weekStart',
+        keys: [['Home']],
+        action: 'Beginning of the week',
+      },
+      { id: 'calendar.weekEnd', keys: [['End']], action: 'End of the week' },
+      { id: 'calendar.prevMonth', keys: [['PgUp']], action: 'Previous month' },
+      { id: 'calendar.nextMonth', keys: [['PgDn']], action: 'Next month' },
       {
         keys: [['Scroll']],
         action:
           'Mouse wheel / swipe up or down over the month: next / previous',
       },
-      { keys: [['t']], action: 'Today' },
-      { keys: [['o']], action: 'Open the focused day’s tasks in Tasks' },
+      { id: 'calendar.today', action: 'Today' },
+      {
+        id: 'calendar.tasks',
+        action: 'Open the focused day’s tasks in Tasks',
+      },
     ],
   },
   {
     title: 'Strips',
     shortcuts: [
       {
+        keys: [['Drag']],
+        action:
+          'Mouse: drag over days (or click one) to add a strip. Touch: tap the first day, then the last',
+      },
+      {
         keys: [['Enter'], ['Space']],
         action:
           'Start a range on the focused day; again (after moving) adds a strip over it',
       },
-      { keys: [['a']], action: 'New strip on the focused day (or the range)' },
-      { keys: [['Esc']], action: 'Cancel the range' },
-      { keys: [['Ctrl', 'Enter']], action: 'In the strip form: save' },
-      { keys: [['i']], action: 'List every strip (go to, edit or delete one)' },
+      {
+        id: 'calendar.new',
+        action: 'New strip on the focused day (or the range)',
+      },
+      { keys: [['Esc']], action: 'Cancel the range / let go of the strip' },
+      {
+        keys: [['Drag']],
+        action:
+          'A strip: drag it to move it (touch: hold it first); click it, then drag its ends to resize it',
+      },
+      {
+        keys: [['Right click']],
+        action: 'A strip’s menu: edit, colour, delete (touch: hold it longer)',
+      },
+      {
+        keys: [['Enter']],
+        action: 'Edit the selected strip (or click it again)',
+      },
+      {
+        id: 'calendar.delete',
+        keys: [['Del']],
+        action: 'Delete the selected strip (asks first)',
+      },
+      { keys: [[MOD_LABEL, 'Enter']], action: 'In the strip form: save' },
+      {
+        id: 'calendar.list',
+        action: 'List every strip (go to, edit or delete one)',
+      },
     ],
   },
   {
-    title: 'Strip list (i)',
+    title: 'Strip list',
     shortcuts: [
-      { keys: [['j'], ['↓']], action: 'Next strip' },
-      { keys: [['k'], ['↑']], action: 'Previous strip' },
-      { keys: [['g', 'g'], ['G']], action: 'First / last strip' },
-      { keys: [['Enter'], ['o']], action: 'Go to it in the month' },
-      { keys: [['e']], action: 'Edit it' },
-      { keys: [['d']], action: 'Delete it (d again confirms)' },
-      { keys: [['/']], action: 'Filter by name (Esc back to the list)' },
+      { id: 'strips.down', keys: [['↓']], action: 'Next strip' },
+      { id: 'strips.up', keys: [['↑']], action: 'Previous strip' },
+      { id: 'strips.first', action: 'First strip' },
+      { id: 'strips.last', action: 'Last strip' },
+      { id: 'strips.go', keys: [['Enter']], action: 'Go to it in the month' },
+      { id: 'strips.edit', action: 'Edit it' },
+      { id: 'strips.delete', action: 'Delete it (asks first)' },
       {
-        keys: [['Drag']],
-        action: 'With the mouse: drag over days (or click one) to add a strip',
+        id: 'strips.filter',
+        action: 'Filter by name (Esc back to the list)',
       },
     ],
   },
   {
     title: 'Anywhere',
     shortcuts: [
-      { keys: [['z']], action: 'Search everything (all apps)' },
-      { keys: [['f']], action: 'Switch app (type its name, or pick it)' },
-      {
-        keys: [['s']],
-        action: `Open the ${ASSISTANT_NAME} panel and type (wide screens)`,
-      },
-      {
-        keys: [['Shift', 'S']],
-        action: `Hide the ${ASSISTANT_NAME} panel (wide screens)`,
-      },
-      {
-        keys: [NEW_CHAT_KEYS],
-        action: `New chat with ${ASSISTANT_NAME}`,
-      },
-      { keys: [['Shift', 'T']], action: 'Next theme (light, dark, system)' },
-      { keys: [['p']], action: 'Switch profile (database)' },
-      { keys: [['Alt', 'H']], action: 'Previous app' },
-      { keys: [['Alt', 'L']], action: 'Next app' },
-      { keys: [['?']], action: 'Show keyboard shortcuts' },
+      COMMON.globalSearch,
+      COMMON.appSwitcher,
+      COMMON.assistantPanel,
+      COMMON.hideAssistant,
+      COMMON.newChat,
+      COMMON.theme,
+      COMMON.profile,
+      COMMON.prevApp,
+      COMMON.nextApp,
+      COMMON.help,
+      COMMON.confirm,
     ],
   },
 ]
@@ -109,47 +120,6 @@ export function ShortcutsDialog({
   onOpenChange: (open: boolean) => void
 }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Keyboard shortcuts</DialogTitle>
-          <DialogDescription>
-            These are off while typing or while a dialog is open.
-          </DialogDescription>
-        </DialogHeader>
-        {GROUPS.map((group) => (
-          <Table key={group.title}>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{group.title}</TableHead>
-                <TableHead className="text-right">Keys</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {group.shortcuts.map(({ keys, action }) => (
-                <TableRow key={action}>
-                  {/* Wrap the action so the keys always fit (no sideways scroll). */}
-                  <TableCell className="whitespace-normal">{action}</TableCell>
-                  <TableCell className="w-px text-right">
-                    <KbdGroup className="justify-end">
-                      {keys.map((combo, i) => (
-                        <Fragment key={combo.join('+')}>
-                          {i > 0 && (
-                            <span className="text-muted-foreground">or</span>
-                          )}
-                          {combo.map((key, j) => (
-                            <Kbd key={j}>{key}</Kbd>
-                          ))}
-                        </Fragment>
-                      ))}
-                    </KbdGroup>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ))}
-      </DialogContent>
-    </Dialog>
+    <ShortcutsHelp open={open} onOpenChange={onOpenChange} groups={GROUPS} />
   )
 }

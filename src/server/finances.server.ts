@@ -37,6 +37,7 @@ import { listPending, queueDue } from './finances-due.server'
 import { assertCanAdd, openMonth } from './finances-months.server'
 import { logRequest } from './assistant-log.server'
 import { saveTurn } from './chat.server'
+import { CancelledError } from './cancel.server'
 import { callModel, llmConfig } from './llm.server'
 import { WEB_SEARCH_PROMPT } from './prompts.server'
 
@@ -311,6 +312,7 @@ async function plainCall(
   text: string,
   logText: string,
   webSearch = false,
+  signal?: AbortSignal,
 ) {
   const config = await llmConfig()
   if (!config) throw new Error('Add an API key in Settings first')
@@ -321,6 +323,7 @@ async function plainCall(
       turns: [{ role: 'user', text }],
       tools: [],
       webSearch,
+      signal,
     })
     await logRequest({
       text: logText,
@@ -336,6 +339,8 @@ async function plainCall(
     })
     return reply
   } catch (error) {
+    // Cancelled by the user: not a failure worth logging.
+    if (signal?.aborted) throw new CancelledError()
     const message = error instanceof Error ? error.message : String(error)
     await logRequest({
       text: logText,
@@ -438,6 +443,7 @@ export async function getAdvice(
   question: string,
   month: string,
   webSearch = false,
+  signal?: AbortSignal,
 ) {
   const data = await loadFinances()
   const months = [0, 1, 2, 3, 4, 5].map((n) => addMonth(month, -n))
@@ -511,7 +517,9 @@ export async function getAdvice(
     `${facts}\n\nMy question: ${ask}`,
     ask,
     webSearch,
+    signal,
   )
+  if (signal?.aborted) throw new CancelledError()
   const answer = reply.text.trim() || "I couldn't come up with anything."
   // Saved as a chat, so it can be read again and carried on.
   let conversationId: number | null = null

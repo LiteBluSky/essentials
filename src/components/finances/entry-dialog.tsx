@@ -30,7 +30,6 @@ import {
   FieldLabel,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Kbd } from '@/components/ui/kbd'
 import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -48,6 +47,7 @@ import {
   updateFinanceEntry,
 } from '@/server/finances.functions'
 import { CategorySelect, CurrencySelect, DayPicker } from './pickers'
+import { ShortcutKey } from '@/components/shortcut-key'
 
 /** Edit (or delete) one entry. */
 export function EntryDialog({
@@ -367,7 +367,7 @@ export function DeleteConfirm({
   /** Said before "This can't be undone." */
   description?: string
 }) {
-  useConfirmKey('d', onConfirm)
+  useConfirmKey(onConfirm)
   return (
     <>
       <AlertDialogHeader>
@@ -386,7 +386,7 @@ export function DeleteConfirm({
           onClick={onConfirm}
         >
           Delete
-          <Kbd>d</Kbd>
+          <ShortcutKey id="global.confirm" />
         </AlertDialogAction>
       </AlertDialogFooter>
     </>

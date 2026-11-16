@@ -7,7 +7,8 @@ import type { ChatStreamEvent } from '@/lib/chat'
 // back as it runs: one JSON `ChatStreamEvent` per line, ending with `done`
 // (or `error`). A route rather than a server function so the answer can be
 // shown as it's written. The turn is saved either way, even if the browser
-// goes away part-way. No auth by design (see CLAUDE.md).
+// goes away part-way; only "Stop" (cancelAssistant) calls it off: nothing
+// is saved then and what it changed is undone. No auth by design (see CLAUDE.md).
 export const Route = createFileRoute('/api/chat')({
   server: {
     handlers: {
@@ -22,6 +23,9 @@ export const Route = createFileRoute('/api/chat')({
           )
         }
         const { sendMessage } = await import('@/server/chat.server')
+        const { trackRequest } = await import('@/server/cancel.server')
+        // "Stop" in the browser aborts it (cancelAssistant).
+        const tracked = trackRequest(parsed.data.requestId)
         const encoder = new TextEncoder()
         const stream = new ReadableStream<Uint8Array>({
           async start(controller) {
@@ -35,7 +39,7 @@ export const Route = createFileRoute('/api/chat')({
               }
             }
             try {
-              const turn = await sendMessage(parsed.data, send)
+              const turn = await sendMessage(parsed.data, send, tracked.signal)
               const { created, changed } = turn.result
               send({
                 type: 'done',
@@ -48,6 +52,7 @@ export const Route = createFileRoute('/api/chat')({
                 message: error instanceof Error ? error.message : String(error),
               })
             }
+            tracked.done()
             try {
               controller.close()
             } catch {

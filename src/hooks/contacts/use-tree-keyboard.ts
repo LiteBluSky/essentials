@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
+import { isShortcut, shortcutKey } from '@/lib/shortcuts'
 
 // Vim-style motions over the visible tree rows (anywhere on the page, except
 // while typing or with a dialog/menu open):
@@ -22,6 +23,10 @@ import type { RefObject } from 'react'
 //   data-tree-item, data-kind="folder|contact", data-id, data-parent-id
 // (data-parent-id is "" at the top level). The row's hover area (the element
 // that also holds its menu) is marked with data-tree-row.
+
+const SCOPES = ['tree'] as const
+/** Stands for the help shortcut in the switch below. */
+const HELP = 'help'
 
 const ITEM = '[data-tree-item]'
 const HOVERED_ROW = '[data-tree-row]:hover'
@@ -106,8 +111,11 @@ export function useTreeKeyboard({
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return
       if (isTyping(e.target)) return
+      // The keys can be changed (lib/shortcuts.ts): `key` is the default
+      // key of the shortcut that was pressed, so the cases below hold.
+      const key = isShortcut(e, 'global.help') ? HELP : shortcutKey(e, SCOPES)
+      if (key === null) return
       const active = document.activeElement
       if (active instanceof HTMLElement && active.closest('[role="menu"]')) {
         return
@@ -130,7 +138,7 @@ export function useTreeKeyboard({
           ?.querySelector(HOVERED_ROW)
           ?.querySelector<HTMLElement>(ITEM) ?? current
 
-      switch (e.key) {
+      switch (key) {
         case 'j':
         case 'ArrowDown':
           handled()
@@ -148,7 +156,7 @@ export function useTreeKeyboard({
           handled()
           const at = (el: HTMLElement) => list.indexOf(el)
           focus(
-            e.key === 'n'
+            key === 'n'
               ? (contacts.find((el) => at(el) > index) ?? contacts[0])
               : ([...contacts]
                   .reverse()
@@ -285,7 +293,7 @@ export function useTreeKeyboard({
           handled()
           cb.onSearch()
           return
-        case '?':
+        case HELP:
           handled()
           cb.onHelp()
           return

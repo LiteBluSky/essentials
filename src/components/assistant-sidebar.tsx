@@ -13,12 +13,12 @@ import {
   ChatThread,
   streamInto,
 } from '@/components/chat/chat-thread'
-import { refreshKey } from '@/lib/chat'
+import { refreshKey, rememberConversation } from '@/lib/chat'
 import { streamChatMessage } from '@/lib/chat-stream'
 import type { PendingMessage } from '@/components/chat/chat-thread'
 import { Button } from '@/components/ui/button'
-import { Kbd } from '@/components/ui/kbd'
 import { toast } from '@/components/ui/toast'
+import { useCancelRequest } from '@/hooks/use-cancel-request'
 import {
   Tooltip,
   TooltipContent,
@@ -26,13 +26,14 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { ASSISTANT_NAME } from '@/lib/assistant'
-import { focusChatComposer, isNewChatKey } from '@/lib/shortcuts'
+import { focusChatComposer, isNewChatKey, isShortcut } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
 import { assistantHistoryQueryOptions } from '@/server/assistant.functions'
 import {
   chatConversationsQueryOptions,
   chatMessagesQueryOptions,
 } from '@/server/chat.functions'
+import { ShortcutKey } from '@/components/shortcut-key'
 
 // Desktop (`xl` and up): Jarvis as a chat panel floating on the right of
 // every app with the Ask Jarvis field, instead of the field in the page.
@@ -111,16 +112,10 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
     if (!enabled || !desktop) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
-      const t = e.target
-      if (
-        (e.key !== 's' && e.key !== 'S') ||
-        (t instanceof HTMLElement &&
-          (t.isContentEditable ||
-            ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)))
-      )
-        return
+      const hide = isShortcut(e, 'global.hideAssistant')
+      if (!hide && !isShortcut(e, 'global.assistant')) return
       e.preventDefault()
-      if (e.key === 'S') {
+      if (hide) {
         toggle(false)
         return
       }
@@ -141,6 +136,7 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
       if (e.defaultPrevented || !isNewChatKey(e)) return
       e.preventDefault()
       if (!desktop) {
+        rememberConversation(null) // A new chat, not the last one open.
         void navigate({ to: '/chat', search: {} }).then(() =>
           focusChatComposer(),
         )
@@ -154,8 +150,19 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
     return () => window.removeEventListener('keydown', onKeyDown)
   })
 
+  const request = useCancelRequest()
   const send = useMutation({
-    mutationFn: ({ text, webSearch }: { text: string; webSearch: boolean }) =>
+    mutationFn: ({
+      text,
+      webSearch,
+      requestId,
+      signal,
+    }: {
+      text: string
+      webSearch: boolean
+      requestId: string
+      signal: AbortSignal
+    }) =>
       streamChatMessage(
         {
           // A conversation deleted meanwhile (or expired) starts a new one.
@@ -164,17 +171,21 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
           now: new Date().toISOString(),
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           webSearch,
+          requestId,
         },
         (event) => setPending((p) => streamInto(p, event)),
+        signal,
       ),
   })
 
   const onSend = async (text: string, webSearch: boolean) => {
     setPending({ text, answer: '', tool: null })
+    const started = request.start()
     try {
       const { conversationId: id, apps } = await send.mutateAsync({
         text,
         webSearch,
+        ...started,
       })
       await queryClient.fetchQuery({
         ...chatMessagesQueryOptions(id),
@@ -188,6 +199,11 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
       }
       return true
     } catch (error) {
+      // Stopped by the user: the message goes back into the box.
+      if (request.wasCancelled(started.requestId)) {
+        toast.add({ title: 'Cancelled', description: 'Nothing was done.' })
+        return false
+      }
       toast.add({
         title: "Couldn't send that",
         description: error instanceof Error ? error.message : String(error),
@@ -195,6 +211,7 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
       })
       return false
     } finally {
+      request.finish(started.requestId)
       setPending(null)
     }
   }
@@ -219,7 +236,7 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
             <SparklesIcon />
           </TooltipTrigger>
           <TooltipContent side="left">
-            {ASSISTANT_NAME} <Kbd>s</Kbd>
+            {ASSISTANT_NAME} <ShortcutKey id="global.assistant" />
           </TooltipContent>
         </Tooltip>
       )}
@@ -279,6 +296,7 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
           <ChatComposer
             busy={send.isPending}
             onSend={onSend}
+            onCancel={() => request.cancel()}
             // `s` is handled here (it opens the panel too).
             enabled={false}
           />

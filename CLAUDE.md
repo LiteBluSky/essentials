@@ -77,7 +77,8 @@ Each app is self-contained and namespaced; only the shell is shared.
   own query key (`['<app>', 'tree']`, `<app>TreeQueryOptions`) and its own
   localStorage keys (`<app>:…`, e.g. `useExpandedFolders('<app>')`).
 - **Shared**: `lib/config.ts`, `lib/theme.ts`, `lib/shortcuts.ts`
-  (`search`, `newFolder`), `hooks/use-expanded-folders.ts`,
+  (every changeable shortcut: see Keyboard), `components/shortcuts-dialog.tsx`,
+  `components/shortcut-key.tsx`, `hooks/use-expanded-folders.ts`,
   `hooks/use-install-app.ts`, `hooks/use-hydrated.ts`,
   `components/swipe-apps.tsx`,
   `components/theme-toggle.tsx`, the global
@@ -292,7 +293,8 @@ highlighted — then New
 folder, New <item>, and a `ButtonGroup` of global search, the ⋮
 import/export menu, shortcuts help, theme menu and the profile switcher
 (user icon, `ProfileButton`); on phones (below `lg` (1024px; phones, a Z Fold opened, tablets upright), every app) the
-header stacks: the app select spans the full width, then the buttons
+header stacks (every page has the same space above it: `pt-8`, Calendar
+and Chat included): the app select spans the full width, then the buttons
 spread edge to edge (`justify-between`; Calendar adds its month row the
 same way, and Tasks' view toggles spread too), and New folder / New <item> (and Chat's New chat) are icon-only
 (`ICON_ON_PHONES`, label in `aria-label`)), the app's quick list, search box, then the tree. Folders are
@@ -473,6 +475,7 @@ createdAt`.
   selection (handled in capture, before the calendar's own keys); Enter
   picks. The keys live in `useCalendarKeys`
   (`src/hooks/tasks/use-calendar-keys.ts`), shared with the calendar dialog.
+  The picker shows no key hints (the calendar dialog does).
 - **Reminders** (`src/server/reminders.server.ts`): once an open task's
   reminder time (`dueAt − remindMinutes`, compared in SQL in seconds)
   passes, it's pushed to `NTFY_URL`/`NTFY_TOPIC` (ntfy app on the phone)
@@ -691,8 +694,10 @@ reject a forced call, so the prompt asks for one) and **no `temperature`**
 (Anthropic's current API version rejects it). The tools, in one neutral
 shape (`ACTION_TOOLS` in `assistant.server.ts`; carried out by
 `assistant-actions.server.ts`, also used by Chat),
-`create_task { title, description?, due?, remind_minutes_before? }` (local `YYYY-MM-DD[THH:mm]`,
-converted with `zonedTime`), `create_note { title?, body }` and
+`create_task { description?, title, due?, remind_minutes_before? }` (local `YYYY-MM-DD[THH:mm]`,
+converted with `zonedTime`; **the description comes first**: what the user
+said about it in full, and the title is a short fitting one made from that
+description, so keep `description` ahead of `title` in the schema), `create_note { title?, body }` and
 `open_item { query, app?, folder? }`. The prompt makes a **list** (shopping,
 packing…) **one note** with a `- [ ] item` checklist, never several tasks;
 separate unrelated actions stay separate tasks. **Filing** (`APP_PROMPT`):
@@ -727,6 +732,17 @@ list goes back with `created`; the first match opens at once (note/task via
 if the browser blocks that tab, since it's no longer right after the
 click, a toast offers "Open link"), any others are toasts with **Open**,
 and no match is a "Couldn't find" toast.
+
+**Stop** (every Jarvis prompt: the field, Chat's box, the panel, Advice):
+while a request runs the send button is a Stop button (Esc too), which
+calls it off so Jarvis doesn't do it. The browser gives each request a
+`requestId` (`useCancelRequest`, `hooks/use-cancel-request.ts`);
+`cancelAssistant` aborts it on the server (`cancel.server.ts`: an
+in-memory map of abort controllers; `runAgent` / `callModel` take the
+`signal`). The model call is dropped, no further tool runs, **what the
+request had already changed is undone** (`undoRunEverywhere`) and nothing
+is saved or logged (`CancelledError`). The text goes back into the box.
+Only Stop cancels: a browser that just goes away still lets the turn end.
 
 **Saved as chats**: every Ask Jarvis request that reached the model is
 also saved as a new Chat conversation (`saveTurn` in `chat.server.ts`,
@@ -788,7 +804,13 @@ contacts, with Undo.
 ### Chat (`/chat`)
 
 The last navbar app (`APPS`), for asking about anything stored. One
-conversation per `?c=<id>` (none = new); the list on the left (a dropdown
+conversation per `?c=<id>` (none = new). **Leaving Chat and coming back
+reopens the conversation that was open** (`lastConversation` /
+`rememberConversation` in `lib/chat.ts`, localStorage `chat:conversation`:
+the route's `beforeLoad` redirects to it in the browser, `ChatPage` does on
+a server-rendered load); "New chat" (and Ctrl+Shift+O) forgets it, so
+always start one through `openConversation()` / `rememberConversation(null)`.
+The list on the left (a dropdown
 below `md`), latest first, with a hover delete (confirm, `d` `d`). The
 thread uses shadcn's `message`, `bubble`, `marker` and `message-scroller`
 (`components/chat/chat-thread.tsx`; no scroll anchors: it follows the
@@ -851,16 +873,35 @@ per week, in its first day there, `span × 100%` wide over the next cells
 days it covers keep an empty lane. A strip cut by the week edge is squared
 off on that side.
 
-- **Adding**: drag over days (pointer events on the cells; the day under
-  the pointer is found with `elementFromPoint`, so it works for touch too)
-  or click one day; with the keyboard, Enter / Space on a day starts a
-  range, moving extends it, Enter again adds it (Esc cancels); `a` adds on
-  the focused day (or the range). Either way the dialog
-  (`event-dialog.tsx`) opens: Name (optional), Colour (15 swatches,
-  shadcn `ToggleGroup`; a new strip starts with the colour last used,
-  `calendar:color` in localStorage) and Days (a range `Calendar`). Only the
-  days are required. Clicking a strip edits it (change any of it,
-  Delete confirms, `d` `d`).
+- **Adding**: by picking days on the grid (there is no "New" button).
+  Mouse: drag over days (pointer events on the cells; the day under the
+  pointer is found with `elementFromPoint`) or click one day. Touch: tap
+  the first day, then the last (the same day again = one day; a badge over
+  the grid says so, with Cancel; the anchor survives changing month).
+  Keyboard: Enter / Space on a day starts a range, moving extends it,
+  Enter again adds it (Esc cancels); `a` adds on the focused day (or the
+  range). Either way the dialog (`event-dialog.tsx`) opens: Name
+  (optional) and Colour (15 swatches, shadcn `ToggleGroup`; a new strip
+  starts with the colour last used, `calendar:color` in localStorage). It
+  has **no day picker**: the days come from the grid and are shown in its
+  description.
+- **Moving and resizing** (`src/hooks/calendar/use-strip-edit.ts`, pointer
+  events; tasks' strips don't move). Mouse: drag a strip to move it; a
+  click selects it (ring + a handle at each end: `StripHandle`,
+  `touch-none`, drag one to resize; a click on the selected strip, or
+  Enter, edits it; `d` / Delete deletes it; Esc or a press elsewhere lets
+  go). Touch: hold a strip `HOLD_MS` (300 ms) to grab it, then drag to
+  move it; let go without dragging and it's selected (handles as above).
+  While dragging the strip is laid out where it would land (`preview`
+  overrides its days in the `strips` memo); letting go saves optimistically
+  (`updateEvent`). The day under the pointer is the `td[data-day]` in
+  `elementsFromPoint` (a strip overlaps other days' cells). A grabbed strip
+  sets `busy`, which stops the page scrolling (non-passive `touchmove`) and
+  the month swipe; strips are `data-no-swipe`.
+- **Strip menu** (`strip-menu.tsx`): right click, or on touch holding
+  `MENU_MS` (900 ms, longer than the grab) without dragging: Edit…, Colour
+  (the swatches) and Delete. Base UI's `Menu` primitives anchored at the
+  point (opened from code, so not shadcn's `ContextMenu`), shadcn's items.
 - **Reminders**: with ntfy set up, every strip is pushed the day before
   it starts ("Tomorrow", or "Tomorrow, until Sun 16 Nov (3 days)"; a tap
   opens `/calendar`), from `STRIP_REMIND_HOUR` (09:00) in the server's
@@ -892,8 +933,7 @@ off on that side.
   going on over days with nothing to do (else a task, never both).
 - Not (yet) in the global search or `@` references. `AssistantBox`
   `phonesOnly` (the field on phones only; the grid gets the room). A
-  finger only taps a day (no range drag; the dialog sets the range), so a
-  sideways swipe switches app. Its ⋮ menu
+  finger only taps days (no range drag), so a sideways swipe switches app. Its ⋮ menu
   (`calendar-menu.tsx`) has Settings, Assistant history and Install.
 
 ### Finances (`/finances`)
@@ -1057,6 +1097,34 @@ names its database).
 
 ### Keyboard
 
+**Every shortcut can be changed in the app.** `src/lib/shortcuts.ts` lists
+them all (`SHORTCUT_DEFS`: id → scope, default key, label; e.g.
+`tree.down`, `global.search`, `calendar.today`); the user's own keys are in
+localStorage (`shortcuts`: id → key, per browser, like the theme) and are
+changed in the shortcuts dialog (`?`): click a key, press the new one (Esc
+cancels, the arrow puts the default back, "Reset all" at the bottom; two
+live shortcuts on one changed key show "Same key as…"). A key is written
+`j`, `G` (Shift+g), `Ctrl+k`, `Ctrl+O` (Ctrl+Shift+o), `Alt+h` (`comboOf`).
+Enter, Esc, Tab, the arrows and the digits are fixed. Rules:
+
+- Handlers never compare `e.key` to a shortcut's letter. One shortcut:
+  `isShortcut(e, id)` (a key without Ctrl / Alt never counts while typing
+  in a field). A `switch`: `shortcutKey(e, scopes)`, which returns the
+  **default** key of the shortcut the pressed key is bound to, so cases
+  stay written with the defaults (`case 'j':`); a default key whose
+  shortcut moved elsewhere returns null. The default keys of the scopes
+  passed together must be unique.
+- Hints never spell a key: `<ShortcutKey id="…" />`
+  (`components/shortcut-key.tsx`) in buttons and text,
+  `useShortcutLabel(s)` for `title`s.
+- The help is one shared dialog (`components/shortcuts-dialog.tsx`,
+  `ShortcutsHelp`); each app's `shortcuts-dialog.tsx` only lists its
+  groups: rows with an `id` (changeable) and / or fixed `keys`.
+- A new shortcut: add it to `SHORTCUT_DEFS`, handle it through the two
+  functions above, and list it in the app's dialog.
+
+The keys below are the defaults.
+
 - Switch apps: `Alt+L` next, `Alt+H` previous, from anywhere (even
   while typing; not with a dialog / menu open). Wraps around; order
   follows `APPS`. One listener in `AppSwitcher` (`appSwitchStep` in
@@ -1131,8 +1199,8 @@ names its database).
   `components/calendar/day-keys.ts`, shared with the month grid);
   Ctrl+Enter saves from anywhere in it (caught in capture on the form).
 - Delete confirmations (every app): `d` presses Delete, so `d` `d`
-  deletes (`useConfirmKey` in `src/hooks/use-confirm-key.ts`; repeats of a
-  held key are ignored).
+  deletes (`useConfirmKey` in `src/hooks/use-confirm-key.ts`, the
+  `global.confirm` shortcut; repeats of a held key are ignored).
 - `z` opens the global search on every app (`useGlobalSearch`).
 - **Ctrl+Enter** (⌘ on macOS) submits every form from any field
   (`submitOnModEnter` in `src/lib/submit-shortcut.ts`, as the `<form>`'s
@@ -1167,8 +1235,8 @@ names its database).
   (opening it), below `xl` it opens a new chat in Chat; the message box
   gets focus (`focusChatComposer`, `[data-chat-composer]`).
 - `?` (or the header keyboard button) opens the app's shortcuts help
-  (`src/components/<app>/shortcuts-dialog.tsx`) — keep its list in sync
-  when adding or changing a shortcut.
+  (`src/components/<app>/shortcuts-dialog.tsx`), where the keys are also
+  changed — keep its list in sync when adding or changing a shortcut.
 - In search: `Enter`/`↓` jumps to the first row, `Esc` clears.
 - All of it is off while a dialog is open or while typing in a field.
 
@@ -1208,7 +1276,10 @@ publishes the image to `ghcr.io/<owner>/<repo>` (i.e. `ghcr.io/liteblusky/essent
 (amd64 + arm64). Keep `.dockerignore` excluding `data/` and `.env*` so
 personal data never lands in an image. Deploy steps for Docker, Windows,
 Linux, macOS and NixOS are in the README — keep them in sync when changing
-any of this.
+any of this. The **README is the user guide** (what the app is, installing,
+deploying, running, configuring); everything for developers (stack,
+commands, layout, migrations, releasing) is in `DEVELOPMENT.md`, linked
+from it: keep developer content out of the README.
 
 ## Skill loading (TanStack Intent)
 

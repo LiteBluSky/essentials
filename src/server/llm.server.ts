@@ -109,6 +109,8 @@ export function callModel(
     webSearch?: boolean
     /** Streams the answer: called with each piece of text as it comes. */
     onText?: (delta: string) => void
+    /** Aborts the call (the user cancelled the request). */
+    signal?: AbortSignal
   },
 ): Promise<ModelReply> {
   return config.provider === 'anthropic'
@@ -175,7 +177,14 @@ function toOpenAi(turns: Array<Turn>) {
 
 async function callOpenAi(
   config: LlmConfig,
-  { system, turns, tools, webSearch, onText }: Parameters<typeof callModel>[1],
+  {
+    system,
+    turns,
+    tools,
+    webSearch,
+    onText,
+    signal,
+  }: Parameters<typeof callModel>[1],
 ): Promise<ModelReply> {
   const openRouter = new URL(config.baseUrl).hostname.endsWith('openrouter.ai')
   if (webSearch && !openRouter) {
@@ -205,7 +214,9 @@ async function callOpenAi(
       ...(webSearch && { plugins: [{ id: 'web', max_results: 5 }] }),
       ...(onText && { stream: true, stream_options: { include_usage: true } }),
     }),
-    signal: AbortSignal.timeout(90_000),
+    signal: signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(90_000)])
+      : AbortSignal.timeout(90_000),
   })
   if (!res.ok) {
     const detail = (await res.text()).slice(0, 300)
@@ -405,7 +416,14 @@ function toAnthropic(
 
 async function callAnthropic(
   config: LlmConfig,
-  { system, turns, tools, webSearch, onText }: Parameters<typeof callModel>[1],
+  {
+    system,
+    turns,
+    tools,
+    webSearch,
+    onText,
+    signal,
+  }: Parameters<typeof callModel>[1],
 ): Promise<ModelReply> {
   const client = new Anthropic({ apiKey: config.key, timeout: 90_000 })
   const fallback = TAKES_FALLBACK.test(config.model)
@@ -455,11 +473,11 @@ async function callAnthropic(
     } satisfies Anthropic.Beta.MessageCreateParamsNonStreaming
     let part: Anthropic.Beta.BetaMessage
     if (onText) {
-      const stream = client.beta.messages.stream(params)
+      const stream = client.beta.messages.stream(params, { signal })
       stream.on('text', (delta) => onText(delta))
       part = await stream.finalMessage()
     } else {
-      part = await client.beta.messages.create(params)
+      part = await client.beta.messages.create(params, { signal })
     }
     responses.push(part)
     content.push(...part.content)

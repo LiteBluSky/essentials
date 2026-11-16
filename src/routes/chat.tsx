@@ -4,7 +4,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { format, isToday } from 'date-fns'
 import {
   ChevronDownIcon,
@@ -27,7 +27,7 @@ import {
   ChatThread,
   streamInto,
 } from '@/components/chat/chat-thread'
-import { refreshKey } from '@/lib/chat'
+import { lastConversation, refreshKey, rememberConversation } from '@/lib/chat'
 import { streamChatMessage } from '@/lib/chat-stream'
 import type { PendingMessage } from '@/components/chat/chat-thread'
 import { GlobalSearch } from '@/components/global-search'
@@ -60,8 +60,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty'
-import { Kbd } from '@/components/ui/kbd'
 import { toast } from '@/components/ui/toast'
+import { useCancelRequest } from '@/hooks/use-cancel-request'
 import type { ChatConversation } from '@/db/schema'
 import { useConfirmKey } from '@/hooks/use-confirm-key'
 import { APP_NAME } from '@/lib/config'
@@ -76,12 +76,34 @@ import {
   deleteConversation,
 } from '@/server/chat.functions'
 import { ASSISTANT_NAME } from '@/lib/assistant'
-import { focusChatComposer, isNewChatKey } from '@/lib/shortcuts'
+import {
+  focusChatComposer,
+  isNewChatKey,
+  isShortcut,
+  shortcutKey,
+  useShortcutLabels,
+} from '@/lib/shortcuts'
+import { ShortcutKey } from '@/components/shortcut-key'
 
 // The Chat app: talk to the assistant about anything stored in the other
-// apps. `?c=<id>` is the open conversation (none = a new one).
+// apps. `?c=<id>` is the open conversation (none = a new one). Coming back
+// to Chat without one reopens the conversation that was open last
+// (`lastConversation`, per browser) until "New chat" starts another.
 export const Route = createFileRoute('/chat')({
   validateSearch: z.object({ c: z.number().int().positive().optional() }),
+  beforeLoad: async ({ search, context }) => {
+    // In the browser only (the server can't know; ChatPage does it then).
+    if (typeof window === 'undefined' || search.c !== undefined) return
+    const last = lastConversation()
+    if (last === null) return
+    const conversations = await context.queryClient.ensureQueryData(
+      chatConversationsQueryOptions,
+    )
+    if (conversations.some((c) => c.id === last)) {
+      throw redirect({ to: '/chat', search: { c: last }, replace: true })
+    }
+    rememberConversation(null) // Deleted or expired meanwhile.
+  },
   loaderDeps: ({ search }) => ({ c: search.c }),
   loader: ({ context, deps }) =>
     Promise.all([
@@ -104,6 +126,7 @@ function isTyping(target: EventTarget | null) {
 }
 
 function ChatPage() {
+  const keyLabel = useShortcutLabels()
   const queryClient = useQueryClient()
   const navigate = useNavigate({ from: '/chat' })
   const { c: conversationId } = Route.useSearch()
@@ -124,11 +147,43 @@ function ChatPage() {
   const dialogOpen = settingsOpen || searchOpen || helpOpen || toDelete !== null
   const current = conversations.find((c) => c.id === conversationId)
 
-  const openConversation = (id?: number) =>
+  const openConversation = (id?: number) => {
+    // No id = "New chat": don't come back to the old one.
+    rememberConversation(id ?? null)
     void navigate({ search: id === undefined ? {} : { c: id } })
+  }
 
+  // The open conversation is the one to come back to. Loaded straight from
+  // the server without one (a reload, the installed app starting on Chat):
+  // reopen the last one here, since `beforeLoad` only knows it in the browser.
+  const restored = useRef(false)
+  useEffect(() => {
+    if (conversationId !== undefined) {
+      restored.current = true
+      rememberConversation(conversationId)
+      return
+    }
+    if (restored.current) return
+    restored.current = true
+    const last = lastConversation()
+    if (last !== null && conversations.some((c) => c.id === last)) {
+      void navigate({ search: { c: last }, replace: true })
+    }
+  }, [conversationId])
+
+  const request = useCancelRequest()
   const send = useMutation({
-    mutationFn: ({ text, webSearch }: { text: string; webSearch: boolean }) =>
+    mutationFn: ({
+      text,
+      webSearch,
+      requestId,
+      signal,
+    }: {
+      text: string
+      webSearch: boolean
+      requestId: string
+      signal: AbortSignal
+    }) =>
       streamChatMessage(
         {
           conversationId: conversationId ?? null,
@@ -136,17 +191,21 @@ function ChatPage() {
           now: new Date().toISOString(),
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           webSearch,
+          requestId,
         },
         (event) => setPending((p) => streamInto(p, event)),
+        signal,
       ),
   })
 
   const onSend = async (text: string, webSearch: boolean) => {
     setPending({ text, answer: '', tool: null })
+    const started = request.start()
     try {
       const { conversationId: id, apps } = await send.mutateAsync({
         text,
         webSearch,
+        ...started,
       })
       // Load the saved conversation before dropping the pending bubble.
       await queryClient.fetchQuery({
@@ -161,6 +220,11 @@ function ChatPage() {
       }
       return true
     } catch (error) {
+      // Stopped by the user: the message goes back into the box.
+      if (request.wasCancelled(started.requestId)) {
+        toast.add({ title: 'Cancelled', description: 'Nothing was done.' })
+        return false
+      }
       toast.add({
         title: "Couldn't send that",
         description: error instanceof Error ? error.message : String(error),
@@ -168,6 +232,7 @@ function ChatPage() {
       })
       return false
     } finally {
+      request.finish(started.requestId)
       setPending(null)
     }
   }
@@ -197,11 +262,23 @@ function ChatPage() {
   useEffect(() => {
     if (dialogOpen) return
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
-      if (isTyping(e.target)) return
+      if (e.defaultPrevented || isTyping(e.target)) return
+      if (isShortcut(e, 'global.globalSearch')) {
+        e.preventDefault()
+        setSearchOpen(true)
+        return
+      }
+      if (isShortcut(e, 'global.help')) {
+        e.preventDefault()
+        setHelpOpen(true)
+        return
+      }
+      // The keys can be changed: `key` is the shortcut's default key.
+      const key = shortcutKey(e, ['chat'])
+      if (key === null) return
       // Arrows scroll the conversation when it has focus (j/k still step).
       if (
-        (e.key === 'ArrowDown' || e.key === 'ArrowUp') &&
+        (key === 'ArrowDown' || key === 'ArrowUp') &&
         e.target instanceof Element &&
         e.target.closest('[data-slot=message-scroller-viewport]')
       ) {
@@ -216,7 +293,7 @@ function ChatPage() {
           openConversation(target.id)
         }
       }
-      switch (e.key) {
+      switch (key) {
         case 'j':
         case 'ArrowDown':
           go(Math.min(index + 1, conversations.length - 1))
@@ -246,14 +323,6 @@ function ChatPage() {
         case 'a':
           e.preventDefault()
           openConversation()
-          break
-        case 'z':
-          e.preventDefault()
-          setSearchOpen(true)
-          break
-        case '?':
-          e.preventDefault()
-          setHelpOpen(true)
           break
       }
     }
@@ -286,7 +355,7 @@ function ChatPage() {
   const empty = !shown.length && !pending
 
   return (
-    <main className="mx-auto flex h-dvh w-full max-w-5xl flex-col gap-4 px-4 py-4 sm:py-8">
+    <main className="mx-auto flex h-dvh w-full max-w-5xl flex-col gap-4 px-4 pt-8 pb-4 sm:pb-8">
       <header className="flex items-center justify-between gap-4 max-lg:flex-col max-lg:items-stretch">
         <AppNav />
         <div className="flex justify-between gap-2">
@@ -299,14 +368,14 @@ function ChatPage() {
           >
             <MessageSquarePlusIcon data-icon="inline-start" />
             <span className="max-lg:hidden">New chat</span>
-            <Kbd className="max-lg:hidden">a</Kbd>
+            <ShortcutKey id="chat.new" className="max-lg:hidden" />
           </Button>
           <ButtonGroup aria-label="Settings">
             <Button
               variant="outline"
               size="icon"
               aria-label="Search everything"
-              title="Search everything (z)"
+              title={`Search everything (${keyLabel('global.globalSearch')})`}
               onClick={() => setSearchOpen(true)}
             >
               <SearchIcon />
@@ -319,7 +388,7 @@ function ChatPage() {
               variant="outline"
               size="icon"
               aria-label="Keyboard shortcuts"
-              title="Keyboard shortcuts (?)"
+              title={`Keyboard shortcuts (${keyLabel('global.help')})`}
               onClick={() => setHelpOpen(true)}
             >
               <KeyboardIcon />
@@ -436,6 +505,7 @@ function ChatPage() {
             <ChatComposer
               busy={send.isPending}
               onSend={onSend}
+              onCancel={() => request.cancel()}
               enabled={!dialogOpen}
             />
           </section>
@@ -515,7 +585,7 @@ function DeleteConfirm({
   pending: boolean
   onDelete: () => void
 }) {
-  useConfirmKey('d', () => {
+  useConfirmKey(() => {
     if (!pending) onDelete()
   })
   return (
@@ -535,7 +605,7 @@ function DeleteConfirm({
           onClick={onDelete}
         >
           Delete
-          <Kbd>d</Kbd>
+          <ShortcutKey id="global.confirm" />
         </AlertDialogAction>
       </AlertDialogFooter>
     </>

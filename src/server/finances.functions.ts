@@ -1,6 +1,8 @@
 import { queryOptions } from '@tanstack/react-query'
 import { createServerFn } from '@tanstack/react-start'
 
+import { trackRequest } from './cancel.server'
+
 import {
   adviceInput,
   budgetInput,
@@ -117,7 +119,19 @@ export const deleteSaving = createServerFn({ method: 'POST' })
 
 export const askFinanceAdvice = createServerFn({ method: 'POST' })
   .validator(adviceInput)
-  .handler(({ data }) => getAdvice(data.question, data.month, data.webSearch))
+  .handler(async ({ data }) => {
+    const tracked = trackRequest(data.requestId)
+    try {
+      return await getAdvice(
+        data.question,
+        data.month,
+        data.webSearch,
+        tracked.signal,
+      )
+    } finally {
+      tracked.done()
+    }
+  })
 
 /** A recurring expense / income that fell due: accept = add it as an
  * entry on its day; skip = drop it. */

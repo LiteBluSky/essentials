@@ -49,7 +49,6 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from '@/components/ui/input-group'
-import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { Separator } from '@/components/ui/separator'
 import { useCompleteTask } from '@/hooks/tasks/use-complete-task'
 import { useCutTask } from '@/hooks/tasks/use-cut-task'
@@ -59,8 +58,7 @@ import { useTreeKeyboard } from '@/hooks/tasks/use-tree-keyboard'
 import { useExpandedFolders } from '@/hooks/use-expanded-folders'
 import { useGlobalSearch } from '@/hooks/use-global-search'
 import { APP_NAME } from '@/lib/config'
-import { MOD_LABEL, SHORTCUTS, useShortcuts } from '@/lib/shortcuts'
-import type { ShortcutName } from '@/lib/shortcuts'
+import { useShortcutLabels, useShortcuts } from '@/lib/shortcuts'
 import type { TaskInput } from '@/lib/tasks/schemas'
 import {
   buildTree,
@@ -77,6 +75,7 @@ import {
 import { databasesQueryOptions } from '@/server/databases.functions'
 import { assistantEnabledQueryOptions } from '@/server/assistant.functions'
 import { tasksTreeQueryOptions } from '@/server/tasks.functions'
+import { ShortcutKey } from '@/components/shortcut-key'
 
 export const Route = createFileRoute('/tasks')({
   // `?day=YYYY-MM-DD` (from the Calendar's `o`): open filtered to that day.
@@ -98,6 +97,7 @@ export const Route = createFileRoute('/tasks')({
 })
 
 function Home() {
+  const keyLabel = useShortcutLabels()
   const queryClient = useQueryClient()
   const { data } = useSuspenseQuery(tasksTreeQueryOptions)
   const tree = useMemo(() => buildTree(data.folders, data.tasks), [data])
@@ -258,8 +258,8 @@ function Home() {
   // Disabled while a dialog is open so shortcuts don't stack editors.
   useShortcuts(
     {
-      search: focusSearch,
-      newFolder: () => openEditor({ kind: 'folder', parentId: null }),
+      'global.search': focusSearch,
+      'global.newFolder': () => openEditor({ kind: 'folder', parentId: null }),
     },
     !dialogOpen,
   )
@@ -287,7 +287,7 @@ function Home() {
             >
               <FolderPlusIcon data-icon="inline-start" />
               <span className="max-lg:hidden">Folder</span>
-              <ShortcutHint name="newFolder" />
+              <ShortcutKey id="global.newFolder" className="max-lg:hidden" />
             </Button>
             <Button
               aria-label="New task"
@@ -296,7 +296,7 @@ function Home() {
             >
               <PlusIcon data-icon="inline-start" />
               <span className="max-lg:hidden">Task</span>
-              <Kbd className="max-lg:hidden">a</Kbd>
+              <ShortcutKey id="tree.new" className="max-lg:hidden" />
             </Button>
           </div>
           <ButtonGroup aria-label="Settings">
@@ -304,7 +304,7 @@ function Home() {
               variant="outline"
               size="icon"
               aria-label="Search everything"
-              title="Search everything (z)"
+              title={`Search everything (${keyLabel('global.globalSearch')})`}
               onClick={() => globalSearch.setOpen(true)}
             >
               <SearchIcon />
@@ -313,7 +313,7 @@ function Home() {
               variant="outline"
               size="icon"
               aria-label="Calendar"
-              title="Calendar (i)"
+              title={`Calendar (${keyLabel('tasks.calendar')})`}
               onClick={() => setCalendarOpen(true)}
             >
               <CalendarDaysIcon />
@@ -323,7 +323,7 @@ function Home() {
               variant="outline"
               size="icon"
               aria-label="Keyboard shortcuts"
-              title="Keyboard shortcuts (?)"
+              title={`Keyboard shortcuts (${keyLabel('global.help')})`}
               onClick={() => setHelpOpen(true)}
             >
               <KeyboardIcon />
@@ -378,20 +378,20 @@ function Home() {
           />
           {!searching && (
             <InputGroupAddon align="inline-end">
-              <ShortcutHint name="search" />
+              <ShortcutKey id="global.search" className="max-lg:hidden" />
             </InputGroupAddon>
           )}
         </InputGroup>
         {day && (
           <Button
             variant="secondary"
-            title="Clear the date filter (q)"
+            title={`Clear the date filter (${keyLabel('tree.clearSearch')})`}
             aria-label={`Showing tasks dated ${day}. Clear the date filter`}
             onClick={() => setDay(null)}
           >
             <CalendarIcon data-icon="inline-start" />
             {format(parseISO(day), 'd MMM yyyy')}
-            <Kbd className="max-lg:hidden">q</Kbd>
+            <ShortcutKey id="tree.clearSearch" className="max-lg:hidden" />
             <XIcon data-icon="inline-end" />
           </Button>
         )}
@@ -400,7 +400,7 @@ function Home() {
             <ViewButton
               active={view.status === 'open'}
               onClick={() => setStatus('open')}
-              title="Open tasks (t)"
+              title={`Open tasks (${keyLabel('tasks.showDone')})`}
             >
               <CircleIcon data-icon="inline-start" />
               Open
@@ -408,7 +408,7 @@ function Home() {
             <ViewButton
               active={view.status === 'done'}
               onClick={() => setStatus('done')}
-              title="Completed tasks (t)"
+              title={`Completed tasks (${keyLabel('tasks.showDone')})`}
             >
               <CircleCheckBigIcon data-icon="inline-start" />
               Done
@@ -418,7 +418,7 @@ function Home() {
             <ViewButton
               active={view.layout === 'folders'}
               onClick={() => setLayout('folders')}
-              title="Group in folders (v)"
+              title={`Group in folders (${keyLabel('tasks.layout')})`}
               aria-label="Folders"
             >
               <FolderTreeIcon />
@@ -426,7 +426,7 @@ function Home() {
             <ViewButton
               active={view.layout === 'list'}
               onClick={() => setLayout('list')}
-              title="One list, oldest first (v)"
+              title={`One list, oldest first (${keyLabel('tasks.layout')})`}
               aria-label="List"
             >
               <ListIcon />
@@ -445,7 +445,7 @@ function Home() {
             </EmptyMedia>
             <EmptyTitle>No tasks yet</EmptyTitle>
             <EmptyDescription>
-              Press <Kbd>a</Kbd> to add one.
+              Press <ShortcutKey id="tree.new" /> to add one.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
@@ -569,12 +569,3 @@ function ViewButton({
 
 /** Header buttons that show only their icon below `lg` (phones, folds, upright tablets). */
 const ICON_ON_PHONES = 'max-lg:w-8 max-lg:p-0!'
-
-function ShortcutHint({ name }: { name: ShortcutName }) {
-  return (
-    <KbdGroup className="max-lg:hidden">
-      <Kbd>{MOD_LABEL}</Kbd>
-      <Kbd>{SHORTCUTS[name].label}</Kbd>
-    </KbdGroup>
-  )
-}

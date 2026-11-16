@@ -1,63 +1,49 @@
-import { Fragment } from 'react'
-
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Kbd, KbdGroup } from '@/components/ui/kbd'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { COMMON, ShortcutsHelp } from '@/components/shortcuts-dialog'
+import type { ShortcutGroup } from '@/components/shortcuts-dialog'
 import { ASSISTANT_NAME } from '@/lib/assistant'
-import { NEW_CHAT_KEYS } from '@/lib/shortcuts'
 
-// Each entry: alternative key combos (joined with "or"), each a list of keys
-// pressed together or in sequence.
-type Shortcut = { keys: Array<Array<string>>; action: string }
+// Chat's shortcuts, as shown (and changed) in the shared dialog
+// (components/shortcuts-dialog.tsx). Rows with an `id` are shortcuts from
+// lib/shortcuts.ts: the dialog shows the key each is on now; `keys` are
+// fixed ones. Keep it in sync when adding or changing a shortcut.
 
-// Keep in sync with the keys handled in routes/chat.tsx and chat-thread.tsx.
-const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
+const GROUPS: Array<ShortcutGroup> = [
   {
     title: 'Conversations',
     shortcuts: [
-      { keys: [['j'], ['↓']], action: 'Next (older) conversation' },
-      { keys: [['k'], ['↑']], action: 'Previous (newer) conversation' },
-      { keys: [['g', 'g']], action: 'Latest conversation' },
-      { keys: [['G']], action: 'Oldest conversation' },
-      { keys: [['a']], action: 'New chat' },
+      { id: 'chat.next', keys: [['↓']], action: 'Next (older) conversation' },
       {
-        keys: [['d'], ['Del']],
-        action: 'Delete the open conversation (d again confirms)',
+        id: 'chat.prev',
+        keys: [['↑']],
+        action: 'Previous (newer) conversation',
+      },
+      { id: 'chat.first', action: 'Latest conversation' },
+      { id: 'chat.last', action: 'Oldest conversation' },
+      { id: 'chat.new', action: 'New chat' },
+      {
+        id: 'chat.delete',
+        keys: [['Del']],
+        action: 'Delete the open conversation (asks first)',
       },
     ],
   },
   {
     title: 'Anywhere',
     shortcuts: [
-      { keys: [['s']], action: `Message ${ASSISTANT_NAME}` },
-      {
-        keys: [NEW_CHAT_KEYS],
-        action: `New chat with ${ASSISTANT_NAME}`,
-      },
-      { keys: [['z']], action: 'Search everything (all apps)' },
-      { keys: [['f']], action: 'Switch app (type its name, or pick it)' },
-      { keys: [['Shift', 'T']], action: 'Next theme (light, dark, system)' },
-      { keys: [['p']], action: 'Switch profile (database)' },
+      { id: 'global.assistant', action: `Message ${ASSISTANT_NAME}` },
+      COMMON.newChat,
+      COMMON.globalSearch,
+      COMMON.appSwitcher,
+      COMMON.theme,
+      COMMON.profile,
       {
         keys: [['@']],
         action: 'In the message box: link to a bookmark, note, task or contact',
       },
-      { keys: [['Alt', 'H']], action: 'Previous app' },
-      { keys: [['Alt', 'L']], action: 'Next app' },
-      { keys: [['?']], action: 'Show keyboard shortcuts' },
+      COMMON.prevApp,
+      COMMON.nextApp,
+      COMMON.help,
+      COMMON.confirm,
     ],
   },
   {
@@ -65,7 +51,11 @@ const GROUPS: Array<{ title: string; shortcuts: Array<Shortcut> }> = [
     shortcuts: [
       { keys: [['Enter']], action: 'Send' },
       { keys: [['Shift', 'Enter']], action: 'New line' },
-      { keys: [['Esc']], action: 'Leave the box (the keys above work again)' },
+      {
+        keys: [['Esc']],
+        action:
+          'Stop the answer being written; else leave the box (the keys above work again)',
+      },
     ],
   },
 ]
@@ -78,48 +68,11 @@ export function ShortcutsDialog({
   onOpenChange: (open: boolean) => void
 }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Keyboard shortcuts</DialogTitle>
-          <DialogDescription>
-            These are off while typing in the message box or while a dialog is
-            open.
-          </DialogDescription>
-        </DialogHeader>
-        {GROUPS.map((group) => (
-          <Table key={group.title}>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{group.title}</TableHead>
-                <TableHead className="text-right">Keys</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {group.shortcuts.map(({ keys, action }) => (
-                <TableRow key={action}>
-                  {/* Wrap the action so the keys always fit (no sideways scroll). */}
-                  <TableCell className="whitespace-normal">{action}</TableCell>
-                  <TableCell className="w-px text-right">
-                    <KbdGroup className="justify-end">
-                      {keys.map((combo, i) => (
-                        <Fragment key={combo.join('+')}>
-                          {i > 0 && (
-                            <span className="text-muted-foreground">or</span>
-                          )}
-                          {combo.map((key, j) => (
-                            <Kbd key={j}>{key}</Kbd>
-                          ))}
-                        </Fragment>
-                      ))}
-                    </KbdGroup>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ))}
-      </DialogContent>
-    </Dialog>
+    <ShortcutsHelp
+      open={open}
+      onOpenChange={onOpenChange}
+      groups={GROUPS}
+      description="Keys are off while typing a message or while a dialog is open."
+    />
   )
 }

@@ -195,6 +195,8 @@ export async function sendMessage(
   input: ChatInput,
   /** Streams the turn as it runs (see `/api/chat`). */
   onEvent?: (event: ChatStreamEvent) => void,
+  /** Aborted when the user cancels: nothing is saved (it throws). */
+  signal?: AbortSignal,
 ): Promise<ChatTurnResult> {
   const started = Date.now()
 
@@ -231,6 +233,7 @@ export async function sendMessage(
     timeZone: input.timeZone,
     webSearch: input.webSearch,
     onEvent,
+    signal,
   })
 
   const { message } = await saveTurn(conversationId, input.text, run)
