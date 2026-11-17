@@ -180,13 +180,16 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
 
   const onSend = async (text: string, webSearch: boolean) => {
     setPending({ text, answer: '', tool: null })
-    const started = request.start()
+    const started = request.start({ web: webSearch })
+    let conversation: number | null = null
+    let failure: string | undefined
     try {
       const { conversationId: id, apps } = await send.mutateAsync({
         text,
         webSearch,
         ...started,
       })
+      conversation = id
       await queryClient.fetchQuery({
         ...chatMessagesQueryOptions(id),
         staleTime: 0,
@@ -199,11 +202,10 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
       }
       return true
     } catch (error) {
-      // Stopped by the user: the message goes back into the box.
-      if (request.wasCancelled(started.requestId)) {
-        toast.add({ title: 'Cancelled', description: 'Nothing was done.' })
-        return false
-      }
+      // Stopped by the user (the Jarvis indicator says so): the message
+      // goes back into the box.
+      if (request.wasCancelled(started.requestId)) return false
+      failure = error instanceof Error ? error.message : String(error)
       toast.add({
         title: "Couldn't send that",
         description: error instanceof Error ? error.message : String(error),
@@ -211,7 +213,10 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
       })
       return false
     } finally {
-      request.finish(started.requestId)
+      request.finish(started.requestId, {
+        conversationId: conversation,
+        error: failure,
+      })
       setPending(null)
     }
   }

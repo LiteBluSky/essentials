@@ -62,6 +62,10 @@ export const COMMON = {
     keys: [['Esc']],
     action: 'Dismiss the notifications (the app keys wait while one shows)',
   },
+  stopJarvis: {
+    keys: [['Esc']],
+    action: `While ${ASSISTANT_NAME} works (the bar at the top): stop it, from any app`,
+  },
   reference: {
     keys: [['@']],
     action: 'In a text box: link to a bookmark, note, task or contact',

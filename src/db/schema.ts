@@ -307,6 +307,62 @@ export const contactsRelations = relations(contacts, ({ one }) => ({
   }),
 }))
 
+// ---- Passwords ------------------------------------------------------------
+
+// Same shape as the bookmark folders.
+export const passwordFolders = sqliteTable(
+  'password_folders',
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    name: text().notNull(),
+    parentId: integer('parent_id'),
+    position: integer().notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [
+    foreignKey({ columns: [t.parentId], foreignColumns: [t.id] }).onDelete(
+      'cascade',
+    ),
+    index('password_folders_parent_idx').on(t.parentId),
+  ],
+)
+
+// A saved login: `name`, `username` and `url` are plain text (the tree and
+// the search show them); `secret` is the password and notes, encrypted in
+// the browser with the master password's key (AES-256-GCM, see
+// lib/passwords/vault.ts), so the server only ever holds ciphertext.
+export const passwords = sqliteTable(
+  'passwords',
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    name: text().notNull(),
+    username: text().notNull().default(''),
+    url: text().notNull().default(''),
+    secret: text().notNull(),
+    folderId: integer('folder_id').references(() => passwordFolders.id, {
+      onDelete: 'cascade',
+    }),
+    position: integer().notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [index('passwords_folder_idx').on(t.folderId)],
+)
+
+// The vault: one row (id 1) once a master password is set. `salt` and `kdf`
+// (scrypt's parameters, JSON) derive the key from the master password;
+// `check` is a known text sealed with that key, to tell a wrong master
+// password apart. The master password and the key never leave the browser.
+export const passwordVault = sqliteTable('password_vault', {
+  id: integer().primaryKey(),
+  salt: text().notNull(),
+  kdf: text().notNull(),
+  check: text().notNull(),
+  ...timestamps,
+})
+
+export type Password = typeof passwords.$inferSelect
+export type PasswordVault = typeof passwordVault.$inferSelect
+
 // Every app's folders share a shape, so one type serves them all.
 export type Folder = typeof folders.$inferSelect
 export type NewFolder = typeof folders.$inferInsert
@@ -399,6 +455,8 @@ export const assistantChanges = sqliteTable(
 export const chatConversations = sqliteTable('chat_conversations', {
   id: integer().primaryKey({ autoIncrement: true }),
   title: text().notNull(),
+  /** Set = pinned: listed first and never deleted for being idle. */
+  pinnedAt: integer('pinned_at', { mode: 'timestamp' }),
   ...timestamps,
 })
 

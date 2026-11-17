@@ -18,7 +18,11 @@ export const referenceInput = z.object({
 })
 export type ReferenceInput = z.infer<typeof referenceInput>
 
-export type SearchApp = 'bookmarks' | 'notes' | 'tasks' | 'contacts'
+export type SearchApp =
+  'bookmarks' | 'notes' | 'tasks' | 'contacts' | 'passwords'
+
+/** The apps Jarvis and `@` references reach: all but Passwords. */
+export type JarvisApp = Exclude<SearchApp, 'passwords'>
 
 export type SearchResult = {
   kind: 'folder' | 'item'

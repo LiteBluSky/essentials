@@ -11,6 +11,8 @@ import {
   KeyboardIcon,
   MessageSquarePlusIcon,
   MessagesSquareIcon,
+  PinIcon,
+  PinOffIcon,
   SearchIcon,
   SettingsIcon,
   Trash2Icon,
@@ -74,6 +76,7 @@ import {
   chatConversationsQueryOptions,
   chatMessagesQueryOptions,
   deleteConversation,
+  setConversationPinned,
 } from '@/server/chat.functions'
 import { ASSISTANT_NAME } from '@/lib/assistant'
 import {
@@ -200,13 +203,16 @@ function ChatPage() {
 
   const onSend = async (text: string, webSearch: boolean) => {
     setPending({ text, answer: '', tool: null })
-    const started = request.start()
+    const started = request.start({ web: webSearch })
+    let conversation: number | null = null
+    let failure: string | undefined
     try {
       const { conversationId: id, apps } = await send.mutateAsync({
         text,
         webSearch,
         ...started,
       })
+      conversation = id
       // Load the saved conversation before dropping the pending bubble.
       await queryClient.fetchQuery({
         ...chatMessagesQueryOptions(id),
@@ -220,11 +226,10 @@ function ChatPage() {
       }
       return true
     } catch (error) {
-      // Stopped by the user: the message goes back into the box.
-      if (request.wasCancelled(started.requestId)) {
-        toast.add({ title: 'Cancelled', description: 'Nothing was done.' })
-        return false
-      }
+      // Stopped by the user (the Jarvis indicator says so): the message
+      // goes back into the box.
+      if (request.wasCancelled(started.requestId)) return false
+      failure = error instanceof Error ? error.message : String(error)
       toast.add({
         title: "Couldn't send that",
         description: error instanceof Error ? error.message : String(error),
@@ -232,7 +237,10 @@ function ChatPage() {
       })
       return false
     } finally {
-      request.finish(started.requestId)
+      request.finish(started.requestId, {
+        conversationId: conversation,
+        error: failure,
+      })
       setPending(null)
     }
   }
@@ -254,10 +262,34 @@ function ChatPage() {
       }),
   })
 
+  const pin = useMutation({
+    mutationFn: (conversation: ChatConversation) =>
+      setConversationPinned({
+        data: { id: conversation.id, pinned: !conversation.pinnedAt },
+      }),
+    onSuccess: async (_, conversation) => {
+      await queryClient.invalidateQueries(chatConversationsQueryOptions)
+      toast.add({
+        title: conversation.pinnedAt ? 'Unpinned' : 'Pinned',
+        description: conversation.pinnedAt
+          ? undefined
+          : 'It stays at the top and is kept.',
+        type: 'success',
+      })
+    },
+    onError: (error) =>
+      toast.add({
+        title: "Couldn't pin that",
+        description: error.message,
+        type: 'error',
+      }),
+  })
+
   // Keys (while not typing and no dialog is open; listed in
   // chat/shortcuts-dialog.tsx): j/k (↓/↑) step through the conversations,
-  // gg/G latest/oldest, a new chat, d/Delete delete the open one (d again
-  // confirms), z search everything, Alt+H/L switch apps, ? help.
+  // gg/G latest/oldest, a new chat, P pin / unpin the open one, d/Delete
+  // delete it (d again confirms), z search everything, Alt+H/L switch apps,
+  // ? help.
   const lastG = useRef(0)
   useEffect(() => {
     if (dialogOpen) return
@@ -323,6 +355,12 @@ function ChatPage() {
         case 'a':
           e.preventDefault()
           openConversation()
+          break
+        case 'P':
+          if (current && !pin.isPending) {
+            e.preventDefault()
+            pin.mutate(current)
+          }
           break
       }
     }
@@ -431,6 +469,7 @@ function ChatPage() {
                   conversation={conversation}
                   active={conversation.id === conversationId}
                   onOpen={() => openConversation(conversation.id)}
+                  onPin={() => pin.mutate(conversation)}
                   onDelete={() => setToDelete(conversation)}
                 />
               ))}
@@ -461,12 +500,27 @@ function ChatPage() {
                           key={conversation.id}
                           onClick={() => openConversation(conversation.id)}
                         >
+                          {conversation.pinnedAt && (
+                            <PinIcon aria-label="Pinned" />
+                          )}
                           <span className="truncate">{conversation.title}</span>
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                {current && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    aria-label={current.pinnedAt ? 'Unpin' : 'Pin'}
+                    aria-pressed={current.pinnedAt !== null}
+                    disabled={pin.isPending}
+                    onClick={() => pin.mutate(current)}
+                  >
+                    {current.pinnedAt ? <PinOffIcon /> : <PinIcon />}
+                  </Button>
+                )}
                 {current && (
                   <Button
                     variant="outline"
@@ -537,13 +591,16 @@ function ConversationRow({
   conversation,
   active,
   onOpen,
+  onPin,
   onDelete,
 }: {
   conversation: ChatConversation
   active: boolean
   onOpen: () => void
+  onPin: () => void
   onDelete: () => void
 }) {
+  const pinned = conversation.pinnedAt !== null
   return (
     <div
       className="group/row flex items-center gap-0.5"
@@ -556,12 +613,23 @@ function ConversationRow({
         onClick={onOpen}
       >
         <span className="w-full truncate text-left">{conversation.title}</span>
-        <span className="text-xs font-normal text-muted-foreground">
+        <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
+          {pinned && <PinIcon aria-label="Pinned" className="size-3" />}
           {format(
             conversation.updatedAt,
             isToday(conversation.updatedAt) ? 'HH:mm' : 'd MMM',
           )}
         </span>
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={`${pinned ? 'Unpin' : 'Pin'} “${conversation.title}”`}
+        aria-pressed={pinned}
+        className="opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100"
+        onClick={onPin}
+      >
+        {pinned ? <PinOffIcon /> : <PinIcon />}
       </Button>
       <Button
         variant="ghost"

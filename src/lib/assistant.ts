@@ -40,6 +40,8 @@ export type AssistantItem = (
 /** Something asked for ("open my packing list") and the best match, if any. */
 export type AssistantFound = {
   query: string
+  /** `passwords` only from find_password (opened for the user, who sees
+   * the password in the app; Jarvis never does). */
   match: (SearchResult & { app: SearchApp }) | null
   /** The profile it was found in, when not the one in use. */
   database?: string

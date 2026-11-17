@@ -72,6 +72,7 @@ export function GlobalSearch({
       notes: [],
       tasks: [],
       contacts: [],
+      passwords: [],
     }
     if (!results.data) return out
     for (const app of Object.keys(out) as Array<SearchApp>) {
@@ -117,7 +118,7 @@ export function GlobalSearch({
       <DialogHeader className="sr-only">
         <DialogTitle>Search everything</DialogTitle>
         <DialogDescription>
-          Find any folder, bookmark, note, task or contact.
+          Find any folder, bookmark, note, task, contact or password.
         </DialogDescription>
       </DialogHeader>
       <DialogContent
@@ -128,7 +129,7 @@ export function GlobalSearch({
         {/* The server filters and ranks; cmdk only handles the keys. */}
         <Command shouldFilter={false}>
           <CommandInput
-            placeholder="Search bookmarks, notes, tasks and contacts…"
+            placeholder="Search bookmarks, notes, tasks, contacts and passwords…"
             value={query}
             onValueChange={setQuery}
           />

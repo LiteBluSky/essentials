@@ -56,14 +56,17 @@ function Advice({ month }: { month: string }) {
   const [webSearch, setWebSearch] = useState(false)
   const ref = useRef<HTMLTextAreaElement>(null)
 
-  const request = useCancelRequest()
+  const request = useCancelRequest(() => ask.reset())
   const ask = useMutation({
     mutationFn: ({ web, requestId }: { web: boolean; requestId: string }) =>
       askFinanceAdvice({
         data: { question, month, webSearch: web, requestId },
       }),
-    onSettled: (_data, _error, { requestId }) => {
-      request.finish(requestId)
+    onSettled: (data, error, { requestId }) => {
+      request.finish(requestId, {
+        conversationId: data?.conversationId ?? null,
+        error: error?.message,
+      })
       return Promise.all([
         queryClient.invalidateQueries(assistantHistoryQueryOptions),
         queryClient.invalidateQueries({ queryKey: ['chat'] }),
@@ -82,13 +85,16 @@ function Advice({ month }: { month: string }) {
 
   const submit = () => {
     if (ask.isPending) return
-    ask.mutate({ web: webSearch, requestId: request.start().requestId })
+    ask.mutate({
+      web: webSearch,
+      requestId: request.start({ web: webSearch }).requestId,
+    })
     setWebSearch(false)
   }
 
   // Stop: the question is called off and stays in the box.
   const cancel = () => {
-    if (ask.isPending && request.cancel()) ask.reset()
+    if (ask.isPending) request.cancel()
   }
   // Closing the dialog while it's thinking calls it off too.
   const cancelRef = useRef(cancel)

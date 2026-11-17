@@ -109,7 +109,13 @@ function AssistantField({ enabled }: { enabled: boolean }) {
   }, [enabled])
 
   const undo = useUndoRun()
-  const request = useCancelRequest()
+  // Stopped (here, by Esc or from the Jarvis indicator): the request is
+  // called off (what it had already changed is put back) and the sentence
+  // stays in the field, to fix and send again. The indicator says so.
+  const request = useCancelRequest(() => {
+    ask.reset()
+    requestAnimationFrame(() => ref.current?.focus())
+  })
   const ask = useMutation({
     mutationFn: ({
       sentence,
@@ -203,8 +209,11 @@ function AssistantField({ enabled }: { enabled: boolean }) {
       }
     },
     // Every request (failed ones too) is in the history, and saved as a chat.
-    onSettled: (_data, _error, { requestId }) => {
-      request.finish(requestId)
+    onSettled: (data, error, { requestId }) => {
+      request.finish(requestId, {
+        conversationId: data?.conversationId ?? null,
+        error: error?.message,
+      })
       return Promise.all([
         queryClient.invalidateQueries(assistantHistoryQueryOptions),
         queryClient.invalidateQueries({ queryKey: ['chat'] }),
@@ -221,13 +230,8 @@ function AssistantField({ enabled }: { enabled: boolean }) {
     },
   })
 
-  // Stop: the request is called off (what it had already changed is put
-  // back) and the sentence stays in the field, to fix and send again.
   const cancel = () => {
-    if (!ask.isPending || !request.cancel()) return
-    ask.reset()
-    toast.add({ title: 'Cancelled', description: 'Nothing was done.' })
-    requestAnimationFrame(() => ref.current?.focus())
+    if (ask.isPending) request.cancel()
   }
   const cancelRef = useRef(cancel)
   cancelRef.current = cancel
@@ -314,7 +318,7 @@ function AssistantField({ enabled }: { enabled: boolean }) {
     ask.mutate({
       sentence,
       web: webSearch,
-      requestId: request.start().requestId,
+      requestId: request.start({ web: webSearch }).requestId,
     })
     setWebSearch(false)
   }
@@ -462,6 +466,7 @@ const APP_LABEL = {
   notes: 'Notes',
   tasks: 'Tasks',
   contacts: 'Contacts',
+  passwords: 'Passwords',
 }
 
 function itemTitle(item: AssistantItem) {

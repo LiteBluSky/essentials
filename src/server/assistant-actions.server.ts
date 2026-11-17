@@ -4,7 +4,7 @@ import type {
   AssistantItem,
   AssistantResult,
 } from '@/lib/assistant'
-import type { SearchApp } from '@/lib/global-search'
+import type { JarvisApp, SearchApp } from '@/lib/global-search'
 import { DEFAULT_DUE_HOUR } from '@/lib/tasks/tree'
 import type { PlannedAction } from './assistant.server'
 import { zonedTime } from './llm.server'
@@ -16,17 +16,21 @@ import { ensureTopFolder as ensureTaskFolder, insertTask } from './tasks.server'
 // New tasks / notes go to the folder the model picked (checked by the
 // caller), else the top-level "Unsorted" folder of their app.
 
-const ALL_APPS: Array<SearchApp> = ['tasks', 'notes', 'bookmarks', 'contacts']
+const ALL_APPS: Array<JarvisApp> = ['tasks', 'notes', 'bookmarks', 'contacts']
 
 /** The best match for `query` (via the global search): in `app` if given,
  * an item unless a folder was asked for, whose name has every word first
- * (then the search's own order: most recently edited). */
+ * (then the search's own order: most recently edited). Passwords are only
+ * searched when asked for (`find_password`), by name, username and website;
+ * only the entry's name and folder go back to the model, never a secret. */
 export async function findOne(
   query: string,
   app: SearchApp | undefined,
   folder: boolean,
 ): Promise<AssistantFound> {
-  const results = await search(query)
+  const results = await search(query, {
+    withPasswords: app === 'passwords',
+  })
   const words = query.toLowerCase().split(/\s+/).filter(Boolean)
   const wanted = folder ? 'folder' : 'item'
   const score = (r: { kind: string; label: string }) =>
@@ -50,7 +54,7 @@ async function partialMatch(
 ) {
   const seen = new Map<string, NonNullable<AssistantFound['match']>>()
   for (const word of words.filter((w) => w.length > 2)) {
-    const results = await search(word)
+    const results = await search(word, { withPasswords: app === 'passwords' })
     for (const a of app ? [app] : ALL_APPS) {
       for (const r of results[a])
         seen.set(`${a}-${r.kind}-${r.id}`, { ...r, app: a })

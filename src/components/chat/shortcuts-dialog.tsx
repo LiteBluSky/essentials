@@ -21,6 +21,10 @@ const GROUPS: Array<ShortcutGroup> = [
       { id: 'chat.last', action: 'Oldest conversation' },
       { id: 'chat.new', action: 'New chat' },
       {
+        id: 'chat.pin',
+        action: 'Pin / unpin the open conversation (top of the list, kept)',
+      },
+      {
         id: 'chat.delete',
         keys: [['Del']],
         action: 'Delete the open conversation (asks first)',
@@ -37,6 +41,7 @@ const GROUPS: Array<ShortcutGroup> = [
       COMMON.theme,
       COMMON.profile,
       COMMON.toasts,
+      COMMON.stopJarvis,
       {
         keys: [['@']],
         action: 'In the message box: link to a bookmark, note, task or contact',

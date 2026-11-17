@@ -10,6 +10,8 @@ import {
   links,
   noteFolders,
   notes,
+  passwordFolders,
+  passwords,
   taskFolders,
   tasks,
 } from '@/db/schema'
@@ -53,6 +55,7 @@ type FolderTable =
   | typeof noteFolders
   | typeof taskFolders
   | typeof contactFolders
+  | typeof passwordFolders
 
 // Each folder's path ("A / B"), from every folder of the app (a small table).
 async function folderPaths(table: FolderTable) {
@@ -228,21 +231,62 @@ async function searchContacts(words: Array<string>) {
   ]
 }
 
-/** Up to SEARCH_LIMIT folders and items per app matching every word of
- * `query` (in a name, URL, description, note body or contact detail). */
-export async function search(query: string): Promise<SearchResults> {
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
-  const [bookmarks, notesFound, tasksFound, contactsFound] = await Promise.all([
-    searchBookmarks(words),
-    searchNotes(words),
-    searchTasks(words),
-    searchContacts(words),
+// Passwords by name, username and website (the secrets are sealed anyway).
+async function searchPasswords(words: Array<string>) {
+  const path = await folderPaths(passwordFolders)
+  const [folders, items] = await Promise.all([
+    searchFolders(passwordFolders, words, path),
+    db
+      .select({
+        id: passwords.id,
+        name: passwords.name,
+        folderId: passwords.folderId,
+      })
+      .from(passwords)
+      .where(
+        words.length
+          ? matchesAll(
+              [passwords.name, passwords.username, passwords.url],
+              words,
+            )
+          : undefined,
+      )
+      .orderBy(...ranking(passwords.name, passwords.updatedAt, words))
+      .limit(SEARCH_LIMIT),
   ])
+  return [
+    ...folders,
+    ...items.map((p): SearchResult => ({
+      kind: 'item',
+      id: p.id,
+      label: p.name,
+      path: path(p.folderId),
+    })),
+  ]
+}
+
+/** Up to SEARCH_LIMIT folders and items per app matching every word of
+ * `query` (in a name, URL, description, note body or contact detail).
+ * Passwords only for the person's own search (`z`), never for Jarvis. */
+export async function search(
+  query: string,
+  { withPasswords = false }: { withPasswords?: boolean } = {},
+): Promise<SearchResults> {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
+  const [bookmarks, notesFound, tasksFound, contactsFound, passwordsFound] =
+    await Promise.all([
+      searchBookmarks(words),
+      searchNotes(words),
+      searchTasks(words),
+      searchContacts(words),
+      withPasswords ? searchPasswords(words) : [],
+    ])
   return {
     bookmarks,
     notes: notesFound,
     tasks: tasksFound,
     contacts: contactsFound,
+    passwords: passwordsFound,
   }
 }
 

@@ -8,6 +8,7 @@ import { TanStackDevtools } from '@tanstack/react-devtools'
 import { useEffect } from 'react'
 
 import { AppSwitcher } from '@/components/app-switcher'
+import { JarvisActivity } from '@/components/jarvis-activity'
 import { ProfileSwitcher } from '@/components/profile-switcher'
 import { SwipeApps } from '@/components/swipe-apps'
 import { ToastEscape } from '@/components/toast-escape'
@@ -74,6 +75,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           <ProfileSwitcher />
           <ToastEscape />
           <SwipeApps />
+          <JarvisActivity />
         </Toaster>
         <TanStackDevtools
           config={{

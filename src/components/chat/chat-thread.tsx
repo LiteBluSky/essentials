@@ -438,7 +438,7 @@ function FoundMarker({
         </Button>
       ) : (
         <Button size="xs" variant="outline" onClick={() => open(match)}>
-          Open
+          {match.app === 'passwords' ? 'Show password' : 'Open'}
         </Button>
       )}
     </Marker>

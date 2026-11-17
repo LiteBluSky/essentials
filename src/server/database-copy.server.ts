@@ -22,6 +22,10 @@ const TABLES = [
   schema.tasks,
   schema.contactFolders,
   schema.contacts,
+  schema.passwordFolders,
+  schema.passwords,
+  // Its key check travels with the sealed passwords it opens.
+  schema.passwordVault,
   schema.calendarEvents,
   schema.financeEntries,
   schema.financeMonths,

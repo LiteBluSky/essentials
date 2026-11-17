@@ -503,6 +503,35 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [ ] Verify in a real browser: Esc with a toast up (alone, with a dialog
       open, while Jarvis is working, with something cut)
 
+## 27. Passwords, Jarvis bar, pinned chats (Nov 2026)
+
+- [x] Add a password manager (#46): a Passwords app (logins in folders, like
+      Contacts), each password + notes encrypted in the browser with a
+      master password (scrypt + AES-256-GCM, `@noble`, works over plain
+      http too); locks on reload, after 15 min idle or with `L`; fully
+      keyboard driven (tree keys + `c` / `u` copy, `O` site, `v` show);
+      change master password; unencrypted JSON import / export; never
+      reaches Jarvis (not in its search, no tools, no `@` references)
+- [ ] Keep navigation items in the same spot across apps (#47): tried
+      (one header width for every app, the same shared buttons, the app's
+      own buttons sliding in on every app change) and reverted at the
+      owner's request; still open
+- [x] Jarvis activity indicator (#48): a bar above the header (not a toast,
+      so app keys and the swipe stay free) while Jarvis works, on every
+      app: Stop (or Esc), then "Open in Chat" for a request that finished
+      out of sight; Stop's feedback moved there from the "Cancelled" toast
+- [x] Pin chats (#49): pin / unpin in the list (and `P`), pinned first
+- [x] Delete chats a week after their last message (#50): already so
+      (`CHAT_TTL_DAYS`, by the last message); pinned chats are now kept
+- [ ] Verify in a real browser: set / unlock / lock / idle lock, copy keys,
+      change master password, import / export round trip, the phone layout
+- [ ] Verify in a real browser: the Jarvis bar while switching apps, Stop
+      from another app, Esc, "Open in Chat", with the panel open on desktop
+- [x] Jarvis fetches a password ("get my password for Google Gmail"):
+      `find_password` opens the entry for the user; the model never sees it
+- [x] `pnpm build` + restart the server
+- [ ] Optional: clear a copied password from the clipboard after a while
+
 ## History of the notes app (before the merge)
 
 ### Notes 0. Scaffold (from the bookmarks app)

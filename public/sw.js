@@ -6,13 +6,14 @@
 //   (read-only: saving needs the server).
 // `/` only redirects to the first app, so redirected responses aren't cached
 // (a browser refuses them for navigations) and pages are cached by app path.
-const CACHE = 'app-v7'
+const CACHE = 'app-v8'
 const PAGES = [
   '/bookmarks',
   '/notes',
   '/tasks',
   '/calendar',
   '/contacts',
+  '/passwords',
   '/finances',
   '/chat',
 ]

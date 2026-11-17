@@ -26,9 +26,16 @@ time the server starts.
   with Edit and Delete.
 - **Contacts**: people in folders: phone, email, address, where you know
   them from, birthday and some context.
+- **Passwords**: logins in folders (username, password, website, notes),
+  encrypted in your browser with a master password, so the server only
+  stores them scrambled. It locks after 15 minutes idle, on reload or with
+  `L`; there's no way to recover a forgotten master password. The
+  assistant never sees them.
 - **Finances**: money in and out per category, month by month, with
   recurring expenses and income, optional budgets and savings accounts.
 - **Chat** (optional): ask an assistant about everything you've saved.
+  Pin a conversation to keep it at the top; the others are deleted a week
+  after their last message.
 
 Switch between them with the navbar at the top, `Alt+H` / `Alt+L`, or a
 sideways swipe on a phone. `z` searches all of them at once. Deleted links

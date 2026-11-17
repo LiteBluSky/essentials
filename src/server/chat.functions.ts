@@ -6,6 +6,7 @@ import {
   listConversations,
   loadMessages,
   answerToNote,
+  pinConversation,
   removeConversation,
 } from './chat.server'
 
@@ -42,4 +43,11 @@ export const deleteConversation = createServerFn({ method: 'POST' })
   .validator(byId)
   .handler(async ({ data }) => {
     await removeConversation(data.id)
+  })
+
+/** Pins a conversation to the top of the list (and keeps it from expiring). */
+export const setConversationPinned = createServerFn({ method: 'POST' })
+  .validator(byId.extend({ pinned: z.boolean() }))
+  .handler(async ({ data }) => {
+    await pinConversation(data.id, data.pinned)
   })

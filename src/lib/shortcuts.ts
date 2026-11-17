@@ -21,6 +21,7 @@ export type ShortcutScope =
   | 'tree'
   | 'bookmarks'
   | 'tasks'
+  | 'passwords'
   | 'viewer'
   | 'chat'
   | 'calendar'
@@ -84,6 +85,11 @@ export const SHORTCUT_DEFS = {
   'tasks.showDone': def('tasks', 't', 'Completed / open tasks'),
   'tasks.layout': def('tasks', 'v', 'Folders / one list'),
   'tasks.calendar': def('tasks', 'i', 'Calendar of the month'),
+  'passwords.copyUsername': def('passwords', 'u', 'Copy the username'),
+  'passwords.copyPassword': def('passwords', 'c', 'Copy the password'),
+  'passwords.openSite': def('passwords', 'O', 'Open the website'),
+  'passwords.reveal': def('passwords', 'v', 'Show / hide the password'),
+  'passwords.lock': def('passwords', 'L', 'Lock the passwords'),
 
   // An open note / task / contact.
   'viewer.edit': def('viewer', 'e', 'Edit'),
@@ -99,6 +105,7 @@ export const SHORTCUT_DEFS = {
   'chat.last': def('chat', 'G', 'Oldest conversation'),
   'chat.new': def('chat', 'a', 'New chat'),
   'chat.delete': def('chat', 'd', 'Delete the conversation'),
+  'chat.pin': def('chat', 'P', 'Pin / unpin the conversation'),
 
   // Calendar (the month; left / right / up / down also step through the
   // colours in the strip form).
@@ -394,7 +401,11 @@ export function useShortcutLabels() {
 
 // ---- Conflicts -------------------------------------------------------------
 
-const TREE_APPS: ReadonlyArray<ShortcutScope> = ['bookmarks', 'tasks']
+const TREE_APPS: ReadonlyArray<ShortcutScope> = [
+  'bookmarks',
+  'tasks',
+  'passwords',
+]
 
 function together(a: ShortcutScope, b: ShortcutScope) {
   return (

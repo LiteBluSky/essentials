@@ -1,4 +1,4 @@
-import { asc, desc, eq, inArray, lt } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, isNull, lt, sql } from 'drizzle-orm'
 
 import { db } from '@/db'
 import { chatConversations, chatMessages } from '@/db/schema'
@@ -50,12 +50,18 @@ export async function loadMessages(conversationId: number) {
   }))
 }
 
-// Conversations idle for `CHAT_TTL_DAYS` go, messages first (no cascades).
+// Conversations idle for `CHAT_TTL_DAYS` (since their last message) go,
+// messages first (no cascades). Pinned ones stay.
 async function purgeOldConversations() {
   const old = await db
     .select({ id: chatConversations.id })
     .from(chatConversations)
-    .where(lt(chatConversations.updatedAt, chatCutoff()))
+    .where(
+      and(
+        lt(chatConversations.updatedAt, chatCutoff()),
+        isNull(chatConversations.pinnedAt),
+      ),
+    )
   if (old.length === 0) return
   const ids = old.map((c) => c.id)
   await db.transaction(async (tx) => {
@@ -66,12 +72,29 @@ async function purgeOldConversations() {
   })
 }
 
+/** Pinned conversations first, then the rest; latest active first in each. */
 export async function listConversations() {
   await purgeOldConversations()
   return db
     .select()
     .from(chatConversations)
-    .orderBy(desc(chatConversations.updatedAt), desc(chatConversations.id))
+    .orderBy(
+      sql`${chatConversations.pinnedAt} is null`,
+      desc(chatConversations.updatedAt),
+      desc(chatConversations.id),
+    )
+}
+
+/** Pins / unpins a conversation. Keeps `updatedAt` (its last message), which
+ * is what the week-long expiry counts from. */
+export async function pinConversation(id: number, pinned: boolean) {
+  await db
+    .update(chatConversations)
+    .set({
+      pinnedAt: pinned ? new Date() : null,
+      updatedAt: sql`${chatConversations.updatedAt}`,
+    })
+    .where(eq(chatConversations.id, id))
 }
 
 export async function removeConversation(id: number) {

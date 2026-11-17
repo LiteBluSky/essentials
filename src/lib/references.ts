@@ -1,6 +1,6 @@
 import type { Root, RootContent, Text } from 'mdast'
 
-import type { SearchApp } from '@/lib/global-search'
+import type { JarvisApp } from '@/lib/global-search'
 
 // References: `@contact(Jesus#12)` in any text points at an item of another
 // (or the same) app. Typed with the `@` autocomplete, which also stores the
@@ -14,7 +14,7 @@ export const REFERENCE_TYPES = [
   { type: 'contact', app: 'contacts', label: 'Contact' },
 ] as const satisfies ReadonlyArray<{
   type: string
-  app: SearchApp
+  app: JarvisApp
   label: string
 }>
 
@@ -22,7 +22,7 @@ export type ReferenceType = (typeof REFERENCE_TYPES)[number]['type']
 
 export type Reference = {
   type: ReferenceType
-  app: SearchApp
+  app: JarvisApp
   name: string
   id: number | null
 }

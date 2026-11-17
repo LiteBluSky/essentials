@@ -1,7 +1,7 @@
 # Essentials
 
 A personal, local-only set of small apps in one: **Bookmarks** (links),
-**Notes** (markdown), **Tasks** (to-dos) and **Contacts** (people), each organised into folders and subfolders and shown as
+**Notes** (markdown), **Tasks** (to-dos), **Contacts** (people) and **Passwords** (logins, encrypted), each organised into folders and subfolders and shown as
 a file tree, plus a **Calendar** (coloured strips over days, and the tasks
 due), **Finances** (money in and out, per category, month by month) and an optional **Chat** (ask an LLM about all of it), with a
 navbar to switch between them. The display name is
@@ -69,7 +69,7 @@ Each app is self-contained and namespaced; only the shell is shared.
 - **Registry**: `src/lib/apps.ts` (`APPS`: path, name, lucide icon) drives
   the navbar (`src/components/app-nav.tsx`) and app switching
   (`src/hooks/use-app-switch.ts`). `/` redirects to the first app.
-- **Per app** (`<app>` = `bookmarks`, `notes`, `tasks`, `contacts`; Chat,
+- **Per app** (`<app>` = `bookmarks`, `notes`, `tasks`, `contacts`, `passwords`; Chat,
   Calendar and Finances are the exceptions: no folders or tree, see their sections): route `src/routes/<app>.tsx`,
   UI in `src/components/<app>/`, hooks in `src/hooks/<app>/`, pure helpers
   and Zod schemas in `src/lib/<app>/`, server code in
@@ -143,13 +143,23 @@ One SQLite file holds every app. Bookmark tables keep their original names.
   optional field is `''` when unset), `birthdayRemindedYear` (the year its
   birthday was last pushed; cleared when the birthday changes),
   `folderId`, `position`, timestamps.
-- `chat_conversations` (`title` = start of the first message, timestamps) /
+- `chat_conversations` (`title` = start of the first message, `pinnedAt`
+  (set = pinned: listed first, never expires), timestamps) /
   `chat_messages` — `conversationId`, `role` (`user` | `assistant`),
   `content` (markdown), `actions` (JSON: what the turn created / found),
   `error` (a failed turn; content is the error), `createdAt`. Deleting a
   conversation deletes its messages explicitly. A conversation idle for
   `CHAT_TTL_DAYS` (7; by `updatedAt`, i.e. its last turn) is deleted with
-  its messages (`purgeOldConversations`, lazily whenever the list loads).
+  its messages (`purgeOldConversations`, lazily whenever the list loads),
+  unless pinned. Pinning keeps `updatedAt`.
+- `password_folders` (same shape) / `passwords` — `name`, `username`, `url`
+  (plain text: the tree and the search show them), `secret` (the password
+  and notes as JSON, **sealed in the browser**: base64 of nonce +
+  AES-256-GCM ciphertext; the server never sees them in clear),
+  `folderId`, `position`, timestamps. `password_vault` — one row (id 1)
+  once a master password is set: `salt`, `kdf` (scrypt parameters, JSON),
+  `check` (a known text sealed with the key, to tell a wrong master
+  password). In `TABLES` (Copy), so the key check travels with them.
 - `calendar_events` — the Calendar's strips: `title` (`''` = none),
   `color` (a key of `CALENDAR_COLORS` in `src/lib/calendar/colors.ts`),
   `startDay` / `endDay` (inclusive local days as `YYYY-MM-DD` text: no
@@ -807,9 +817,48 @@ birthday?, description? }] }`, appended like the other apps. The assistant can
 search, read, create (`create_contact`, filed like the rest), edit and delete
 contacts, with Undo.
 
+### Passwords (`/passwords`)
+
+Logins, kept like Contacts (folders, tree, DnD, cut / paste, vim keys) but
+**encrypted**: `lib/passwords/vault.ts` (browser only) derives a key from
+the master password (scrypt, `KDF`) and seals each entry's password +
+notes (AES-256-GCM, `@noble/ciphers` / `@noble/hashes`: pure JS, so it
+works over plain http on the LAN where `crypto.subtle` doesn't). The key
+is only in memory (`useUnlocked`): a reload, `L` / ⋮ → Lock, or
+`IDLE_LOCK_MS` (15 min) without a key press or click locks it. Locked, the
+page shows only `LockScreen` (`vault-forms.tsx`: "Choose a master
+password" the first time, else Unlock); the tree keys are off. No
+recovery: a forgotten master password loses the passwords. ⋮ → Change
+master password re-seals every secret in the browser and saves it all at
+once (`rekeyVault`; refused if the passwords changed meanwhile). Import /
+export: `{ format: 1, folders: [{ name, folders, passwords }], passwords:
+[{ name, username?, url?, password?, notes? }] }`, **unencrypted** (for
+moving elsewhere; a warning toast on export); import seals each entry
+first (`sealImport`), appended like the other apps. The form has a
+show / hide eye and a generator (`generatePassword`, 20 chars, no
+look-alikes). Details (`PasswordView`): username, the password hidden
+until `v` / the eye, the website (a link), the notes; `c` / `u` copy
+password / username, `O` opens the site, `e` edits, `d` deletes (no bin).
+The tree takes `c`, `u`, `O` on the hovered (else focused) row too
+(`actions.ts`). In the person's global search (`z`) by name, username
+and website (`search(q, { withPasswords: true })`). **Jarvis can only
+find one for the user**: `find_password { query }` (an `ACTION_TOOLS`
+tool, `kind: 'open'` with `app: 'passwords'`) matches by name, username
+and website, and the entry opens in Passwords like any found item (the
+field opens it at once, Chat shows a "Show password" marker; locked, it
+opens after unlocking). The model gets only the entry's name and id,
+never a username, password or note: its `search`, `read_item` and
+`open_item` never include passwords, it has no edit tools for them and
+there are no `@` references (`JarvisApp` = every `SearchApp` but
+`passwords`). A pick made while locked
+opens once unlocked.
+
 ### Chat (`/chat`)
 
-The last navbar app (`APPS`), for asking about anything stored. One
+The last navbar app (`APPS`), for asking about anything stored.
+**Pinned** conversations (the pin on a row's hover, the phone's pin
+button, or `P`: `setConversationPinned`) are listed first and never
+expire. One
 conversation per `?c=<id>` (none = new). **Leaving Chat and coming back
 reopens the conversation that was open** (`lastConversation` /
 `rememberConversation` in `lib/chat.ts`, localStorage `chat:conversation`:
@@ -1055,6 +1104,16 @@ call. **The AI is never called otherwise.**
   (the field on phones, the panel on desktop). `callModel` takes an empty tool list for
   plain calls.
 
+**Jarvis bar** (`components/jarvis-activity.tsx`, mounted once in
+`__root.tsx`; store in `lib/jarvis-activity.ts`): while any Jarvis request
+runs (the field, the panel, Chat, Advice — all through
+`useCancelRequest`, which registers it), a small bar in the space above
+the header says so with Stop (Esc too, when not typing); it survives
+switching apps, so a request can be stopped from anywhere. One that
+finished while its prompt was gone (another app) leaves "Open in Chat"
+(or the error) until dismissed; a stop shows "Stopped" for 3 s. **Not a
+toast** on purpose: toasts hold the app keys and the swipe.
+
 **Navbar** (`components/app-nav.tsx`, every app): one icon button per
 app (`APPS`), the current one highlighted (`secondary`, `aria-current`),
 its name in a shadcn `Tooltip` on hover and as the `aria-label`; no
@@ -1222,7 +1281,7 @@ The keys below are the defaults.
   mounted once in `__root.tsx` with its own listener; off while typing or
   while any dialog / menu / listbox is open): the same Dialog + Command as
   the global search, listing `APPS` with the next app highlighted; type to
-  filter, ↑/↓ (Ctrl+J/K) and Enter, or press the app's number (1–7).
+  filter, ↑/↓ (Ctrl+J/K) and Enter, or press the app's number (1–8).
   That's why Bookmarks' favourite key is `F`.
 - `p` opens the **profile switcher** on every app
   (`components/profile-switcher.tsx`, mounted once in `__root.tsx` like the

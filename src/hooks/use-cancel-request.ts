@@ -1,51 +1,61 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
-import { cancelAssistant } from '@/server/assistant.functions'
-
-/** A v4 UUID. `crypto.randomUUID` needs a secure origin (not plain http on
- * the LAN), `getRandomValues` doesn't. */
-function uuid() {
-  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID()
-  const b = crypto.getRandomValues(new Uint8Array(16))
-  b[6] = (b[6] & 0x0f) | 0x40
-  b[8] = (b[8] & 0x3f) | 0x80
-  const hex = Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('')
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
-}
+import {
+  cancelActivity,
+  finishActivity,
+  startActivity,
+  wasCancelled,
+} from '@/lib/jarvis-activity'
 
 /**
  * Cancelling a Jarvis request (every Jarvis prompt has a Stop button while
- * one runs). `start()` gives the request its id (sent along as `requestId`)
- * and an abort signal for a `fetch`; `cancel()` tells the server to call it
- * off (it stops and undoes what the request had changed) and aborts the
- * signal; `wasCancelled(id)` tells a late error apart from a real one.
+ * one runs), and showing it in the Jarvis indicator (lib/jarvis-activity.ts),
+ * whose Stop works too, even after the prompt is gone (another app).
+ * `start()` gives the request its id (sent along as `requestId`) and an
+ * abort signal for a `fetch`; `cancel()` tells the server to call it off (it
+ * stops and undoes what the request had changed) and aborts the signal;
+ * `finish()` says it ended (with where its answer was saved);
+ * `wasCancelled(id)` tells a late error apart from a real one. `onCancel`
+ * runs however it was stopped, while this prompt is still on screen.
  */
-export function useCancelRequest() {
-  const current = useRef<{ id: string; controller: AbortController } | null>(
-    null,
-  )
-  const cancelled = useRef(new Set<string>())
+export function useCancelRequest(onCancel?: () => void) {
+  const current = useRef<string | null>(null)
+  const onCancelRef = useRef(onCancel)
+  onCancelRef.current = onCancel
+  const mounted = useRef(false)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
+
   return {
-    start() {
-      const request = { id: uuid(), controller: new AbortController() }
-      current.current = request
-      return { requestId: request.id, signal: request.controller.signal }
+    start({ web = false }: { web?: boolean } = {}) {
+      const started = startActivity({
+        web,
+        onCancel: () => {
+          if (mounted.current) onCancelRef.current?.()
+        },
+      })
+      current.current = started.requestId
+      return started
     },
     /** Returns whether there was a request to cancel. */
     cancel() {
-      const request = current.current
-      if (!request) return false
+      const id = current.current
+      if (!id) return false
       current.current = null
-      cancelled.current.add(request.id)
-      // Never rejects loudly: at worst the request just runs to its end.
-      cancelAssistant({ data: { requestId: request.id } }).catch(() => {})
-      request.controller.abort()
-      return true
+      return cancelActivity(id)
     },
-    /** The request ended on its own. */
-    finish(id: string) {
-      if (current.current?.id === id) current.current = null
+    /** The request ended on its own (`error` = it failed). */
+    finish(
+      id: string,
+      result: { conversationId?: number | null; error?: string } = {},
+    ) {
+      if (current.current === id) current.current = null
+      finishActivity(id, { ...result, seen: mounted.current })
     },
-    wasCancelled: (id: string) => cancelled.current.has(id),
+    wasCancelled,
   }
 }

@@ -98,6 +98,23 @@ export const ACTION_TOOLS: Array<ToolDef> = [
       additionalProperties: false,
     },
   },
+  {
+    name: 'find_password',
+    description:
+      'Find a saved login in the Passwords app ("get my password for Gmail", "my Netflix login") and open it for the user, who sees and copies the password there. You never get the password, username or notes: only which entry was opened. Changes nothing.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description:
+            'A few words for the site or service, as the entry would be named or its website written: e.g. "gmail", "google", "netflix", "bank". Every word must match, so keep it short.',
+        },
+      },
+      required: ['query'],
+      additionalProperties: false,
+    },
+  },
 ]
 
 const taskArgs = z.object({
@@ -114,6 +131,9 @@ const taskArgs = z.object({
     .max(MAX_REMIND_MINUTES)
     .optional(),
   folder_id: z.number().int().positive().optional(),
+})
+const passwordArgs = z.object({
+  query: z.string().trim().min(1).max(200),
 })
 const openArgs = z.object({
   query: z.string().trim().min(1).max(200),
@@ -140,7 +160,8 @@ export type PlannedAction =
   | {
       kind: 'open'
       query: string
-      app?: 'bookmarks' | 'notes' | 'tasks' | 'contacts'
+      /** 'passwords' only through find_password: open_item never looks there. */
+      app?: 'bookmarks' | 'notes' | 'tasks' | 'contacts' | 'passwords'
       folder: boolean
     }
 
@@ -167,6 +188,17 @@ export function toAction({ name, args }: ToolCall): PlannedAction | null {
           title: parsed.data.title ?? '',
           body: parsed.data.body,
           folderId: parsed.data.folder_id,
+        }
+      : null
+  }
+  if (name === 'find_password') {
+    const parsed = passwordArgs.safeParse(args)
+    return parsed.success
+      ? {
+          kind: 'open',
+          query: parsed.data.query,
+          app: 'passwords',
+          folder: false,
         }
       : null
   }

@@ -7,7 +7,7 @@ import { findReference, search } from './search.server'
 // trees. No auth by design (see CLAUDE.md).
 export const globalSearch = createServerFn({ method: 'GET' })
   .validator(searchInput)
-  .handler(({ data }) => search(data.query))
+  .handler(({ data }) => search(data.query, { withPasswords: true }))
 
 // A clicked `@type(name#id)` reference: the item it points at (by id, else
 // the best match for its name), with the URL for a bookmark. Null when gone.
