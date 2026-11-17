@@ -293,7 +293,11 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
               </p>
             </div>
           ) : (
-            <ChatThread messages={messages} pending={pending} />
+            <ChatThread
+              messages={messages}
+              pending={pending}
+              className="px-3"
+            />
           )}
         </div>
 

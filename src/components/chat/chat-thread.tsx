@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { format } from 'date-fns'
@@ -89,13 +90,20 @@ export function streamInto(
 export function ChatThread({
   messages,
   pending,
+  className,
 }: {
   messages: Array<ChatMessageView>
   pending: PendingMessage | null
+  /** Extra classes for the content (e.g. the panel's wider padding). */
+  className?: string
 }) {
   return (
     <MessageScrollerProvider autoScroll>
-      <ThreadMessages messages={messages} pending={pending} />
+      <ThreadMessages
+        messages={messages}
+        pending={pending}
+        className={className}
+      />
     </MessageScrollerProvider>
   )
 }
@@ -103,9 +111,11 @@ export function ChatThread({
 function ThreadMessages({
   messages,
   pending,
+  className,
 }: {
   messages: Array<ChatMessageView>
   pending: PendingMessage | null
+  className?: string
 }) {
   // No scroll anchors (they pin a new question to the top): a message sent,
   // an answer in or another conversation opened goes to the latest message,
@@ -121,7 +131,9 @@ function ThreadMessages({
   return (
     <MessageScroller>
       <MessageScrollerViewport>
-        <MessageScrollerContent className="mx-auto w-full max-w-3xl px-1 py-4">
+        <MessageScrollerContent
+          className={cn('mx-auto w-full max-w-3xl px-1 py-4', className)}
+        >
           {messages.map((message) => (
             <MessageScrollerItem
               key={message.id}
