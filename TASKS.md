@@ -530,6 +530,8 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] Jarvis fetches a password ("get my password for Google Gmail"):
       `find_password` opens the entry for the user; the model never sees it
 - [x] `pnpm build` + restart the server
+- [x] A password's website can be a bookmark (`@` in the field suggests
+      bookmarks; opening it follows the bookmark's URL), else a typed URL
 - [ ] Optional: clear a copied password from the clipboard after a while
 
 ## History of the notes app (before the merge)

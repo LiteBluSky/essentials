@@ -20,7 +20,7 @@ import { LockScreen } from '@/components/passwords/vault-forms'
 import {
   copyPassword,
   copyUsername,
-  openSite,
+  useOpenSite,
 } from '@/components/passwords/actions'
 import { AppFooter } from '@/components/app-footer'
 import { AppNav } from '@/components/app-nav'
@@ -80,6 +80,7 @@ export const Route = createFileRoute('/passwords')({
 // Kept away from Jarvis: not in its search, no tools, no `@` references.
 function Home() {
   const keyLabel = useShortcutLabels()
+  const openSite = useOpenSite()
   const { data } = useSuspenseQuery(passwordsTreeQueryOptions)
   const { data: vault } = useSuspenseQuery(passwordVaultQueryOptions)
   const unlocked = useUnlocked() && vault !== null

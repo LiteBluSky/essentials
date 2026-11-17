@@ -1,8 +1,9 @@
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { EyeIcon, EyeOffIcon, RefreshCwIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
+import { ReferenceAutocomplete } from '@/components/reference-autocomplete'
 import { Button } from '@/components/ui/button'
 import { DialogClose, DialogFooter } from '@/components/ui/dialog'
 import {
@@ -47,7 +48,7 @@ const TEXT_FIELDS: Array<{
     name: 'url',
     label: 'Website',
     inputMode: 'url',
-    placeholder: 'github.com',
+    placeholder: 'github.com, or @ for a bookmark',
   },
 ]
 
@@ -67,6 +68,8 @@ export function PasswordForm({
 }) {
   const queryClient = useQueryClient()
   const [shown, setShown] = useState(!password)
+  // The website can be a bookmark instead: `@` suggests them.
+  const urlRef = useRef<HTMLInputElement>(null)
   const save = useMutation({
     mutationFn: async ({ password: clear, notes, ...value }: FormValues) => {
       const data = {
@@ -133,6 +136,7 @@ export function PasswordForm({
                 <Field data-invalid={isInvalid}>
                   <FieldLabel htmlFor={field.name}>{spec.label}</FieldLabel>
                   <Input
+                    ref={spec.name === 'url' ? urlRef : undefined}
                     id={field.name}
                     name={field.name}
                     inputMode={spec.inputMode}
@@ -146,6 +150,12 @@ export function PasswordForm({
                     onChange={(e) => field.handleChange(e.target.value)}
                     aria-invalid={isInvalid}
                   />
+                  {spec.name === 'url' && (
+                    <ReferenceAutocomplete
+                      target={urlRef}
+                      types={['bookmark']}
+                    />
+                  )}
                   {isInvalid && <FieldError errors={field.state.meta.errors} />}
                 </Field>
               )

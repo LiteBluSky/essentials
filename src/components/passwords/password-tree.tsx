@@ -39,7 +39,7 @@ import { siteLabel } from '@/lib/passwords/tree'
 import type { FolderNode, Tree } from '@/lib/passwords/tree'
 import { cn } from '@/lib/utils'
 import type { OpenEditor } from './editor'
-import { copyPassword, copyUsername, openSite } from './actions'
+import { copyPassword, copyUsername, useOpenSite } from './actions'
 import { useRootDrop, useShiftItem, useTreeRowDnd } from './tree-dnd'
 
 const INDENT_PX = 20
@@ -364,6 +364,7 @@ function PasswordMenuItems({
     { kind: 'password', id: password.id },
     password.folderId,
   )
+  const openSite = useOpenSite()
 
   return (
     <>

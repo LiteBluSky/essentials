@@ -18,7 +18,7 @@ import {
   formatReference,
   referenceQuery,
 } from '@/lib/references'
-import type { ReferenceQuery } from '@/lib/references'
+import type { ReferenceQuery, ReferenceType } from '@/lib/references'
 import { globalSearch } from '@/server/search.functions'
 
 type Field = HTMLTextAreaElement | HTMLInputElement
@@ -145,8 +145,12 @@ const appIcon = (app: string) =>
  */
 export function ReferenceAutocomplete({
   target,
+  types,
 }: {
   target: RefObject<Field | null>
+  /** Only these kinds (e.g. bookmarks for a password's website); all by
+   * default. */
+  types?: ReadonlyArray<ReferenceType>
 }) {
   const listRef = useRef<HTMLDivElement>(null)
   const [query, setQuery] = useState<ReferenceQuery | null>(null)
@@ -174,6 +178,7 @@ export function ReferenceAutocomplete({
   if (query?.stage === 'type') {
     for (const t of REFERENCE_TYPES) {
       if (!t.type.startsWith(query.query)) continue
+      if (types && !types.includes(t.type)) continue
       options.push({
         key: `type:${t.type}`,
         label: t.label,
@@ -188,7 +193,10 @@ export function ReferenceAutocomplete({
           ),
       })
     }
-  } else if (query?.stage === 'item') {
+  } else if (
+    query?.stage === 'item' &&
+    (!types || types.includes(query.type))
+  ) {
     const app = REFERENCE_TYPES.find((t) => t.type === query.type)!.app
     const items = (results.data?.[app] ?? [])
       .filter((r) => r.kind === 'item')

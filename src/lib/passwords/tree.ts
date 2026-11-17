@@ -9,6 +9,8 @@ import type {
   PasswordsImport,
 } from '@/lib/passwords/schemas'
 import type { Secret } from '@/lib/passwords/vault'
+import { splitReferences } from '@/lib/references'
+import type { Reference } from '@/lib/references'
 
 export type FolderNode = {
   folder: Folder
@@ -205,10 +207,26 @@ export function sealImport(
   }
 }
 
-/** A link to the site ("github.com" → https://github.com), or null. */
+/** The bookmark the website field points at, when it holds a
+ * `@bookmark(Name#id)` reference instead of a URL (opened via the bookmark,
+ * so it follows the bookmark's URL). */
+export function siteBookmark(url: string): Reference | null {
+  const parts = splitReferences(url.trim())
+  const [only] = parts
+  return parts.length === 1 &&
+    typeof only !== 'string' &&
+    only.type === 'bookmark'
+    ? only
+    : null
+}
+
+/** A link to the site ("github.com" → https://github.com), or null (none,
+ * or a bookmark reference: see `siteBookmark`). */
 export function siteHref(url: string) {
   const trimmed = url.trim()
-  if (!trimmed) return null
+  // Not a URL: none, a bookmark (see `siteBookmark`), other references or
+  // words.
+  if (!trimmed || trimmed.startsWith('@') || /\s/.test(trimmed)) return null
   const href = /^[a-z][a-z\d+.-]*:\/\//i.test(trimmed)
     ? trimmed
     : `https://${trimmed}`
@@ -220,8 +238,10 @@ export function siteHref(url: string) {
   }
 }
 
-/** "github.com" for a row's muted detail. */
+/** "github.com" (or "@GitHub" for a bookmark) for a row's muted detail. */
 export function siteLabel(url: string) {
+  const bookmark = siteBookmark(url)
+  if (bookmark) return `@${bookmark.name}`
   const href = siteHref(url)
   if (!href) return url
   return new URL(href).hostname.replace(/^www\./, '')

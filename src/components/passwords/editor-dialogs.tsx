@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
+  BookmarkIcon,
   CopyIcon,
   EyeIcon,
   EyeOffIcon,
@@ -40,7 +41,12 @@ import { Spinner } from '@/components/ui/spinner'
 import { toast } from '@/components/ui/toast'
 import type { Password } from '@/db/schema'
 import { useConfirmKey } from '@/hooks/use-confirm-key'
-import { flattenFolders, folderPath, siteHref } from '@/lib/passwords/tree'
+import {
+  flattenFolders,
+  folderPath,
+  siteBookmark,
+  siteHref,
+} from '@/lib/passwords/tree'
 import type { FolderNode, Tree } from '@/lib/passwords/tree'
 import { openSecret } from '@/lib/passwords/vault'
 import { cn } from '@/lib/utils'
@@ -55,7 +61,7 @@ import { ShortcutKey } from '@/components/shortcut-key'
 import { PasswordForm } from './password-form'
 import type { EditorState, OpenEditor } from './editor'
 import { FolderForm } from './folder-form'
-import { copyPassword, copyUsername, openSite } from './actions'
+import { copyPassword, copySite, copyUsername, useOpenSite } from './actions'
 
 // `state` is kept around after closing (only `open` flips) so the dialog
 // content doesn't blank out during its exit animation.
@@ -178,6 +184,7 @@ function PasswordView({
   onDelete: (password: Password) => void
 }) {
   const keyLabel = useShortcutLabels()
+  const openSite = useOpenSite()
   const [revealed, setRevealed] = useState(false)
   const sealed = password?.secret
   const secret = useMemo(() => {
@@ -200,6 +207,7 @@ function PasswordView({
     )
   }
   const href = siteHref(password.url)
+  const bookmark = siteBookmark(password.url)
 
   return (
     <div
@@ -273,12 +281,14 @@ function PasswordView({
         />
         {password.url && (
           <Detail
-            icon={GlobeIcon}
+            icon={bookmark ? BookmarkIcon : GlobeIcon}
             label="Website"
-            value={password.url}
+            // A bookmark: its name; a click opens its current URL.
+            value={bookmark ? `@${bookmark.name}` : password.url}
             href={href ?? undefined}
+            onOpen={bookmark ? () => openSite(password) : undefined}
             copyId={null}
-            onCopy={() => void navigator.clipboard.writeText(password.url)}
+            onCopy={() => void copySite(password)}
           />
         )}
       </div>
@@ -313,6 +323,7 @@ function Detail({
   mono = false,
   copyId,
   onCopy,
+  onOpen,
   extra,
 }: {
   icon: typeof UserIcon
@@ -323,6 +334,8 @@ function Detail({
   /** The copy shortcut, for its hint. */
   copyId: ShortcutId | null
   onCopy: () => void
+  /** What a click on the value does when it isn't a link (else it copies). */
+  onOpen?: () => void
   extra?: React.ReactNode
 }) {
   const keyLabel = useShortcutLabels()
@@ -359,7 +372,7 @@ function Detail({
           variant="ghost"
           className={rowClass}
           disabled={!value}
-          onClick={onCopy}
+          onClick={onOpen ?? onCopy}
         >
           {content}
         </Button>

@@ -834,7 +834,12 @@ once (`rekeyVault`; refused if the passwords changed meanwhile). Import /
 export: `{ format: 1, folders: [{ name, folders, passwords }], passwords:
 [{ name, username?, url?, password?, notes? }] }`, **unencrypted** (for
 moving elsewhere; a warning toast on export); import seals each entry
-first (`sealImport`), appended like the other apps. The form has a
+first (`sealImport`), appended like the other apps. The **Website** is
+a URL or a bookmark: `@` in it suggests bookmarks only
+(`ReferenceAutocomplete types={['bookmark']}`), storing
+`@bookmark(Name#id)`; `siteBookmark` spots it, the row and details show
+`@Name`, and opening / copying the site goes through the bookmark's
+current URL (`useOpenSite` → `useOpenReference`, `copySite`). The form has a
 show / hide eye and a generator (`generatePassword`, 20 chars, no
 look-alikes). Details (`PasswordView`): username, the password hidden
 until `v` / the eye, the website (a link), the notes; `c` / `u` copy
