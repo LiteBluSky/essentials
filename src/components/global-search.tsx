@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { FolderIcon } from 'lucide-react'
+import { AtSignIcon, FolderIcon } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -19,14 +19,30 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Kbd } from '@/components/ui/kbd'
 import { Spinner } from '@/components/ui/spinner'
 import { APPS } from '@/lib/apps'
+import { ASSISTANT_NAME } from '@/lib/assistant'
+import { rememberConversation } from '@/lib/chat'
 import { requestOpen } from '@/lib/global-search'
+import { mentionInJarvis } from '@/lib/jarvis-mention'
+import { REFERENCE_TYPES, formatReference } from '@/lib/references'
+import { MOD_LABEL } from '@/lib/shortcuts'
 import type { SearchApp, SearchResult } from '@/lib/global-search'
 import { cn } from '@/lib/utils'
+import { assistantEnabledQueryOptions } from '@/server/assistant.functions'
 import { globalSearch } from '@/server/search.functions'
 
 type Entry = SearchResult & { app: SearchApp }
+
+/** The `@type(Name#id)` reference to an item, for Jarvis's prompt; null for
+ * folders and passwords (no references). */
+function mentionOf(entry: Entry) {
+  if (entry.kind !== 'item') return null
+  const type = REFERENCE_TYPES.find((t) => t.app === entry.app)?.type
+  return type ? formatReference(type, entry.label, entry.id) : null
+}
 
 const DEBOUNCE_MS = 150
 
@@ -46,6 +62,8 @@ function useDebounced<T>(value: T, ms: number) {
  * items per app (the latest edited while the search is empty), refined as
  * you type. Picking a link opens it in a new tab; anything else switches to
  * its app and opens it there (a folder is revealed in the tree).
+ * Ctrl+Enter (or the row's @ button) mentions the item in Jarvis's prompt
+ * instead: its reference goes into the box on screen (else a new chat).
  */
 export function GlobalSearch({
   open,
@@ -55,7 +73,10 @@ export function GlobalSearch({
   onOpenChange: (open: boolean) => void
 }) {
   const navigate = useNavigate()
+  const { data: jarvis = false } = useQuery(assistantEnabledQueryOptions)
   const [query, setQuery] = useState('')
+  // The highlighted row (cmdk's value), for Ctrl+Enter.
+  const [active, setActive] = useState('')
   const search = useDebounced(query.trim(), DEBOUNCE_MS)
   const results = useQuery({
     queryKey: ['search', search],
@@ -86,7 +107,15 @@ export function GlobalSearch({
   // reset once it has opened again: Base UI may restore focus after
   // onOpenChangeComplete.
   const picked = useRef<Entry | null>(null)
+  const mention = useRef<string | null>(null)
   const returnFocus = useRef(true)
+  const mentionEntry = (entry: Entry) => {
+    const text = mentionOf(entry)
+    if (!jarvis || !text) return
+    mention.current = text
+    returnFocus.current = false
+    onOpenChange(false)
+  }
   const pick = (entry: Entry) => {
     if (entry.url) {
       // Right away: popup blockers only allow it during the click / key.
@@ -105,6 +134,18 @@ export function GlobalSearch({
       onOpenChangeComplete={(isOpen) => {
         if (isOpen) returnFocus.current = true
         if (!isOpen) setQuery('')
+        const text = mention.current
+        if (!isOpen && text) {
+          mention.current = null
+          // The prompt on screen takes it; with none (Chat between two
+          // widths, a closed field…) a new chat does.
+          setTimeout(() => {
+            if (mentionInJarvis(text)) return
+            rememberConversation(null)
+            void navigate({ to: '/chat', search: {} })
+          })
+          return
+        }
         const entry = picked.current
         if (isOpen || !entry) return
         picked.current = null
@@ -127,7 +168,20 @@ export function GlobalSearch({
         finalFocus={() => returnFocus.current}
       >
         {/* The server filters and ranks; cmdk only handles the keys. */}
-        <Command shouldFilter={false}>
+        <Command
+          shouldFilter={false}
+          value={active}
+          onValueChange={setActive}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter' || !(e.ctrlKey || e.metaKey)) return
+            const entry = Object.values(groups)
+              .flat()
+              .find((x) => entryValue(x) === active)
+            if (!entry || !mentionOf(entry)) return
+            e.preventDefault()
+            mentionEntry(entry)
+          }}
+        >
           <CommandInput
             placeholder="Search bookmarks, notes, tasks, contacts and passwords…"
             value={query}
@@ -157,32 +211,46 @@ export function GlobalSearch({
                       entry={entry}
                       icon={entry.kind === 'folder' ? FolderIcon : app.icon}
                       onSelect={() => pick(entry)}
+                      onMention={
+                        jarvis && mentionOf(entry)
+                          ? () => mentionEntry(entry)
+                          : undefined
+                      }
                     />
                   ))}
                 </CommandGroup>
               )
             })}
           </CommandList>
+          {jarvis && (
+            <p className="flex items-center justify-end gap-1.5 border-t px-3 py-2 text-xs text-muted-foreground max-lg:hidden">
+              <Kbd>{MOD_LABEL}</Kbd>
+              <Kbd>Enter</Kbd>
+              mentions it in {ASSISTANT_NAME}
+            </p>
+          )}
         </Command>
       </DialogContent>
     </Dialog>
   )
 }
 
+const entryValue = (entry: Entry) => `${entry.app}:${entry.kind}:${entry.id}`
+
 function SearchItem({
   entry,
   icon: Icon,
   onSelect,
+  onMention,
 }: {
   entry: Entry
   icon: LucideIcon
   onSelect: () => void
+  /** Put its reference in Jarvis's prompt (items only, with Jarvis on). */
+  onMention?: () => void
 }) {
   return (
-    <CommandItem
-      value={`${entry.app}:${entry.kind}:${entry.id}`}
-      onSelect={onSelect}
-    >
+    <CommandItem value={entryValue(entry)} onSelect={onSelect}>
       <Icon />
       {/* One full-width row, so the path sits at the right edge (the item's
           hidden check icon would otherwise split the space with it). */}
@@ -201,6 +269,23 @@ function SearchItem({
           </span>
         )}
       </span>
+      {onMention && (
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label={`Mention in ${ASSISTANT_NAME}`}
+          title={`Mention in ${ASSISTANT_NAME}`}
+          className="-my-1 opacity-0 group-hover/command-item:opacity-100 group-data-selected/command-item:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
+          // Not a pick of the row.
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            onMention()
+          }}
+        >
+          <AtSignIcon />
+        </Button>
+      )}
     </CommandItem>
   )
 }

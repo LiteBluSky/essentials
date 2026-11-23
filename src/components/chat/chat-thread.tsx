@@ -54,6 +54,7 @@ import { messageActions, toolActivity } from '@/lib/chat'
 import type { ChatMessageView, ChatStreamEvent } from '@/lib/chat'
 import { useUndoRun } from '@/hooks/use-undo-run'
 import { requestOpen } from '@/lib/global-search'
+import { useMentionTarget } from '@/lib/jarvis-mention'
 import type { SearchApp } from '@/lib/global-search'
 import { saveAnswerAsNote } from '@/server/chat.functions'
 import { ChatMarkdown } from './chat-markdown'
@@ -467,6 +468,7 @@ export function ChatComposer({
   onSend,
   onCancel,
   enabled,
+  mentions = enabled,
 }: {
   busy: boolean
   /** `webSearch`: let Jarvis search the web for this message. */
@@ -476,6 +478,8 @@ export function ChatComposer({
   onCancel: () => void
   /** `s` focuses it (no dialog open). */
   enabled: boolean
+  /** It takes items mentioned from the global search (default: enabled). */
+  mentions?: boolean
 }) {
   const ref = useRef<HTMLTextAreaElement>(null)
   const [text, setText] = useState('')
@@ -502,6 +506,9 @@ export function ChatComposer({
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [enabled])
+
+  // Items mentioned from the global search land here when it's on screen.
+  useMentionTarget(ref, mentions)
 
   const send = async () => {
     const message = text.trim()

@@ -94,7 +94,8 @@ Each app is self-contained and namespaced; only the shell is shared.
   (`components/database-settings.tsx`, `lib/databases.ts`,
   `server/databases.*.ts`, `server/database-copy.server.ts`,
   `components/profile-switcher.tsx`), `ui/`.
-- Apps don't import from each other. The tree code (keyboard hook, DnD,
+- Apps don't import from each other (one exception: Calendar opens a
+  task in Tasks' own dialogs, `components/calendar/task-dialog.tsx`). The tree code (keyboard hook, DnD,
   folder form/select) is duplicated per app on purpose for now (see
   TASKS.md); keep the copies behaving alike.
 - **Adding an app**: route + `APPS` entry + its namespaced files + tables
@@ -372,7 +373,12 @@ which returns at most `SEARCH_LIMIT` (20) folders and 20 items per app, with
 their folder paths (no note bodies). Every search word must appear in the
 name or the item's other text (URL + description, note body, task
 description); name matches rank first, then the latest edited — which is
-also what an empty search lists. Picking a link opens it
+also what an empty search lists. **Ctrl+Enter** on an item (or its
+row's @ button; with Jarvis on, not folders / passwords) mentions it in
+Jarvis instead: its `@reference` goes into the prompt on screen
+(`mentionInJarvis` in `lib/jarvis-mention.ts`: the field / Chat's box via
+`useMentionTarget`, the closed panel opens itself via `useMentionOpener`),
+else a new chat in Chat takes it on mount. Picking a link opens it
 in a new tab; anything else is stored with `requestOpen`
 (`src/lib/global-search.ts`) once the dialog has closed, then the app is
 navigated to and its page's `useGlobalSearch` takes it: an item opens (note
@@ -575,13 +581,20 @@ Both run the same **tool loop** (`runAgent` in `agent.server.ts`, at most
 `MAX_STEPS` = 12 model calls per request) with every tool
 (`agent-tools.server.ts`): **look-ups** `search` (the global search),
 `read_item` (a bookmark / note / task in full, note text capped at 20k
-chars), `list_tasks` (status + local due-day range), `list_folders`;
+chars), `read_url` (a web page: a URL the user pasted or a bookmark's,
+`web-page.server.ts`: fetched once on request, no cookies, HTML turned
+into title / description / text (20k chars) / 40 links; only public
+addresses: localhost and private / LAN IPs refused, each redirect
+re-checked; the prompt says page text is untrusted), `list_tasks` (status
++ local due-day range), `list_folders`;
 **create / open** (`ACTION_TOOLS`: `create_task`, `create_note`,
 `open_item`), `create_bookmark`, `create_contact` (each create takes an
 optional `folder_id`, checked against that app's folders by `badFolder`;
 none = Unsorted);
 **edits** `update_item` (only the fields given: tasks title / description
-/ due / remind / done, notes title / text, bookmarks title / url /
+/ due / remind / done, notes title / text (all of it) / `replace` (exact
+find / with pieces, each found once, else nothing changes) / `append`,
+bookmarks title / url /
 description / favourite, any `folder_id` to move), `delete_item`,
 `create_folder`, `update_folder` (rename / move), `delete_folder` (with
 everything in it). Edits go through each app's own server functions
@@ -827,7 +840,8 @@ works over plain http on the LAN where `crypto.subtle` doesn't). The key
 is only in memory (`useUnlocked`): a reload, `L` / ⋮ → Lock, or
 `IDLE_LOCK_MS` (15 min) without a key press or click locks it. Locked, the
 page shows only `LockScreen` (`vault-forms.tsx`: "Choose a master
-password" the first time, else Unlock); the tree keys are off. No
+password" the first time, else Unlock; the field isn't focused on load,
+like the Jarvis field); the tree keys are off. No
 recovery: a forgotten master password loses the passwords. ⋮ → Change
 master password re-seals every secret in the browser and saves it all at
 once (`rekeyVault`; refused if the passwords changed meanwhile). Import /
@@ -970,8 +984,9 @@ off on that side.
   `/api/reminders` tick). A missed day is skipped.
 - **Tasks** with a due date show as neutral outlined strips on their due
   day (open: ○, done: ✓ struck through), only after hydration (the
-  browser's day); clicking one opens it in Tasks (`requestOpen` +
-  navigate). Undated tasks aren't shown. The server reads them straight
+  browser's day); clicking one opens it here, in Tasks' own dialogs
+  (`CalendarTaskDialog`: details, complete, edit, delete; the tasks tree
+  is loaded first, and any change refreshes the calendar query). Undated tasks aren't shown. The server reads them straight
   from the `tasks` table (`calendar.server.ts`), like the global search.
 - One query (`calendarQueryOptions`, key `['calendar', 'data']`): every
   strip plus the dated tasks. The whole grid renders after hydration.
@@ -1258,7 +1273,10 @@ The keys below are the defaults.
   `components/calendar/shortcuts-dialog.tsx`): `h`/`l` day, `k`/`j` week
   (arrows too), `m`/`M` (PageDown/PageUp) month, `b`/`e` (Home/End)
   beginning / end of the week — sent to DayPicker as the keys it already handles — `t` today, Enter/Space start / finish a
-  range, `a` new strip, `i` the strip list, `o` that day's tasks (navigates to
+  range, `a` new strip, `i` the strip list, `n`/`N` focus the next /
+  previous strip or task in date order (`byStart`; from the focused one,
+  else the focused day or today; flips month, wraps; strips carry
+  `data-strip-key`), `o` that day's tasks (navigates to
   `/tasks?day=YYYY-MM-DD`; Tasks' `validateSearch` takes it into its
   day filter and drops it from the URL, so the chip / `q` clear it), Esc
   cancels the range, `z`, `f`, `?`, `Alt+H/L`. The mouse wheel over the

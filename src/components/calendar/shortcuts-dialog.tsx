@@ -76,6 +76,11 @@ const GROUPS: Array<ShortcutGroup> = [
         id: 'calendar.list',
         action: 'List every strip (go to, edit or delete one)',
       },
+      {
+        id: 'calendar.nextStrip',
+        action: 'Next strip or task (Enter opens a task, selects a strip)',
+      },
+      { id: 'calendar.prevStrip', action: 'Previous strip or task' },
     ],
   },
   {

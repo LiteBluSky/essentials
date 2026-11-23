@@ -23,7 +23,8 @@ time the server starts.
   the days on the calendar to add a strip: drag over them or click a day on
   a PC; on a phone tap the first day, then the last. Drag a strip to move
   it, drag its edges to resize it; right click or a long hold opens a menu
-  with Edit and Delete.
+  with Edit and Delete. Click a task on it to see, complete or edit it
+  right there; `n` / `N` step through the strips and tasks in date order.
 - **Contacts**: people in folders: phone, email, address, where you know
   them from, birthday and some context.
 - **Passwords**: logins in folders (username, password, website, notes),
@@ -380,6 +381,21 @@ note with a checklist. It also finds things: _"open my packing list"_,
 _"find the dentist task"_ or _"go to the GitHub link"_ opens the best
 match (links in a new tab). It can edit and delete too, and add contacts,
 calendar strips and money (_"Jarvis, spent 12 on lunch"_).
+
+**Links**: paste a URL (_"save this: https://…"_, _"make a note of this
+recipe https://…"_, _"what is this page about?"_) and Jarvis opens the page,
+reads it and creates what you asked from it: a bookmark with a fitting
+title and description, a note summarising it, a checklist, a task. It can
+read a saved bookmark's page the same way. Only public pages: addresses on
+your own machine or home network are never fetched.
+
+**Notes**: ask Jarvis to change a note (_"add milk to my shopping list"_,
+_"fix the typo in the wifi note"_, _"rewrite the intro of my CV note"_);
+it edits just that part and leaves the rest as it was.
+
+**Mention from the search**: in the search (`z`), `Ctrl+Enter` on a result
+(or its @ button) drops a link to it into Jarvis's box, so you can ask
+about it or use it in a request.
 
 You can dictate instead of typing: the mic button in the field (Chrome,
 Edge, Safari; it needs https or localhost), or the phone keyboard's own

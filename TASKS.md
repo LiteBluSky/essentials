@@ -534,6 +534,30 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       bookmarks; opening it follows the bookmark's URL), else a typed URL
 - [ ] Optional: clear a copied password from the clipboard after a while
 
+## 28. Jarvis reads links, edits notes in place (Nov 2026)
+
+- [x] Jarvis reads a web page (`read_url`): a URL pasted in the prompt or a
+      saved bookmark's page, as text (title, description, text, links), to
+      learn what it is and create items from it; public addresses only
+      (localhost / LAN refused, redirects re-checked), 15 s, capped
+- [x] Jarvis edits notes in place: `update_item` takes `append` and
+      `replace` (exact find / replace pieces) besides the full `text`
+- [x] Global search results go into Jarvis's prompt: `Ctrl+Enter` (or the
+      row's @ button) inserts the item's `@reference` into the prompt on
+      screen (field, panel or Chat's box), else a new chat
+- [x] Passwords: the unlock / choose-master-password field isn't focused
+      on load
+- [x] Calendar: clicking a task opens its dialog right there (Tasks' own
+      details / edit / complete / delete), not in Tasks
+- [x] Calendar: `n` / `N` focus the next / previous strip or task in date
+      order (flipping months, wrapping)
+- [ ] Verify with a real provider: a pasted URL saved as a bookmark /
+      summarised as a note; a small note edit with `replace`
+- [ ] Verify in a real browser: Ctrl+Enter / @ in the search with the
+      field, the panel (open and closed) and Chat; the Calendar task dialog
+      and `n` / `N`
+- [x] `pnpm build` + restart the server
+
 ## History of the notes app (before the merge)
 
 ### Notes 0. Scaffold (from the bookmarks app)

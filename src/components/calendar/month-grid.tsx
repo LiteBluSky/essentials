@@ -180,6 +180,7 @@ function StripBar({ slot }: { slot: Exclude<Slot, null | 'covered'> }) {
       type="button"
       title={strip.title || undefined}
       data-strip={strip.kind}
+      data-strip-key={strip.key}
       // A finger on a strip grabs it: not a swipe to the next app.
       data-no-swipe={event ? '' : undefined}
       aria-pressed={event ? selected : undefined}

@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { addMonths, format, startOfMonth } from 'date-fns'
 import {
@@ -22,6 +22,8 @@ import { MonthGrid } from '@/components/calendar/month-grid'
 import { ShortcutsDialog } from '@/components/calendar/shortcuts-dialog'
 import { StripMenu } from '@/components/calendar/strip-menu'
 import { StripsDialog } from '@/components/calendar/strips-dialog'
+import { CalendarTaskDialog } from '@/components/calendar/task-dialog'
+import type { EditorState as TaskEditorState } from '@/components/tasks/editor'
 import { GlobalSearch } from '@/components/global-search'
 import { ProfileButton } from '@/components/profile-switcher'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -30,13 +32,13 @@ import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { useStripEdit } from '@/hooks/calendar/use-strip-edit'
 import { useHydrated } from '@/hooks/use-hydrated'
-import { isoDay, orderedRange, parseDay } from '@/lib/calendar/layout'
+import { byStart, isoDay, orderedRange, parseDay } from '@/lib/calendar/layout'
 import type { Strip } from '@/lib/calendar/layout'
 import { APP_NAME } from '@/lib/config'
-import { requestOpen } from '@/lib/global-search'
 import type { CalendarEvent } from '@/db/schema'
 import { assistantEnabledQueryOptions } from '@/server/assistant.functions'
 import { calendarQueryOptions } from '@/server/calendar.functions'
+import { tasksTreeQueryOptions } from '@/server/tasks.functions'
 import { isShortcut, shortcutKey, useShortcutLabels } from '@/lib/shortcuts'
 
 // The Calendar app: a month of coloured strips, each over a day or a range
@@ -106,8 +108,13 @@ function CalendarPage() {
   const backToList = useRef(false)
   const [toDelete, setToDelete] = useState<CalendarEvent | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  // A task's strip: the task's own dialog, here.
+  const queryClient = useQueryClient()
+  const [taskEditor, setTaskEditor] = useState<TaskEditorState | null>(null)
+  const [taskOpen, setTaskOpen] = useState(false)
   const dialogOpen =
     editorOpen ||
+    taskOpen ||
     helpOpen ||
     searchOpen ||
     settingsOpen ||
@@ -166,11 +173,48 @@ function CalendarPage() {
     setEditorOpen(true)
   }
 
-  /** A task's strip opens it in Tasks. */
+  /** A task's strip opens the task's details here (Tasks' dialog). */
   const openStrip = (strip: Strip) => {
     if (strip.kind !== 'task') return
-    requestOpen({ app: 'tasks', kind: 'item', id: strip.id })
-    void navigate({ to: '/tasks' })
+    void queryClient.ensureQueryData(tasksTreeQueryOptions).then(() => {
+      setTaskEditor({ kind: 'task', mode: 'view', taskId: strip.id })
+      setTaskOpen(true)
+    })
+  }
+
+  /** `n` / `N`: focus the next / previous strip or task, in date order
+   * (from the focused one, else the focused day or today), wrapping and
+   * flipping to its month. Enter then opens it (a task) or selects it. */
+  const stepStrip = (step: 1 | -1) => {
+    const ordered = [...strips].sort(byStart)
+    if (!ordered.length) return
+    const current = document.activeElement
+      ?.closest<HTMLElement>('[data-strip-key]')
+      ?.getAttribute('data-strip-key')
+    let index = current ? ordered.findIndex((s) => s.key === current) : -1
+    if (index !== -1) index += step
+    else {
+      const from = focusedDay() ?? isoDay(new Date())
+      if (step === 1) index = ordered.findIndex((s) => s.start >= from)
+      else {
+        for (let i = ordered.length - 1; i >= 0; i--) {
+          if (ordered[i].start < from) {
+            index = i
+            break
+          }
+        }
+      }
+      if (index === -1) index = step === 1 ? 0 : ordered.length - 1
+    }
+    const strip = ordered[(index + ordered.length) % ordered.length]
+    stripEdit.select(null)
+    setMonth(startOfMonth(parseDay(strip.start)))
+    // After the month has rendered; its first piece (the week it starts).
+    requestAnimationFrame(() =>
+      document
+        .querySelector<HTMLElement>(`[data-strip-key="${strip.key}"]`)
+        ?.focus(),
+    )
   }
   const askDelete = (event: CalendarEvent) => {
     setToDelete(event)
@@ -515,6 +559,11 @@ function CalendarPage() {
           e.preventDefault()
           setListOpen(true)
           break
+        case 'n':
+        case 'N':
+          e.preventDefault()
+          stepStrip(key === 'n' ? 1 : -1)
+          break
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -679,6 +728,15 @@ function CalendarPage() {
             backToList.current = false
             setListOpen(true)
           }
+        }}
+      />
+      <CalendarTaskDialog
+        state={taskEditor}
+        open={taskOpen}
+        onOpenChange={setTaskOpen}
+        onChange={(state) => {
+          setTaskEditor(state)
+          setTaskOpen(true)
         }}
       />
       <AssistantBox enabled={!dialogOpen} phonesOnly />

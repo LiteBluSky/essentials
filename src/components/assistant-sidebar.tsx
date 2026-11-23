@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/tooltip'
 import { ASSISTANT_NAME } from '@/lib/assistant'
 import { focusChatComposer, isNewChatKey, isShortcut } from '@/lib/shortcuts'
+import { useMentionOpener } from '@/lib/jarvis-mention'
 import { cn } from '@/lib/utils'
 import { assistantHistoryQueryOptions } from '@/server/assistant.functions'
 import {
@@ -127,6 +128,21 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [enabled, desktop])
+
+  // An item mentioned from the global search while the panel is closed:
+  // open it, then its box takes the mention.
+  useMentionOpener(
+    enabled && desktop && !open,
+    () =>
+      new Promise((resolve) => {
+        toggle(true)
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() =>
+            resolve(panel.current?.querySelector('textarea') ?? null),
+          ),
+        )
+      }),
+  )
 
   // Ctrl+Shift+O, even while typing: a new conversation in the panel
   // (opening it), or below `xl` (no panel) a new chat in Chat.
@@ -308,6 +324,7 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
             onCancel={() => request.cancel()}
             // `s` is handled here (it opens the panel too).
             enabled={false}
+            mentions={enabled && desktop}
           />
         </div>
       </aside>

@@ -168,7 +168,6 @@ function Unlock({ vault }: { vault: VaultRow }) {
               <MasterField
                 field={field}
                 label="Master password"
-                autoFocus
                 autoComplete="current-password"
                 error={wrong ? 'That’s not the master password.' : undefined}
               />
@@ -249,7 +248,6 @@ function CreateVault() {
                 <MasterField
                   field={field}
                   label="Master password"
-                  autoFocus
                   autoComplete="new-password"
                 />
               )}

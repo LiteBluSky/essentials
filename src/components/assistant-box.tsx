@@ -34,6 +34,7 @@ import type {
   ChangeSummary,
 } from '@/lib/assistant'
 import { requestOpen } from '@/lib/global-search'
+import { useMentionTarget } from '@/lib/jarvis-mention'
 import { useCancelRequest } from '@/hooks/use-cancel-request'
 import { useDictation } from '@/hooks/use-dictation'
 import { useRequestHistory } from '@/hooks/use-request-history'
@@ -107,6 +108,8 @@ function AssistantField({ enabled }: { enabled: boolean }) {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [enabled])
+  // Items mentioned from the global search land here when it's on screen.
+  useMentionTarget(ref, enabled)
 
   const undo = useUndoRun()
   // Stopped (here, by Esc or from the Jarvis indicator): the request is

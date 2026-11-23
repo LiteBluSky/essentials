@@ -120,6 +120,8 @@ export const SHORTCUT_DEFS = {
   'calendar.today': def('calendar', 't', 'Today'),
   'calendar.new': def('calendar', 'a', 'New strip'),
   'calendar.list': def('calendar', 'i', 'List every strip'),
+  'calendar.nextStrip': def('calendar', 'n', 'Next strip or task'),
+  'calendar.prevStrip': def('calendar', 'N', 'Previous strip or task'),
   'calendar.tasks': def('calendar', 'o', "The day's tasks"),
   'calendar.delete': def('calendar', 'd', 'Delete the selected strip'),
   // Its strip list.

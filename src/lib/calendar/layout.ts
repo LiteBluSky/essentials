@@ -54,7 +54,7 @@ export function monthWeeks(month: Date): Array<Array<string>> {
 }
 
 /** Earlier first, then longer, events before tasks, then oldest. */
-function byStart(a: Strip, b: Strip) {
+export function byStart(a: Strip, b: Strip) {
   return (
     a.start.localeCompare(b.start) ||
     b.end.localeCompare(a.end) ||
