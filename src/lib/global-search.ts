@@ -15,6 +15,9 @@ export const referenceInput = z.object({
   app: z.enum(['bookmarks', 'notes', 'tasks', 'contacts']),
   id: z.number().int().positive().nullable(),
   name: z.string().max(500),
+  /** Look in this profile (null = Local, else a remote database's id);
+   * unset = the one in use. */
+  profile: z.number().int().positive().nullable().optional(),
 })
 export type ReferenceInput = z.infer<typeof referenceInput>
 
@@ -53,8 +56,33 @@ export function requestOpen(target: SearchTarget) {
   listeners.forEach((listener) => listener())
 }
 
+/** Where a target waits across a reload (switching profile reloads). */
+const RELOAD_KEY = 'open:after-reload'
+
+/** Like `requestOpen`, for the page loaded next: the item is in another
+ * profile, which is switched to first (and the page reloaded). */
+export function requestOpenAfterReload(target: SearchTarget) {
+  try {
+    sessionStorage.setItem(RELOAD_KEY, JSON.stringify(target))
+  } catch {
+    // No storage: the profile is still switched, the item just won't open.
+  }
+}
+
+function restoreTarget() {
+  try {
+    const saved = sessionStorage.getItem(RELOAD_KEY)
+    if (!saved) return
+    sessionStorage.removeItem(RELOAD_KEY)
+    pending = JSON.parse(saved) as SearchTarget
+  } catch {
+    // Unreadable: nothing to open.
+  }
+}
+
 /** The pending target if it's for `app` (and clears it). */
 export function takeTarget(app: SearchApp): SearchTarget | null {
+  if (!pending) restoreTarget()
   if (pending?.app !== app) return null
   const target = pending
   pending = null

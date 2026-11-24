@@ -33,8 +33,11 @@ export type AssistantItem = (
 ) & {
   /** The folder path it was filed in; unset = "Unsorted". */
   folder?: string
-  /** The profile it was made in, when not the one in use (no Open then). */
+  /** The profile it was made in, when not the one in use (Open switches
+   * to it first). */
   database?: string
+  /** That profile: null = Local, else the remote database's id. */
+  databaseId?: number | null
 }
 
 /** Something asked for ("open my packing list") and the best match, if any. */
@@ -45,6 +48,8 @@ export type AssistantFound = {
   match: (SearchResult & { app: SearchApp }) | null
   /** The profile it was found in, when not the one in use. */
   database?: string
+  /** That profile: null = Local, else the remote database's id. */
+  databaseId?: number | null
 }
 
 /** A change the assistant made to something that existed (or a folder /
@@ -70,6 +75,8 @@ export type ChangeSummary = {
   detail?: string
   /** The profile it happened in, when not the one in use. */
   database?: string
+  /** That profile: null = Local, else the remote database's id. */
+  databaseId?: number | null
 }
 
 /** Changes to these live in Finances' data (its query, its page). */

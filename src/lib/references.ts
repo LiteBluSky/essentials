@@ -6,6 +6,9 @@ import type { JarvisApp } from '@/lib/global-search'
 // (or the same) app. Typed with the `@` autocomplete, which also stores the
 // id; a hand-typed `@contact(Jesus)` without one is looked up by name when
 // clicked. Rendered as a clickable chip wherever the text is shown.
+// Jarvis, working across profiles, adds the profile an item lives in when
+// it isn't the one the text is in: `@note(Plan#12@local)` (Local) or
+// `@note(Plan#12@3)` (remote database 3); a click switches to it first.
 
 export const REFERENCE_TYPES = [
   { type: 'bookmark', app: 'bookmarks', label: 'Bookmark' },
@@ -25,12 +28,28 @@ export type Reference = {
   app: JarvisApp
   name: string
   id: number | null
+  /** The profile it lives in when not the one the text belongs to: null =
+   * Local, else a remote database's id. Unset = the text's own. */
+  profile?: number | null
 }
 
 const TYPES = REFERENCE_TYPES.map((t) => t.type).join('|')
 
-/** `@type(name)` or `@type(name#id)`; the name has no brackets or newlines. */
-const REFERENCE = new RegExp(`@(${TYPES})\\(([^()\\n]*?)(?:#(\\d+))?\\)`, 'g')
+/** `@type(name)`, `@type(name#id)` or `@type(name#id@profile)`; the name
+ * has no brackets or newlines. */
+const REFERENCE = new RegExp(
+  `@(${TYPES})\\(([^()\\n]*?)(?:#(\\d+)(?:@(local|\\d+))?)?\\)`,
+  'g',
+)
+
+/** A profile as written after an id: `local` or the database's id. */
+function profileKey(profile: number | null) {
+  return profile === null ? 'local' : String(profile)
+}
+
+function readProfileKey(key: string): number | null {
+  return key === 'local' ? null : Number(key)
+}
 
 function toReference(match: RegExpExecArray): Reference {
   const type = match[1] as ReferenceType
@@ -40,6 +59,7 @@ function toReference(match: RegExpExecArray): Reference {
     app,
     name: match[2].trim(),
     id: match[3] ? Number(match[3]) : null,
+    ...(match[3] && match[4] && { profile: readProfileKey(match[4]) }),
   }
 }
 
@@ -64,20 +84,44 @@ export function plainReferences(text: string) {
   )
 }
 
-/** The text with each reference's id dropped (`@note(Name)`), so it's
- * looked up by name: for text taken to another profile, where the ids mean
- * other items. */
-export function referencesByName(text: string) {
+/**
+ * Text written for profile `from` made right for profile `to`: each
+ * reference with an id keeps pointing at the same item, so one to an item
+ * of another profile than `to` names it (`#12@local`), and one to `to`'s
+ * own items names none. (Jarvis across profiles: what a tool in another
+ * profile returns, and what it writes there.)
+ */
+export function rebaseReferences(
+  text: string,
+  from: number | null,
+  to: number | null,
+) {
   return text.replace(
     REFERENCE,
-    (_all, type: string, name: string) => `@${type}(${name.trim()})`,
+    (all, type: string, name: string, id?: string, key?: string) => {
+      if (!id) return all
+      const home = key === undefined ? from : readProfileKey(key)
+      return formatReference(
+        type as ReferenceType,
+        name,
+        Number(id),
+        home === to ? undefined : home,
+      )
+    },
   )
 }
 
-/** What the autocomplete inserts for an item. */
-export function formatReference(type: ReferenceType, name: string, id: number) {
+/** What the autocomplete inserts for an item (`profile`: the one it lives
+ * in, when not the text's own). */
+export function formatReference(
+  type: ReferenceType,
+  name: string,
+  id: number,
+  profile?: number | null,
+) {
   const clean = name.replace(/[()]/g, '').replace(/\s+/g, ' ').trim()
-  return `@${type}(${clean || 'Untitled'}#${id})`
+  const where = profile === undefined ? '' : `@${profileKey(profile)}`
+  return `@${type}(${clean || 'Untitled'}#${id}${where})`
 }
 
 /** The `@` being typed right before the caret, if any: still choosing the

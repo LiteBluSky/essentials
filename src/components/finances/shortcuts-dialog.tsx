@@ -44,6 +44,7 @@ const GROUPS: Array<ShortcutGroup> = [
       COMMON.theme,
       COMMON.profile,
       COMMON.toasts,
+      COMMON.undoToast,
       COMMON.stopJarvis,
       COMMON.prevApp,
       COMMON.nextApp,

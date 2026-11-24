@@ -62,6 +62,10 @@ export const COMMON = {
     keys: [['Esc']],
     action: 'Dismiss the notifications (the app keys wait while one shows)',
   },
+  undoToast: {
+    id: 'global.undo',
+    action: 'Undo, when a notification offers it',
+  },
   stopJarvis: {
     keys: [['Esc']],
     action: `While ${ASSISTANT_NAME} works (the bar at the top): stop it, from any app`,

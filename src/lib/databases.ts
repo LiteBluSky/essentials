@@ -56,3 +56,26 @@ export const databaseById = z.object({ id: z.number().int().positive() })
 export const copyDatabaseInput = z.object({
   id: z.number().int().positive().nullable(),
 })
+
+/** Says which profile was switched to, on the page loaded next (an item
+ * opened in another profile switches to it and reloads). */
+const NOTICE_KEY = 'profile:switched'
+
+export function keepSwitchNotice(name: string) {
+  try {
+    sessionStorage.setItem(NOTICE_KEY, name)
+  } catch {
+    // No storage: no notice.
+  }
+}
+
+/** The profile just switched to, once (then forgotten). */
+export function takeSwitchNotice(): string | null {
+  try {
+    const name = sessionStorage.getItem(NOTICE_KEY)
+    sessionStorage.removeItem(NOTICE_KEY)
+    return name
+  } catch {
+    return null
+  }
+}

@@ -2,7 +2,7 @@ import { and, desc, eq, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
 
-import { db } from '@/db'
+import { db, profileHandle, withDatabase } from '@/db'
 import {
   folders as bookmarkFolders,
   contactFolders,
@@ -296,10 +296,22 @@ const ITEM_TABLES = { bookmarks: links, notes, tasks, contacts }
  * of that app whose name matches best (exact name first). Bookmarks come
  * with their URL. */
 export async function findReference({
+  profile,
+  ...input
+}: ReferenceInput): Promise<{ id: number; url?: string } | null> {
+  if (profile === undefined) return findHere(input)
+  // An item of another profile (Jarvis's references across profiles).
+  return withDatabase(await profileHandle(profile), () => findHere(input))
+}
+
+async function findHere({
   app,
   id,
   name,
-}: ReferenceInput): Promise<{ id: number; url?: string } | null> {
+}: Omit<ReferenceInput, 'profile'>): Promise<{
+  id: number
+  url?: string
+} | null> {
   let found: number | null = null
   if (id !== null) {
     const table = ITEM_TABLES[app]

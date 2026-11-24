@@ -34,9 +34,11 @@ import type {
   ChangeSummary,
 } from '@/lib/assistant'
 import { requestOpen } from '@/lib/global-search'
+import type { SearchTarget } from '@/lib/global-search'
 import { useMentionTarget } from '@/lib/jarvis-mention'
 import { useCancelRequest } from '@/hooks/use-cancel-request'
 import { useDictation } from '@/hooks/use-dictation'
+import { useOpenInProfile } from '@/hooks/use-open-in-profile'
 import { useRequestHistory } from '@/hooks/use-request-history'
 import { useUndoRun } from '@/hooks/use-undo-run'
 import {
@@ -82,6 +84,7 @@ export function AssistantBox({
 function AssistantField({ enabled }: { enabled: boolean }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const openInProfile = useOpenInProfile()
   const ref = useRef<HTMLTextAreaElement>(null)
   const [text, setText] = useState('')
   // Web search for the next request only (off again once it's sent).
@@ -198,14 +201,16 @@ function AssistantField({ enabled }: { enabled: boolean }) {
           title: itemTitle(item),
           description: itemDetail(item),
           type: 'success',
-          // Made in another profile: its id means nothing here.
-          ...(!item.database && {
+          // Made in another profile: Open switches to it first (not for
+          // results saved before profiles were tracked by id).
+          ...((!item.database || item.databaseId !== undefined) && {
             actionProps: {
               children: 'Open',
-              onClick: () => {
-                requestOpen({ app: item.app, kind: 'item', id: item.id })
-                void navigate({ to: `/${item.app}` })
-              },
+              onClick: () =>
+                openTarget(
+                  { app: item.app, kind: 'item', id: item.id },
+                  item.databaseId,
+                ),
             },
           }),
         })
@@ -254,13 +259,23 @@ function AssistantField({ enabled }: { enabled: boolean }) {
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [pending])
 
-  const openMatch = (match: NonNullable<AssistantFound['match']>) => {
-    requestOpen({ app: match.app, kind: match.kind, id: match.id })
-    void navigate({ to: `/${match.app}` })
+  /** Opens it here, or in the profile it's in (switched to first). */
+  const openTarget = (target: SearchTarget, profile?: number | null) => {
+    if (profile !== undefined) {
+      void openInProfile({ profile, to: `/${target.app}`, target })
+      return
+    }
+    requestOpen(target)
+    void navigate({ to: `/${target.app}` })
   }
 
+  const openMatch = (
+    match: NonNullable<AssistantFound['match']>,
+    profile?: number | null,
+  ) => openTarget({ app: match.app, kind: match.kind, id: match.id }, profile)
+
   const showFound = (
-    { query, match, database }: AssistantFound,
+    { query, match, database, databaseId }: AssistantFound,
     openNow: boolean,
   ) => {
     if (!match) {
@@ -279,8 +294,18 @@ function AssistantField({ enabled }: { enabled: boolean }) {
       .filter(Boolean)
       .join(' › ')
     if (database && !match.url) {
-      // In another profile: say where, nothing to open here.
-      toast.add({ title: match.label, description: where })
+      // In another profile: offered (opening it switches profile), never
+      // opened on its own.
+      toast.add({
+        title: match.label,
+        description: where,
+        ...(databaseId !== undefined && {
+          actionProps: {
+            children: `Open in ${database}`,
+            onClick: () => openMatch(match, databaseId),
+          },
+        }),
+      })
       return
     }
     if (match.url) {

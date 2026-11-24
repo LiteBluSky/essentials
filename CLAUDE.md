@@ -481,8 +481,19 @@ createdAt`.
   to the search for touch screens. The open view hides folders whose tasks
   are all done (but keeps never-used empty ones); the done view shows only
   folders with completed tasks (`filterStatus`) — at most a week's worth,
-  since older completed tasks are purged. The flat list is oldest
-  first (completed: latest first). Drag and drop only in open + folders.
+  since older completed tasks are purged. The flat list is in the
+  order to do them (`byDue`: open tasks with no due date first, oldest
+  first, then due ones soonest first; completed: latest first), shown as a grid of cards
+  (`TaskCard` in `task-tree.tsx`; 1 / 2 / 3 columns), all the same size:
+  box, folder path, due / age and menu on top (an open task with no due
+  date, just something to do, also gets a dashed edge and a
+  `CalendarOffIcon`; its age still colours it), then the title (2 lines)
+  and the description (3 lines, references as `@Name`), each cut short
+  with an ellipsis (`line-clamp`). The title button stretches over the
+  card (a click anywhere opens it) and is the tree keys' item; in the
+  grid (`data-grid`) `h`/`j`/`k`/`l` and the arrows move left / down /
+  up / right between the cards (`gridStep` in `use-tree-keyboard.ts`,
+  columns read from the grid's CSS). Drag and drop only in open + folders.
   Move up/down steps past hidden (completed) siblings (`shown` in
   `tree-dnd.tsx`).
 - **Due** (`date-picker.tsx`, shadcn `Calendar` in a `Popover`, plus an
@@ -568,8 +579,9 @@ reference alone in backticks counts too); plain text
 in task descriptions, contact context, the user's chat messages and Tell me
 answer toasts). Labels, snippets and the PDF show `@Name`. **Clicking**
 (`useOpenReference`): `resolveReference` (`search.functions.ts` →
-`findReference`) finds the item by id, else by name (exact first), then it
-opens like a global search pick; a bookmark opens its site (the tab is
+`findReference`) finds the item by id, else by name (exact first), in the
+reference's profile if it names one (`#12@local`, see Profiles), then it
+opens like a global search pick (switching profile first if needed); a bookmark opens its site (the tab is
 opened during the click, then pointed at the URL). Gone: a toast. The
 **assistant** is told the syntax (`APP_PROMPT`) and to relate items with
 references; `search`, `read_item` and every create return a ready `ref`
@@ -618,11 +630,18 @@ tool calls go to that profile: `withDatabase` (`src/db/index.ts`, an
 there over `profileHandle` (idle connections kept, shared with
 reminders). That's how it looks elsewhere when something isn't found here
 and copies / moves items between profiles (read, switch, create; delete
-the original to move). Once a run has crossed profiles, references in
-what it creates or updates lose their ids (`referencesByName`). Changes
+the original to move). References keep pointing at the item they meant
+across profiles: one to another profile's item names it after the id
+(`@note(Plan#12@local)`, `#12@3` = remote database 3); `rebaseReferences`
+turns what a tool returns from another profile into the in-use profile's
+terms, and what the model writes there into that profile's. Changes
 are recorded in the profile they happened in; Undo runs in every profile
-(`undoRunEverywhere`). What it did elsewhere carries `database` (created,
-found, changed): shown as "in Work", with no Open. `useUndoRun` refreshes every
+(`undoRunEverywhere`). What it did elsewhere carries `database` +
+`databaseId` (created, found, changed): shown as "in Work", and its Open
+(like a chip of such a reference) switches to that profile first
+(`useOpenInProfile`: `switchDatabase`, the target kept in sessionStorage
+over the reload, `requestOpenAfterReload`, then a "Switched to Work"
+toast); it's never opened there on its own. `useUndoRun` refreshes every
 app after. Undo buttons: the Tell me toast for edits, each chat answer that
 changed something ("Undo changes", or "Changes undone"), and each history
 row with a run.
@@ -1322,6 +1341,11 @@ The keys below are the defaults.
   likes it), and Esc is the way out. An Esc something else took (a dialog
   or menu, a tree's cut, stopping Jarvis) is left alone; code that must
   ignore toasts uses `overlayOpen()` (`app-switcher.tsx`).
+- `u` presses **Undo** on the newest notification that offers one
+  (Jarvis's changes, a completed task): `ToastUndo` in
+  `components/toast-escape.tsx`, the `global.undo` shortcut, caught in
+  capture only while such a toast shows, so it beats Passwords' / Finances'
+  own `u` just then. Not while typing or with a dialog / menu open.
 - `Shift+T` cycles the theme (Light → Dark → System, with a toast) on
   every app: a listener in `ThemeToggle` (each header has one; off while
   typing or while a dialog / menu is open), `nextTheme` in `lib/theme.ts`.

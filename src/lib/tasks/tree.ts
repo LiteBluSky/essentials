@@ -144,11 +144,21 @@ export function flatTasks(tree: Tree, status: TaskStatus): Array<Task> {
   }
   walk(tree.folders)
   return status === 'open'
-    ? out.sort(byCreated)
+    ? out.sort(byDue)
     : out.sort(
         (a, b) =>
           (b.completedAt?.getTime() ?? 0) - (a.completedAt?.getTime() ?? 0),
       )
+}
+
+/** In the order they're to be done: those without a due date first
+ * (just things to do, oldest first), then the due ones, soonest first. */
+function byDue(a: Task, b: Task) {
+  if (a.dueAt && b.dueAt) {
+    return a.dueAt.getTime() - b.dueAt.getTime() || byCreated(a, b)
+  }
+  if (a.dueAt || b.dueAt) return a.dueAt ? 1 : -1
+  return byCreated(a, b)
 }
 
 function byCreated(a: Task, b: Task) {

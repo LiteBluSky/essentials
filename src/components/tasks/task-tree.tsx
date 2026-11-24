@@ -1,6 +1,7 @@
 import {
   ArrowDownIcon,
   ArrowUpIcon,
+  CalendarOffIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   CircleCheckIcon,
@@ -18,6 +19,13 @@ import {
 import { RowContextMenu } from '@/components/row-context-menu'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Collapsible,
@@ -34,6 +42,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { Task } from '@/db/schema'
 import { useHydrated } from '@/hooks/use-hydrated'
+import { plainReferences } from '@/lib/references'
 import { ageLabel, dueLabel, taskTone } from '@/lib/tasks/tree'
 import type { FolderNode, TaskTone, Tree } from '@/lib/tasks/tree'
 import { cn } from '@/lib/utils'
@@ -95,8 +104,9 @@ export function TaskTree({ tree, ...props }: TreeProps & { tree: Tree }) {
   )
 }
 
-/** Every task without folders (the `v` toggle's "List"), each with its
- * folder path. */
+/** Every task without folders (the `v` toggle's "List"): a grid of cards
+ * of one size, each with its folder path, title and description (both cut
+ * short with an ellipsis when too long). */
 export function TaskList({
   tasks,
   pathOf,
@@ -108,18 +118,109 @@ export function TaskList({
   cutId: number | null
 }) {
   return (
-    <ul role="tree" className="flex flex-col">
+    <ul
+      role="tree"
+      data-grid
+      className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3"
+    >
       {tasks.map((task) => (
-        <TaskRow
+        <TaskCard
           key={task.id}
           task={task}
-          depth={0}
           path={pathOf(task.folderId)}
           isCut={cutId === task.id}
           {...actions}
         />
       ))}
     </ul>
+  )
+}
+
+/** A task in the list's grid. Every card is the same size: the title (2
+ * lines) and the description (3 lines) end in an ellipsis when longer. The
+ * title is the card's focusable item (the tree keys) and stretches over the
+ * whole card, so a click anywhere opens it; the box and the menu sit above. */
+function TaskCard({
+  task,
+  path,
+  isCut,
+  onEdit,
+  onComplete,
+}: TaskActions & { task: Task; path: string; isCut: boolean }) {
+  const done = task.completedAt !== null
+  // Just something to do: no due date and not done yet. Listed first, with a
+  // dashed edge and an icon (its age still colours it as it gets older).
+  const undated = !done && task.dueAt === null
+  return (
+    <RowContextMenu
+      menu={
+        <TaskMenuItems task={task} onEdit={onEdit} onComplete={onComplete} />
+      }
+      render={
+        <li
+          role="treeitem"
+          data-tree-row
+          data-cut={isCut || undefined}
+          className="group/row data-cut:opacity-50"
+        />
+      }
+    >
+      <Card
+        size="sm"
+        data-undated={undated || undefined}
+        className="relative h-44 gap-2 transition-colors hover:bg-accent/50 has-[[data-tree-item]:focus-visible]:ring-2 has-[[data-tree-item]:focus-visible]:ring-ring data-undated:border data-undated:border-dashed data-undated:border-foreground/30 data-undated:ring-0"
+      >
+        <CardHeader className="flex items-center gap-1">
+          <span className="relative z-10 -ml-2 flex">
+            <TaskCheck task={task} onComplete={onComplete} />
+          </span>
+          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+            {path}
+          </span>
+          {undated && (
+            <CalendarOffIcon
+              role="img"
+              aria-label="No due date"
+              className="size-3.5 shrink-0 text-muted-foreground"
+            >
+              <title>No due date</title>
+            </CalendarOffIcon>
+          )}
+          <TaskAge task={task} />
+          <span className="relative z-10 -my-1 -mr-1 flex">
+            <TaskMenu task={task} onEdit={onEdit} onComplete={onComplete} />
+          </span>
+        </CardHeader>
+        <CardContent className="flex min-h-0 flex-1 flex-col gap-1">
+          <Button
+            data-tree-item
+            data-kind="task"
+            data-id={task.id}
+            data-parent-id={task.folderId ?? ''}
+            variant="ghost"
+            className="h-auto shrink-0 justify-start p-0 text-left whitespace-normal after:absolute after:inset-0 hover:bg-transparent focus-visible:border-transparent focus-visible:ring-0 dark:hover:bg-transparent"
+            title={task.title}
+            onClick={() =>
+              onEdit({ kind: 'task', mode: 'view', taskId: task.id })
+            }
+          >
+            <CardTitle
+              className={cn(
+                'line-clamp-2 break-words',
+                done && 'text-muted-foreground line-through',
+              )}
+            >
+              {task.title}
+            </CardTitle>
+          </Button>
+          {task.description && (
+            <CardDescription className="line-clamp-3 break-words whitespace-pre-line">
+              {plainReferences(task.description)}
+            </CardDescription>
+          )}
+        </CardContent>
+      </Card>
+    </RowContextMenu>
   )
 }
 
@@ -317,7 +418,6 @@ function FolderRow({
 function TaskRow({
   task,
   depth,
-  path,
   isCut,
   canShift = false,
   onEdit,
@@ -325,8 +425,6 @@ function TaskRow({
 }: TaskActions & {
   task: Task
   depth: number
-  /** Folder path, shown in the flat list. */
-  path?: string
   isCut: boolean
   /** Offer move up/down (only where the tree's order is shown). */
   canShift?: boolean
@@ -382,7 +480,6 @@ function TaskRow({
         onClick={() => onEdit({ kind: 'task', mode: 'view', taskId: task.id })}
       >
         <TaskTitle task={task} />
-        {path && <span className="truncate text-muted-foreground">{path}</span>}
         <TaskAge task={task} className="ml-auto" />
       </Button>
       {handle}

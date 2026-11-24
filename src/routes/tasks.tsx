@@ -426,7 +426,7 @@ function Home() {
             <ViewButton
               active={view.layout === 'list'}
               onClick={() => setLayout('list')}
-              title={`One list, oldest first (${keyLabel('tasks.layout')})`}
+              title={`One list: to do first, then soonest due (${keyLabel('tasks.layout')})`}
               aria-label="List"
             >
               <ListIcon />

@@ -18,6 +18,7 @@ const GROUPS: Array<ShortcutGroup> = [
       COMMON.theme,
       COMMON.profile,
       COMMON.toasts,
+      COMMON.undoToast,
       COMMON.stopJarvis,
       COMMON.reference,
       COMMON.assistant,
@@ -37,17 +38,21 @@ const GROUPS: Array<ShortcutGroup> = [
   {
     title: 'Tree',
     shortcuts: [
-      { id: 'tree.down', keys: [['↓']], action: 'Next row' },
-      { id: 'tree.up', keys: [['↑']], action: 'Previous row' },
+      { id: 'tree.down', keys: [['↓']], action: 'Next row (list: card below)' },
+      {
+        id: 'tree.up',
+        keys: [['↑']],
+        action: 'Previous row (list: card above)',
+      },
       {
         id: 'tree.collapse',
         keys: [['←']],
-        action: 'Collapse folder / go to parent',
+        action: 'Collapse folder / go to parent (list: card to the left)',
       },
       {
         id: 'tree.expand',
         keys: [['→']],
-        action: 'Expand folder / into first child',
+        action: 'Expand folder / into first child (list: card to the right)',
       },
       { id: 'tree.first', action: 'First row' },
       { id: 'tree.last', action: 'Last row' },

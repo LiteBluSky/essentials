@@ -11,7 +11,7 @@ import { AppSwitcher } from '@/components/app-switcher'
 import { JarvisActivity } from '@/components/jarvis-activity'
 import { ProfileSwitcher } from '@/components/profile-switcher'
 import { SwipeApps } from '@/components/swipe-apps'
-import { ToastEscape } from '@/components/toast-escape'
+import { ToastEscape, ToastUndo } from '@/components/toast-escape'
 import { Toaster } from '@/components/ui/toast'
 import { registerServiceWorker } from '@/hooks/use-install-app'
 import { APP_NAME } from '@/lib/config'
@@ -74,6 +74,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           <AppSwitcher />
           <ProfileSwitcher />
           <ToastEscape />
+          <ToastUndo />
           <SwipeApps />
           <JarvisActivity />
         </Toaster>

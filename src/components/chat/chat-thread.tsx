@@ -53,6 +53,7 @@ import type {
 import { messageActions, toolActivity } from '@/lib/chat'
 import type { ChatMessageView, ChatStreamEvent } from '@/lib/chat'
 import { useUndoRun } from '@/hooks/use-undo-run'
+import { useOpenInProfile } from '@/hooks/use-open-in-profile'
 import { requestOpen } from '@/lib/global-search'
 import { useMentionTarget } from '@/lib/jarvis-mention'
 import type { SearchApp } from '@/lib/global-search'
@@ -334,7 +335,6 @@ const APP_ITEM: Record<ChangeSummary['app'], string> = {
 
 function ChangedMarker({ change }: { change: ChangeSummary }) {
   const open = useOpen()
-  const navigate = useNavigate()
   const Icon =
     change.op === 'delete'
       ? Trash2Icon
@@ -360,16 +360,19 @@ function ChangedMarker({ change }: { change: ChangeSummary }) {
         {change.detail ? ` · ${change.detail}` : ''}
         {change.database ? ` · in ${change.database}` : ''}
       </MarkerContent>
-      {change.op !== 'delete' && !change.database && (
+      {change.op !== 'delete' && canOpen(change) && (
         <Button
           size="xs"
           variant="outline"
           onClick={() =>
             change.app === 'calendar'
-              ? void navigate({ to: '/calendar' })
+              ? open({ to: '/calendar' }, change)
               : isFinancePart(change.app)
-                ? void navigate({ to: '/finances' })
-                : open({ app: change.app, id: change.id, kind: change.target })
+                ? open({ to: '/finances' }, change)
+                : open(
+                    { app: change.app, id: change.id, kind: change.target },
+                    change,
+                  )
           }
         >
           Open
@@ -379,11 +382,34 @@ function ChangedMarker({ change }: { change: ChangeSummary }) {
   )
 }
 
+/** Done in the profile in use, or in another one Open can switch to
+ * (answers saved before profiles were tracked by id can't). */
+function canOpen(where: { database?: string; databaseId?: number | null }) {
+  return !where.database || where.databaseId !== undefined
+}
+
+/** Opens an item (or a page), in the profile it's in: another one is
+ * switched to first. */
 function useOpen() {
   const navigate = useNavigate()
-  return (target: { app: SearchApp; id: number; kind?: 'folder' | 'item' }) => {
-    requestOpen({ app: target.app, kind: target.kind ?? 'item', id: target.id })
-    void navigate({ to: `/${target.app}` })
+  const openInProfile = useOpenInProfile()
+  return (
+    what:
+      | { app: SearchApp; id: number; kind?: 'folder' | 'item' }
+      | { to: '/calendar' | '/finances' },
+    where: { databaseId?: number | null } = {},
+  ) => {
+    const to = 'to' in what ? what.to : (`/${what.app}` as const)
+    const target =
+      'to' in what
+        ? undefined
+        : { app: what.app, kind: what.kind ?? 'item', id: what.id }
+    if (where.databaseId !== undefined) {
+      void openInProfile({ profile: where.databaseId, to, target })
+      return
+    }
+    if (target) requestOpen(target)
+    void navigate({ to })
   }
 }
 
@@ -404,8 +430,8 @@ function CreatedMarker({ item }: { item: AssistantItem }) {
         {item.folder ? ` · in ${item.folder}` : ''}
         {item.database ? ` · ${item.database}` : ''}
       </MarkerContent>
-      {!item.database && (
-        <Button size="xs" variant="outline" onClick={() => open(item)}>
+      {canOpen(item) && (
+        <Button size="xs" variant="outline" onClick={() => open(item, item)}>
           Open
         </Button>
       )}
@@ -414,7 +440,7 @@ function CreatedMarker({ item }: { item: AssistantItem }) {
 }
 
 function FoundMarker({
-  found: { query, match, database },
+  found: { query, match, database, databaseId },
 }: {
   found: AssistantFound
 }) {
@@ -439,7 +465,7 @@ function FoundMarker({
         {match.path ? ` · ${match.path}` : ''}
         {database ? ` · in ${database}` : ''}
       </MarkerContent>
-      {database && !match.url ? null : match.url ? (
+      {!canOpen({ database, databaseId }) && !match.url ? null : match.url ? (
         <Button
           size="xs"
           variant="outline"
@@ -450,7 +476,11 @@ function FoundMarker({
           Open
         </Button>
       ) : (
-        <Button size="xs" variant="outline" onClick={() => open(match)}>
+        <Button
+          size="xs"
+          variant="outline"
+          onClick={() => open(match, { databaseId })}
+        >
           {match.app === 'passwords' ? 'Show password' : 'Open'}
         </Button>
       )}

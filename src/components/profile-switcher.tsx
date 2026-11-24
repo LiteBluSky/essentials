@@ -26,6 +26,7 @@ import {
   databasesQueryOptions,
   switchDatabase,
 } from '@/server/databases.functions'
+import { takeSwitchNotice } from '@/lib/databases'
 import { isShortcut, useShortcutLabel } from '@/lib/shortcuts'
 
 const OPEN_EVENT = 'profile-switcher:open'
@@ -76,6 +77,12 @@ export function ProfileSwitcher() {
         })),
       ]
     : []
+
+  // Opening something Jarvis did in another profile switched to it.
+  useEffect(() => {
+    const name = takeSwitchNotice()
+    if (name) toast.add({ title: `Switched to ${name}`, type: 'info' })
+  }, [])
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {

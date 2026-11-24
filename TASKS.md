@@ -259,6 +259,15 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [x] Jarvis across profiles: `use_database` (only with a remote set up)
       to look in the other databases and copy / move items between them;
       Undo covers every profile
+- [x] Items Jarvis made / changed / found in another profile open from
+      their markers, toasts and `@` chips: the reference names its profile
+      (`#12@local`), and Open switches to it, then opens the item
+- [x] Tasks' flat list as a grid of same-size cards: title and
+      description shown, cut short with an ellipsis
+- [x] hjkl / arrows move across the tasks card grid
+- [x] `u` presses a notification's Undo
+- [x] Tasks' flat list: undated to-dos first (dashed card + icon), then
+      due ones soonest first
 - [x] The assistant files what it creates: an existing folder that fits
       first, else a new one for a clear topic, Unsorted only as a fallback
 

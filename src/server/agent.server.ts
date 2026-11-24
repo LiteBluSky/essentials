@@ -4,7 +4,7 @@ import { listProfiles, profileHandle, withDatabase } from '@/db'
 import type { Profile } from '@/db'
 import type { AssistantResult } from '@/lib/assistant'
 import type { ChatStreamEvent } from '@/lib/chat'
-import { referencesByName } from '@/lib/references'
+import { rebaseReferences } from '@/lib/references'
 import { ALL_TOOLS, runTool } from './agent-tools.server'
 import { CancelledError } from './cancel.server'
 import { undoRunEverywhere } from './changes.server'
@@ -43,16 +43,21 @@ const USE_DATABASE_TOOL: ToolDef = {
 function profilesPrompt(profiles: Array<Profile>) {
   const active = profiles.find((p) => p.active)!.name
   const names = profiles.map((p) => `"${p.name}"`).join(', ')
-  return `The user keeps their data in several profiles (separate databases): ${names}. You start in "${active}", the one they're using. If something isn't found there, look in the others (use_database, then search) before saying it's missing, and say which profile it's in. To copy something to another profile, read it, use_database the target and create it there (same fields, a fitting folder there); to move it, also delete the original in its profile. Switch back to "${active}" when done. Ids and refs belong to the profile they came from; only open_item things in "${active}".`
+  return `The user keeps their data in several profiles (separate databases): ${names}. You start in "${active}", the one they're using. If something isn't found there, look in the others (use_database, then search) before saying it's missing, and say which profile it's in. To copy something to another profile, read it, use_database the target and create it there (same fields, a fitting folder there); to move it, also delete the original in its profile. Switch back to "${active}" when done. Ids belong to the profile they came from. A ref to another profile's item names that profile after its id (\`@note(Plan#12@local)\`): copy refs exactly as given, so they open the right item in the right profile. Only open_item things in "${active}".`
 }
 
-/** The text in a tool's arguments with references' ids dropped. */
-function byName(value: unknown): unknown {
-  if (typeof value === 'string') return referencesByName(value)
-  if (Array.isArray(value)) return value.map(byName)
-  if (value && typeof value === 'object') {
+/** Every string in a tool's arguments / result with its references
+ * rebased from one profile to another (`rebaseReferences`). */
+function rebase(
+  value: unknown,
+  from: number | null,
+  to: number | null,
+): unknown {
+  if (typeof value === 'string') return rebaseReferences(value, from, to)
+  if (Array.isArray(value)) return value.map((v) => rebase(v, from, to))
+  if (value && typeof value === 'object' && !(value instanceof Date)) {
     return Object.fromEntries(
-      Object.entries(value).map(([k, v]) => [k, byName(v)]),
+      Object.entries(value).map(([k, v]) => [k, rebase(v, from, to)]),
     )
   }
   return value
@@ -100,11 +105,13 @@ export async function runAgent({
   if (several)
     system = `${system}
 ${profilesPrompt(profiles)}`
-  /** The profile the tools work in (starts on the one in use); `crossed`
-   * once the run has been in another one, so text it writes refers to items
-   * by name (ids differ between profiles). */
-  let profile = profiles.find((p) => p.active)!
-  let crossed = false
+  /** The profile the tools work in (starts on the one in use). The model
+   * works in the one in use's terms: references it gets from another
+   * profile name that profile (`#12@local`), and what it writes there is
+   * turned into that profile's terms, so every reference keeps pointing at
+   * the item it meant, wherever the text is. */
+  const home = profiles.find((p) => p.active)!
+  let profile = home
 
   const runInProfile = async (name: string, args: unknown) => {
     if (name === 'use_database') {
@@ -121,11 +128,9 @@ ${profilesPrompt(profiles)}`
       }
       await profileHandle(next.id) // Fails here if it can't be reached.
       profile = next
-      if (!next.active) crossed = true
       return { database: next.name, inUse: next.active }
     }
-    const writes = /^(create|update)_/.test(name)
-    const input = crossed && writes ? byName(args) : args
+    const input = rebase(args, home.id, profile.id)
     if (profile.active) return runTool(name, input, ctx)
     // In another profile: run it there, and mark what it did as being there.
     const handle = await profileHandle(profile.id)
@@ -136,15 +141,18 @@ ${profilesPrompt(profiles)}`
     ] as const
     const output = await withDatabase(handle, () => runTool(name, input, ctx))
     const database = profile.name
-    for (const entry of result.created.slice(before[0]))
-      entry.database = database
-    for (const entry of result.found.slice(before[1])) entry.database = database
-    for (const entry of result.changed.slice(before[2])) {
-      entry.database = database
+    const where = { database, databaseId: profile.id }
+    for (const entry of [
+      ...result.created.slice(before[0]),
+      ...result.found.slice(before[1]),
+      ...result.changed.slice(before[2]),
+    ]) {
+      Object.assign(entry, where)
     }
-    return output && typeof output === 'object' && !Array.isArray(output)
-      ? { database, ...output }
-      : { database, result: output }
+    const back = rebase(output, profile.id, home.id)
+    return back && typeof back === 'object' && !Array.isArray(back)
+      ? { database, ...back }
+      : { database, result: back }
   }
   const conversation = [...turns]
   let usage: ModelUsage | null = null

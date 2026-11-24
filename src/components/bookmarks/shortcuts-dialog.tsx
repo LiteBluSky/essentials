@@ -17,6 +17,7 @@ const GROUPS: Array<ShortcutGroup> = [
       COMMON.theme,
       COMMON.profile,
       COMMON.toasts,
+      COMMON.undoToast,
       COMMON.stopJarvis,
       COMMON.reference,
       COMMON.assistant,

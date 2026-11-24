@@ -11,6 +11,8 @@ import type { TaskInput } from '@/lib/tasks/schemas'
 //   l / →  expand folder, or step into its first child
 //   H      collapse all folders; if none are open, go to the previous app
 //   L      go to the next app
+//   (in the flat list's grid of cards, hjkl / arrows move left, down, up
+//   and right between the cards instead)
 //   gg     first row         G      last row
 //   n / N  next / previous visible task (wraps around)
 //   o      open task / toggle folder (Enter works natively too)
@@ -36,8 +38,43 @@ const SCOPES = ['tree', 'tasks'] as const
 const HELP = 'help'
 
 const ITEM = '[data-tree-item]'
+/** The flat list's grid of cards (`TaskList`): hjkl move in two dimensions. */
+const GRID = '[data-grid]'
 const HOVERED_ROW = '[data-tree-row]:hover'
 const GG_TIMEOUT_MS = 500
+
+/** How many cards a row of the grid holds (its CSS columns). */
+function gridColumns(grid: Element) {
+  return Math.max(
+    1,
+    getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean)
+      .length,
+  )
+}
+
+/** In the grid, where hjkl / the arrows go from card `index` (of `count`):
+ * a row down / up in the same column (down onto the last card when the
+ * row below is shorter), or the card before / after. Null: stay. */
+function gridStep(key: string, index: number, count: number, columns: number) {
+  const row = (i: number) => Math.floor(i / columns)
+  switch (key) {
+    case 'j':
+    case 'ArrowDown':
+      if (index + columns < count) return index + columns
+      return row(count - 1) > row(index) ? count - 1 : null
+    case 'k':
+    case 'ArrowUp':
+      return index - columns >= 0 ? index - columns : null
+    case 'h':
+    case 'ArrowLeft':
+      return index > 0 ? index - 1 : null
+    case 'l':
+    case 'ArrowRight':
+      return index < count - 1 ? index + 1 : null
+    default:
+      return null
+  }
+}
 
 function isTyping(target: EventTarget | null) {
   return (
@@ -158,6 +195,21 @@ export function useTreeKeyboard({
         containerRef.current
           ?.querySelector(HOVERED_ROW)
           ?.querySelector<HTMLElement>(ITEM) ?? current
+
+      // The flat list's cards: hjkl move across the grid.
+      const grid = current?.closest(GRID)
+      if (grid && /^(?:[hjkl]|Arrow(?:Left|Right|Up|Down))$/.test(key)) {
+        handled()
+        const cards = list.filter((el) => grid.contains(el))
+        const to = gridStep(
+          key,
+          cards.indexOf(current!),
+          cards.length,
+          gridColumns(grid),
+        )
+        if (to !== null) focus(cards[to])
+        return
+      }
 
       if (/^[1-9]$/.test(key)) {
         handled()

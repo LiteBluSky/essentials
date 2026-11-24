@@ -61,6 +61,7 @@ export const SHORTCUT_DEFS = {
   'global.nextApp': def('global', 'Alt+l', 'Next app'),
   'global.help': def('global', '?', 'Keyboard shortcuts'),
   'global.confirm': def('global', 'd', 'Confirm a delete'),
+  'global.undo': def('global', 'u', 'Undo from a notification'),
 
   // The folder trees (Bookmarks, Notes, Tasks, Contacts).
   'tree.down': def('tree', 'j', 'Next row'),
