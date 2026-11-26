@@ -599,9 +599,11 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       desktop too, like on phones; name and key in the tooltip
 - [x] Every tooltip is shadcn's (`Hint`) instead of the browser's native
       `title`
-- [ ] Verify in a real browser: header buttons, tree rows (link URLs,
-      note snippets, task descriptions), menu / popover triggers (currency,
-      day picker), the colour swatches in the strip menu
+- [x] Fewer tooltips: only what can't be seen (icon-only controls,
+      truncated / hidden text); none on labelled buttons, chips or content
+      rows (tree items, task cards, quick lists, Up next)
+- [ ] Verify in a real browser: header buttons, menu / popover triggers
+      (currency), the colour swatches in the strip menu
 
 ## 32. Tasks from the Calendar (Nov 2026)
 

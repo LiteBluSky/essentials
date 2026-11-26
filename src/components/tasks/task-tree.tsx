@@ -48,7 +48,6 @@ import type { FolderNode, TaskTone, Tree } from '@/lib/tasks/tree'
 import { cn } from '@/lib/utils'
 import type { OpenEditor } from './editor'
 import { useRootDrop, useShiftItem, useTreeRowDnd } from './tree-dnd'
-import { Hint } from '@/components/hint'
 
 const INDENT_PX = 20
 // Width of the chevron + gap, so task checkboxes line up with folder icons.
@@ -193,28 +192,27 @@ function TaskCard({
           </span>
         </CardHeader>
         <CardContent className="flex min-h-0 flex-1 flex-col gap-1">
-          <Hint label={task.title}>
-            <Button
-              data-tree-item
-              data-kind="task"
-              data-id={task.id}
-              data-parent-id={task.folderId ?? ''}
-              variant="ghost"
-              className="h-auto shrink-0 justify-start p-0 text-left whitespace-normal after:absolute after:inset-0 hover:bg-transparent focus-visible:border-transparent focus-visible:ring-0 dark:hover:bg-transparent"
-              onClick={() =>
-                onEdit({ kind: 'task', mode: 'view', taskId: task.id })
-              }
+          <Button
+            data-tree-item
+            data-kind="task"
+            data-id={task.id}
+            data-parent-id={task.folderId ?? ''}
+            variant="ghost"
+            className="h-auto shrink-0 justify-start p-0 text-left whitespace-normal after:absolute after:inset-0 hover:bg-transparent focus-visible:border-transparent focus-visible:ring-0 dark:hover:bg-transparent"
+            onClick={() =>
+              onEdit({ kind: 'task', mode: 'view', taskId: task.id })
+            }
+          >
+            <CardTitle
+              className={cn(
+                'line-clamp-2 break-words',
+                done && 'text-muted-foreground line-through',
+              )}
             >
-              <CardTitle
-                className={cn(
-                  'line-clamp-2 break-words',
-                  done && 'text-muted-foreground line-through',
-                )}
-              >
-                {task.title}
-              </CardTitle>
-            </Button>
-          </Hint>
+              {task.title}
+            </CardTitle>
+          </Button>
+
           {task.description && (
             <CardDescription className="line-clamp-3 break-words whitespace-pre-line">
               {plainReferences(task.description)}
@@ -471,22 +469,20 @@ function TaskRow({
       }
     >
       <TaskCheck task={task} onComplete={onComplete} />
-      <Hint label={task.description || undefined}>
-        <Button
-          data-tree-item
-          data-kind="task"
-          data-id={task.id}
-          data-parent-id={task.folderId ?? ''}
-          variant="ghost"
-          className="min-w-0 flex-1 justify-start"
-          onClick={() =>
-            onEdit({ kind: 'task', mode: 'view', taskId: task.id })
-          }
-        >
-          <TaskTitle task={task} />
-          <TaskAge task={task} className="ml-auto" />
-        </Button>
-      </Hint>
+
+      <Button
+        data-tree-item
+        data-kind="task"
+        data-id={task.id}
+        data-parent-id={task.folderId ?? ''}
+        variant="ghost"
+        className="min-w-0 flex-1 justify-start"
+        onClick={() => onEdit({ kind: 'task', mode: 'view', taskId: task.id })}
+      >
+        <TaskTitle task={task} />
+        <TaskAge task={task} className="ml-auto" />
+      </Button>
+
       {handle}
       <TaskMenu
         task={task}

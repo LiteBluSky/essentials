@@ -60,6 +60,10 @@ it. Add new tasks there rather than doing unplanned work.
 - Tooltips: `Hint` (`components/hint.tsx`: shadcn `Tooltip`, the element
   itself as the trigger, no wrapper; no label = no tooltip; one
   `TooltipProvider` in `__root.tsx`), never a native `title` attribute.
+  **Only for what can't be seen**: an icon-only control's name (+ key),
+  or the full text of something truncated / not shown (a path, an
+  error). Never on a button or chip whose text already says it, and never
+  as a preview on content rows (tree items, cards, quick lists).
   An icon-only control still needs its `aria-label` (no hover on touch).
   For a trigger rendered through `render={…}` (a menu / popover trigger),
   wrap the outer trigger.

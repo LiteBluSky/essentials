@@ -191,25 +191,22 @@ export function ShortcutsHelp({
                                 </Button>
                               </Hint>
                             )}
-                            <Hint label={'Click, then press the new key'}>
-                              <Button
-                                variant={
-                                  capturing === id ? 'default' : 'outline'
-                                }
-                                size="xs"
-                                aria-label={`Change the key for “${action}”`}
-                                onClick={() =>
-                                  setCapturing(capturing === id ? null : id)
-                                }
-                              >
-                                {capturing === id
-                                  ? 'Press a key…'
-                                  : comboParts(
-                                      changed[id] ?? def.keys,
-                                      def.twice,
-                                    ).map((key, i) => <Kbd key={i}>{key}</Kbd>)}
-                              </Button>
-                            </Hint>
+
+                            <Button
+                              variant={capturing === id ? 'default' : 'outline'}
+                              size="xs"
+                              aria-label={`Change the key for “${action}”`}
+                              onClick={() =>
+                                setCapturing(capturing === id ? null : id)
+                              }
+                            >
+                              {capturing === id
+                                ? 'Press a key…'
+                                : comboParts(
+                                    changed[id] ?? def.keys,
+                                    def.twice,
+                                  ).map((key, i) => <Kbd key={i}>{key}</Kbd>)}
+                            </Button>
                           </>
                         )}
                         {keys.map((combo, i) => (

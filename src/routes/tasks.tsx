@@ -389,41 +389,34 @@ function Home() {
           )}
         </InputGroup>
         {day && (
-          <Hint
-            label={`Clear the date filter (${keyLabel('tree.clearSearch')})`}
+          <Button
+            variant="secondary"
+            aria-label={`Showing tasks dated ${day}. Clear the date filter`}
+            onClick={() => setDay(null)}
           >
-            <Button
-              variant="secondary"
-              aria-label={`Showing tasks dated ${day}. Clear the date filter`}
-              onClick={() => setDay(null)}
-            >
-              <CalendarIcon data-icon="inline-start" />
-              {format(parseISO(day), 'd MMM yyyy')}
-              <ShortcutKey id="tree.clearSearch" className="max-lg:hidden" />
-              <XIcon data-icon="inline-end" />
-            </Button>
-          </Hint>
+            <CalendarIcon data-icon="inline-start" />
+            {format(parseISO(day), 'd MMM yyyy')}
+            <ShortcutKey id="tree.clearSearch" className="max-lg:hidden" />
+            <XIcon data-icon="inline-end" />
+          </Button>
         )}
         <div className="flex gap-2 max-lg:w-full max-lg:justify-between">
           <ButtonGroup aria-label="Which tasks">
-            <Hint label={`Open tasks (${keyLabel('tasks.showDone')})`}>
-              <ViewButton
-                active={view.status === 'open'}
-                onClick={() => setStatus('open')}
-              >
-                <CircleIcon data-icon="inline-start" />
-                Open
-              </ViewButton>
-            </Hint>
-            <Hint label={`Completed tasks (${keyLabel('tasks.showDone')})`}>
-              <ViewButton
-                active={view.status === 'done'}
-                onClick={() => setStatus('done')}
-              >
-                <CircleCheckBigIcon data-icon="inline-start" />
-                Done
-              </ViewButton>
-            </Hint>
+            <ViewButton
+              active={view.status === 'open'}
+              onClick={() => setStatus('open')}
+            >
+              <CircleIcon data-icon="inline-start" />
+              Open
+            </ViewButton>
+
+            <ViewButton
+              active={view.status === 'done'}
+              onClick={() => setStatus('done')}
+            >
+              <CircleCheckBigIcon data-icon="inline-start" />
+              Done
+            </ViewButton>
           </ButtonGroup>
           <ButtonGroup aria-label="Layout">
             <Hint label={`Group in folders (${keyLabel('tasks.layout')})`}>

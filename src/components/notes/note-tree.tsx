@@ -38,7 +38,6 @@ import type { FolderNode, Tree } from '@/lib/notes/tree'
 import { cn } from '@/lib/utils'
 import type { OpenEditor } from './editor'
 import { useRootDrop, useShiftItem, useTreeRowDnd } from './tree-dnd'
-import { Hint } from '@/components/hint'
 
 const INDENT_PX = 20
 // Width of the chevron + gap, so note icons line up with folder icons.
@@ -307,27 +306,24 @@ function NoteRow({
         />
       }
     >
-      <Hint label={noteSnippet(note.body) || undefined}>
-        <Button
-          data-tree-item
-          data-kind="note"
-          data-id={note.id}
-          data-parent-id={note.folderId ?? ''}
-          variant="ghost"
-          className="min-w-0 flex-1 justify-start"
-          onClick={() =>
-            onEdit({ kind: 'note', mode: 'view', noteId: note.id })
-          }
-        >
-          <FileTextIcon data-icon="inline-start" />
-          <span className="truncate">{noteLabel(note)}</span>
-          {note.title && (
-            <span className="truncate text-muted-foreground">
-              {noteSnippet(note.body, 80)}
-            </span>
-          )}
-        </Button>
-      </Hint>
+      <Button
+        data-tree-item
+        data-kind="note"
+        data-id={note.id}
+        data-parent-id={note.folderId ?? ''}
+        variant="ghost"
+        className="min-w-0 flex-1 justify-start"
+        onClick={() => onEdit({ kind: 'note', mode: 'view', noteId: note.id })}
+      >
+        <FileTextIcon data-icon="inline-start" />
+        <span className="truncate">{noteLabel(note)}</span>
+        {note.title && (
+          <span className="truncate text-muted-foreground">
+            {noteSnippet(note.body, 80)}
+          </span>
+        )}
+      </Button>
+
       {handle}
       <NoteMenu note={note} onEdit={onEdit} />
     </RowContextMenu>

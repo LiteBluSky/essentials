@@ -24,7 +24,6 @@ import { monthLabel } from '@/lib/finances/money'
 import { submitOnModEnter } from '@/lib/submit-shortcut'
 import { assistantHistoryQueryOptions } from '@/server/assistant.functions'
 import { askFinanceAdvice } from '@/server/finances.functions'
-import { Hint } from '@/components/hint'
 
 /**
  * Advice on demand: one AI request with the month's numbers (and the five
@@ -170,19 +169,16 @@ function Advice({ month }: { month: string }) {
           </>
         ) : (
           <>
-            <Hint
-              label={`Let ${ASSISTANT_NAME} search the web for this question`}
+            <Toggle
+              variant="outline"
+              pressed={webSearch}
+              onPressedChange={setWebSearch}
+              disabled={ask.isPending}
             >
-              <Toggle
-                variant="outline"
-                pressed={webSearch}
-                onPressedChange={setWebSearch}
-                disabled={ask.isPending}
-              >
-                <GlobeIcon />
-                Search the web
-              </Toggle>
-            </Hint>
+              <GlobeIcon />
+              Search the web
+            </Toggle>
+
             {ask.isPending ? (
               <Button variant="outline" onClick={cancel}>
                 <Spinner data-icon="inline-start" />

@@ -336,27 +336,19 @@ function SettingsForm({
           </FieldGroup>
           {group.keys.includes('NTFY_TOPIC') && (
             <div>
-              <Hint
-                label={
-                  view.NTFY_TOPIC.source === null
-                    ? 'Save a topic first'
-                    : 'Uses the saved settings'
-                }
+              <Button
+                type="button"
+                variant="outline"
+                disabled={test.isPending || view.NTFY_TOPIC.source === null}
+                onClick={() => test.mutate()}
               >
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={test.isPending || view.NTFY_TOPIC.source === null}
-                  onClick={() => test.mutate()}
-                >
-                  {test.isPending ? (
-                    <Spinner data-icon="inline-start" />
-                  ) : (
-                    <BellRingIcon data-icon="inline-start" />
-                  )}
-                  Send test reminder
-                </Button>
-              </Hint>
+                {test.isPending ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
+                  <BellRingIcon data-icon="inline-start" />
+                )}
+                Send test reminder
+              </Button>
             </div>
           )}
         </FieldSet>

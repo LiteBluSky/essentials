@@ -12,7 +12,6 @@ import {
   TaskMenuItems,
   TaskTitle,
 } from './task-tree'
-import { Hint } from '@/components/hint'
 
 type ListProps = {
   tasks: Array<Task>
@@ -70,19 +69,19 @@ function QuickList({
             render={<li className="group/row flex items-center gap-1" />}
           >
             <TaskCheck task={task} onComplete={onComplete} />
-            <Hint label={task.description || undefined}>
-              <Button
-                variant="ghost"
-                className="min-w-0 flex-1 justify-start"
-                onClick={() =>
-                  onEdit({ kind: 'task', mode: 'view', taskId: task.id })
-                }
-              >
-                {numbered && i < UP_NEXT_KEYS && <Kbd>{i + 1}</Kbd>}
-                <TaskTitle task={task} />
-                <TaskAge task={task} className="ml-auto" />
-              </Button>
-            </Hint>
+
+            <Button
+              variant="ghost"
+              className="min-w-0 flex-1 justify-start"
+              onClick={() =>
+                onEdit({ kind: 'task', mode: 'view', taskId: task.id })
+              }
+            >
+              {numbered && i < UP_NEXT_KEYS && <Kbd>{i + 1}</Kbd>}
+              <TaskTitle task={task} />
+              <TaskAge task={task} className="ml-auto" />
+            </Button>
+
             <TaskMenu task={task} onEdit={onEdit} onComplete={onComplete} />
           </RowContextMenu>
         ))}

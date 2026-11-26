@@ -269,31 +269,28 @@ function SavingRow({ saving }: { saving: FinanceSaving }) {
           aria-invalid={amount.trim() !== '' && cents === null}
         />
         <InputGroupAddon align="inline-end">
-          <Hint label={'Take it out, back into your wallet'}>
-            <InputGroupButton
-              disabled={
-                cents === null || move.isPending || cents > saving.savedCents
-              }
-              onClick={() => moveMoney('out')}
-            >
-              <ArrowUpFromLineIcon data-icon="inline-start" />
-              Take out
-            </InputGroupButton>
-          </Hint>
-          <Hint label={'Put it in from your wallet (Enter)'}>
-            <InputGroupButton
-              variant="secondary"
-              disabled={cents === null || move.isPending}
-              onClick={() => moveMoney('in')}
-            >
-              {move.isPending ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <PiggyBankIcon data-icon="inline-start" />
-              )}
-              Put in
-            </InputGroupButton>
-          </Hint>
+          <InputGroupButton
+            disabled={
+              cents === null || move.isPending || cents > saving.savedCents
+            }
+            onClick={() => moveMoney('out')}
+          >
+            <ArrowUpFromLineIcon data-icon="inline-start" />
+            Take out
+          </InputGroupButton>
+
+          <InputGroupButton
+            variant="secondary"
+            disabled={cents === null || move.isPending}
+            onClick={() => moveMoney('in')}
+          >
+            {move.isPending ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <PiggyBankIcon data-icon="inline-start" />
+            )}
+            Put in
+          </InputGroupButton>
         </InputGroupAddon>
       </InputGroup>
 

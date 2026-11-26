@@ -22,7 +22,6 @@ import { pickableCategories } from '@/lib/finances/categories'
 import type { CategoryKey, EntryKind } from '@/lib/finances/categories'
 import { CURRENCIES } from '@/lib/finances/money'
 import type { Currency } from '@/lib/finances/money'
-import { Hint } from '@/components/hint'
 
 // Small pickers shared by the Finances forms.
 
@@ -51,25 +50,24 @@ export function DayPicker({
   const date = parseDay(value)
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <Hint label={'Day'}>
-        <PopoverTrigger
-          id={id}
-          render={
-            <Button
-              variant="outline"
-              className={cn(!compact && 'w-full justify-start font-normal')}
-              aria-label="Day"
-            />
-          }
-        >
-          <CalendarIcon data-icon="inline-start" />
-          {compact
-            ? isToday(date)
-              ? 'Today'
-              : format(date, 'd MMM')
-            : format(date, 'EEE d MMM yyyy')}
-        </PopoverTrigger>
-      </Hint>
+      <PopoverTrigger
+        id={id}
+        render={
+          <Button
+            variant="outline"
+            className={cn(!compact && 'w-full justify-start font-normal')}
+            aria-label="Day"
+          />
+        }
+      >
+        <CalendarIcon data-icon="inline-start" />
+        {compact
+          ? isToday(date)
+            ? 'Today'
+            : format(date, 'd MMM')
+          : format(date, 'EEE d MMM yyyy')}
+      </PopoverTrigger>
+
       <PopoverContent align="start" className="w-auto p-0">
         <Calendar
           mode="single"

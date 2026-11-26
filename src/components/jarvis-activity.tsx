@@ -91,18 +91,15 @@ export function JarvisActivity() {
                 {running.length > 1 && ` (${running.length})`}
               </span>
             </ButtonGroupText>
-            <Hint
-              label={`Stop: ${ASSISTANT_NAME} calls it off and undoes what it changed (Esc)`}
+
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() => cancelActivity(shown.id)}
             >
-              <Button
-                variant="outline"
-                size="xs"
-                onClick={() => cancelActivity(shown.id)}
-              >
-                <SquareIcon data-icon="inline-start" className="fill-current" />
-                Stop
-              </Button>
-            </Hint>
+              <SquareIcon data-icon="inline-start" className="fill-current" />
+              Stop
+            </Button>
           </>
         ) : (
           <>

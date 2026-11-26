@@ -24,7 +24,6 @@ import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { Toggle } from '@/components/ui/toggle'
 import { useAddEntry, useAutoCategorize } from '@/hooks/finances/use-add-entry'
-import { ASSISTANT_NAME } from '@/lib/assistant'
 import { UNCATEGORIZED, categoriesFor } from '@/lib/finances/categories'
 import type { CategoryKey, EntryKind } from '@/lib/finances/categories'
 import { CURRENCIES, DEFAULT_CURRENCY } from '@/lib/finances/money'
@@ -237,16 +236,14 @@ export function AmountDialog({
           />
           <div className="flex min-w-0 items-center gap-2">
             {aiAvailable && (
-              <Hint label={`${ASSISTANT_NAME} picks a category when you don't`}>
-                <Toggle
-                  variant="outline"
-                  pressed={auto}
-                  onPressedChange={setAuto}
-                >
-                  <SparklesIcon />
-                  Auto-categorize
-                </Toggle>
-              </Hint>
+              <Toggle
+                variant="outline"
+                pressed={auto}
+                onPressedChange={setAuto}
+              >
+                <SparklesIcon />
+                Auto-categorize
+              </Toggle>
             )}
             <CategorySelect
               kind={kind}
