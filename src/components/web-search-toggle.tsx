@@ -2,6 +2,7 @@ import { GlobeIcon } from 'lucide-react'
 
 import { InputGroupButton } from '@/components/ui/input-group'
 import { ASSISTANT_NAME } from '@/lib/assistant'
+import { Hint } from '@/components/hint'
 
 /**
  * Lets Jarvis search the web for the next request only: off by default,
@@ -22,17 +23,18 @@ export function WebSearchToggle({
     ? 'Web search on for this message (tap to turn off)'
     : `Let ${ASSISTANT_NAME} search the web for this message`
   return (
-    <InputGroupButton
-      type="button"
-      size={size}
-      variant={on ? 'outline' : 'ghost'}
-      aria-label={label}
-      aria-pressed={on}
-      title={label}
-      disabled={disabled}
-      onClick={() => onChange(!on)}
-    >
-      <GlobeIcon className={on ? 'text-primary' : ''} />
-    </InputGroupButton>
+    <Hint label={label}>
+      <InputGroupButton
+        type="button"
+        size={size}
+        variant={on ? 'outline' : 'ghost'}
+        aria-label={label}
+        aria-pressed={on}
+        disabled={disabled}
+        onClick={() => onChange(!on)}
+      >
+        <GlobeIcon className={on ? 'text-primary' : ''} />
+      </InputGroupButton>
+    </Hint>
   )
 }

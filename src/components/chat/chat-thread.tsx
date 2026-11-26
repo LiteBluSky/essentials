@@ -75,6 +75,7 @@ import { ChatMarkdown } from './chat-markdown'
 import { ASSISTANT_NAME, isFinancePart } from '@/lib/assistant'
 import { isShortcut } from '@/lib/shortcuts'
 import { ShortcutKey } from '@/components/shortcut-key'
+import { Hint } from '@/components/hint'
 
 /** A message being sent (shown until the server has saved the turn), with
  * the answer so far as it streams in, and the tool it's using meanwhile. */
@@ -660,28 +661,30 @@ export function ChatComposer({
           />
           {busy && <Spinner className="ml-auto text-muted-foreground" />}
           {busy ? (
-            <InputGroupButton
-              variant="default"
-              size="icon-sm"
-              type="button"
-              aria-label="Stop"
-              title="Stop: cancel this message (Esc)"
-              onClick={onCancel}
-            >
-              <SquareIcon className="fill-current" />
-            </InputGroupButton>
+            <Hint label={'Stop: cancel this message (Esc)'}>
+              <InputGroupButton
+                variant="default"
+                size="icon-sm"
+                type="button"
+                aria-label="Stop"
+                onClick={onCancel}
+              >
+                <SquareIcon className="fill-current" />
+              </InputGroupButton>
+            </Hint>
           ) : (
-            <InputGroupButton
-              variant="default"
-              size="icon-sm"
-              type="submit"
-              className="ml-auto"
-              disabled={!canSend}
-              aria-label="Send"
-              title="Send (Enter)"
-            >
-              <ArrowUpIcon />
-            </InputGroupButton>
+            <Hint label={'Send (Enter)'}>
+              <InputGroupButton
+                variant="default"
+                size="icon-sm"
+                type="submit"
+                className="ml-auto"
+                disabled={!canSend}
+                aria-label="Send"
+              >
+                <ArrowUpIcon />
+              </InputGroupButton>
+            </Hint>
           )}
         </InputGroupAddon>
       </InputGroup>

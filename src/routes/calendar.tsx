@@ -40,6 +40,7 @@ import { assistantEnabledQueryOptions } from '@/server/assistant.functions'
 import { calendarQueryOptions } from '@/server/calendar.functions'
 import { tasksTreeQueryOptions } from '@/server/tasks.functions'
 import { isShortcut, shortcutKey, useShortcutLabels } from '@/lib/shortcuts'
+import { Hint } from '@/components/hint'
 
 // The Calendar app: a month of coloured strips, each over a day or a range
 // of days (no times, no reminders), plus the tasks with a due date on their
@@ -584,30 +585,32 @@ function CalendarPage() {
         <AppNav />
         <div className="flex items-center gap-3 max-lg:order-last max-lg:justify-between">
           <ButtonGroup aria-label="Month">
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Previous month"
-              title={`Previous month (${keyLabel('calendar.prevMonth')})`}
-              onClick={() => setMonth((m) => addMonths(m, -1))}
-            >
-              <ChevronLeftIcon />
-            </Button>
+            <Hint label={`Previous month (${keyLabel('calendar.prevMonth')})`}>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Previous month"
+                onClick={() => setMonth((m) => addMonths(m, -1))}
+              >
+                <ChevronLeftIcon />
+              </Button>
+            </Hint>
             <Button
               variant="outline"
               onClick={() => goToDay(isoDay(new Date()))}
             >
               Today
             </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Next month"
-              title={`Next month (${keyLabel('calendar.nextMonth')})`}
-              onClick={() => setMonth((m) => addMonths(m, 1))}
-            >
-              <ChevronRightIcon />
-            </Button>
+            <Hint label={`Next month (${keyLabel('calendar.nextMonth')})`}>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Next month"
+                onClick={() => setMonth((m) => addMonths(m, 1))}
+              >
+                <ChevronRightIcon />
+              </Button>
+            </Hint>
           </ButtonGroup>
           <h1 className="text-lg font-medium">
             {hydrated ? format(month, 'MMMM yyyy') : ''}
@@ -615,28 +618,32 @@ function CalendarPage() {
         </div>
         <div className="flex justify-end gap-2">
           <ButtonGroup aria-label="Settings">
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Search everything"
-              title={`Search everything (${keyLabel('global.globalSearch')})`}
-              onClick={() => setSearchOpen(true)}
+            <Hint
+              label={`Search everything (${keyLabel('global.globalSearch')})`}
             >
-              <SearchIcon />
-            </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Search everything"
+                onClick={() => setSearchOpen(true)}
+              >
+                <SearchIcon />
+              </Button>
+            </Hint>
             <CalendarMenu
               settingsOpen={settingsOpen}
               onSettingsOpenChange={setSettingsOpen}
             />
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Keyboard shortcuts"
-              title={`Keyboard shortcuts (${keyLabel('global.help')})`}
-              onClick={() => setHelpOpen(true)}
-            >
-              <KeyboardIcon />
-            </Button>
+            <Hint label={`Keyboard shortcuts (${keyLabel('global.help')})`}>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Keyboard shortcuts"
+                onClick={() => setHelpOpen(true)}
+              >
+                <KeyboardIcon />
+              </Button>
+            </Hint>
             <ThemeToggle />
             <ProfileButton />
           </ButtonGroup>

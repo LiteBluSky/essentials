@@ -33,6 +33,7 @@ import { submitOnModEnter } from '@/lib/submit-shortcut'
 import { cn } from '@/lib/utils'
 import { assistantEnabledQueryOptions } from '@/server/assistant.functions'
 import { CategorySelect } from './pickers'
+import { Hint } from '@/components/hint'
 
 /** At most 99,999,999.99 (the schema's limit is just above). */
 const MAX_DIGITS = 10
@@ -149,20 +150,21 @@ export function AmountDialog({
           {/* −/+ | amount | currency, both the same size so the amount
               stays centred. */}
           <div className="grid min-w-0 grid-cols-[2.25rem_minmax(0,1fr)_2.25rem] items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-lg"
-              aria-label={
-                income
-                  ? 'Money in (switch to money out)'
-                  : 'Money out (switch to money in)'
-              }
-              title={income ? 'Money in' : 'Money out'}
-              onClick={() => setKind(income ? 'expense' : 'income')}
-            >
-              <SignIcon className={cn(income && 'text-success')} />
-            </Button>
+            <Hint label={income ? 'Money in' : 'Money out'}>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-lg"
+                aria-label={
+                  income
+                    ? 'Money in (switch to money out)'
+                    : 'Money out (switch to money in)'
+                }
+                onClick={() => setKind(income ? 'expense' : 'income')}
+              >
+                <SignIcon className={cn(income && 'text-success')} />
+              </Button>
+            </Hint>
             <Input
               ref={amountRef}
               autoFocus
@@ -187,25 +189,26 @@ export function AmountDialog({
               )}
             />
             <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-lg"
-                    aria-label={`Currency: ${currency}`}
-                    title={`Currency: ${currency}`}
-                  />
-                }
-              >
-                <span
-                  className={cn(
-                    currencySymbol(currency).length > 1 && 'text-xs',
-                  )}
+              <Hint label={`Currency: ${currency}`}>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-lg"
+                      aria-label={`Currency: ${currency}`}
+                    />
+                  }
                 >
-                  {currencySymbol(currency)}
-                </span>
-              </DropdownMenuTrigger>
+                  <span
+                    className={cn(
+                      currencySymbol(currency).length > 1 && 'text-xs',
+                    )}
+                  >
+                    {currencySymbol(currency)}
+                  </span>
+                </DropdownMenuTrigger>
+              </Hint>
               <DropdownMenuContent align="end">
                 <DropdownMenuGroup>
                   <DropdownMenuLabel>Currency</DropdownMenuLabel>
@@ -234,15 +237,16 @@ export function AmountDialog({
           />
           <div className="flex min-w-0 items-center gap-2">
             {aiAvailable && (
-              <Toggle
-                variant="outline"
-                pressed={auto}
-                onPressedChange={setAuto}
-                title={`${ASSISTANT_NAME} picks a category when you don't`}
-              >
-                <SparklesIcon />
-                Auto-categorize
-              </Toggle>
+              <Hint label={`${ASSISTANT_NAME} picks a category when you don't`}>
+                <Toggle
+                  variant="outline"
+                  pressed={auto}
+                  onPressedChange={setAuto}
+                >
+                  <SparklesIcon />
+                  Auto-categorize
+                </Toggle>
+              </Hint>
             )}
             <CategorySelect
               kind={kind}

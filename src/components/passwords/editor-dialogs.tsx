@@ -62,6 +62,7 @@ import { PasswordForm } from './password-form'
 import type { EditorState, OpenEditor } from './editor'
 import { FolderForm } from './folder-form'
 import { copyPassword, copySite, copyUsername, useOpenSite } from './actions'
+import { Hint } from '@/components/hint'
 
 // `state` is kept around after closing (only `open` flips) so the dialog
 // content doesn't blank out during its exit animation.
@@ -267,16 +268,21 @@ function PasswordView({
           copyId="passwords.copyPassword"
           onCopy={() => copyPassword(password)}
           extra={
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={revealed ? 'Hide the password' : 'Show the password'}
-              aria-pressed={revealed}
-              title={`${revealed ? 'Hide' : 'Show'} (${keyLabel('passwords.reveal')})`}
-              onClick={() => setRevealed((r) => !r)}
+            <Hint
+              label={`${revealed ? 'Hide' : 'Show'} (${keyLabel('passwords.reveal')})`}
             >
-              {revealed ? <EyeOffIcon /> : <EyeIcon />}
-            </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={
+                  revealed ? 'Hide the password' : 'Show the password'
+                }
+                aria-pressed={revealed}
+                onClick={() => setRevealed((r) => !r)}
+              >
+                {revealed ? <EyeOffIcon /> : <EyeIcon />}
+              </Button>
+            </Hint>
           }
         />
         {password.url && (
@@ -378,16 +384,19 @@ function Detail({
         </Button>
       )}
       {extra}
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label={`Copy ${label.toLowerCase()}`}
-        title={`Copy ${label.toLowerCase()}${copyId ? ` (${keyLabel(copyId)})` : ''}`}
-        disabled={!value}
-        onClick={onCopy}
+      <Hint
+        label={`Copy ${label.toLowerCase()}${copyId ? ` (${keyLabel(copyId)})` : ''}`}
       >
-        <CopyIcon />
-      </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={`Copy ${label.toLowerCase()}`}
+          disabled={!value}
+          onClick={onCopy}
+        >
+          <CopyIcon />
+        </Button>
+      </Hint>
     </div>
   )
 }

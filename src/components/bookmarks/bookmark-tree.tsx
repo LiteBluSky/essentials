@@ -39,6 +39,7 @@ import type { FolderNode, Tree } from '@/lib/bookmarks/tree'
 import { cn } from '@/lib/utils'
 import type { OpenEditor } from './editor'
 import { useRootDrop, useShiftItem, useTreeRowDnd } from './tree-dnd'
+import { Hint } from '@/components/hint'
 
 const INDENT_PX = 20
 // Width of the chevron + gap, so link icons line up with folder icons.
@@ -314,35 +315,30 @@ function LinkRow({
         />
       }
     >
-      <Button
-        data-tree-item
-        data-kind="link"
-        data-id={link.id}
-        data-parent-id={link.folderId ?? ''}
-        variant="ghost"
-        className="min-w-0 flex-1 justify-start"
-        nativeButton={false}
-        render={
-          <a
-            href={link.url}
-            target="_blank"
-            rel="noreferrer"
-            title={link.description ?? link.url}
-          />
-        }
-      >
-        <GlobeIcon data-icon="inline-start" />
-        <span className="truncate">{link.title}</span>
-        <span className="truncate text-muted-foreground">
-          {hostname(link.url)}
-        </span>
-        {isFavorite && (
-          <StarIcon
-            aria-label="Favourite"
-            className="ml-auto fill-current text-muted-foreground"
-          />
-        )}
-      </Button>
+      <Hint label={link.description ?? link.url}>
+        <Button
+          data-tree-item
+          data-kind="link"
+          data-id={link.id}
+          data-parent-id={link.folderId ?? ''}
+          variant="ghost"
+          className="min-w-0 flex-1 justify-start"
+          nativeButton={false}
+          render={<a href={link.url} target="_blank" rel="noreferrer" />}
+        >
+          <GlobeIcon data-icon="inline-start" />
+          <span className="truncate">{link.title}</span>
+          <span className="truncate text-muted-foreground">
+            {hostname(link.url)}
+          </span>
+          {isFavorite && (
+            <StarIcon
+              aria-label="Favourite"
+              className="ml-auto fill-current text-muted-foreground"
+            />
+          )}
+        </Button>
+      </Hint>
       {handle}
       <LinkMenu
         link={link}

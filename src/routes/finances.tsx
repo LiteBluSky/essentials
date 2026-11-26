@@ -56,6 +56,7 @@ import {
 } from '@/server/finances.functions'
 import { isShortcut, shortcutKey, useShortcutLabels } from '@/lib/shortcuts'
 import { ShortcutKey } from '@/components/shortcut-key'
+import { Hint } from '@/components/hint'
 
 // The Finances app (four tabs: the month, Recurring, Budgets, Savings): type what you spent or got ("12.50 coffee", "+1800
 // payroll") and see the month at a glance: in, out, left, and a circle of
@@ -201,15 +202,17 @@ function FinancesPage() {
       <header className="flex items-center justify-between gap-4 max-lg:flex-col max-lg:items-stretch">
         <AppNav />
         <div className="flex justify-between gap-2">
-          <Button
-            aria-label="Add an expense or income"
-            className={ICON_ON_PHONES}
-            onClick={() => setAdding('expense')}
+          <Hint
+            label={`Add an expense or income (${keyLabel('finances.add')})`}
           >
-            <PlusIcon data-icon="inline-start" />
-            <span className="max-lg:hidden">Add</span>
-            <ShortcutKey id="finances.add" className="max-lg:hidden" />
-          </Button>
+            <Button
+              aria-label="Add an expense or income"
+              size="icon"
+              onClick={() => setAdding('expense')}
+            >
+              <PlusIcon />
+            </Button>
+          </Hint>
           {aiAvailable && (
             <Button variant="outline" onClick={() => setAdviceOpen(true)}>
               <SparklesIcon data-icon="inline-start" />
@@ -218,15 +221,18 @@ function FinancesPage() {
             </Button>
           )}
           <ButtonGroup aria-label="Settings">
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Search everything"
-              title={`Search everything (${keyLabel('global.globalSearch')})`}
-              onClick={() => setSearchOpen(true)}
+            <Hint
+              label={`Search everything (${keyLabel('global.globalSearch')})`}
             >
-              <SearchIcon />
-            </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Search everything"
+                onClick={() => setSearchOpen(true)}
+              >
+                <SearchIcon />
+              </Button>
+            </Hint>
             <FinancesMenu
               settingsOpen={settingsOpen}
               onSettingsOpenChange={setSettingsOpen}
@@ -235,15 +241,16 @@ function FinancesPage() {
                 categorize.mutate(uncategorized.map((e) => e.id))
               }
             />
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Keyboard shortcuts"
-              title={`Keyboard shortcuts (${keyLabel('global.help')})`}
-              onClick={() => setHelpOpen(true)}
-            >
-              <KeyboardIcon />
-            </Button>
+            <Hint label={`Keyboard shortcuts (${keyLabel('global.help')})`}>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Keyboard shortcuts"
+                onClick={() => setHelpOpen(true)}
+              >
+                <KeyboardIcon />
+              </Button>
+            </Hint>
             <ThemeToggle />
           </ButtonGroup>
         </div>
@@ -289,15 +296,18 @@ function FinancesPage() {
           <div className="flex items-center justify-between gap-3">
             <h1 className="text-lg font-medium">{monthLabel(month)}</h1>
             <ButtonGroup aria-label="Month">
-              <Button
-                variant="outline"
-                size="icon"
-                aria-label="Previous month"
-                title={`Previous month (${keyLabel('finances.prevMonth')})`}
-                onClick={() => setMonth((m) => addMonth(m, -1))}
+              <Hint
+                label={`Previous month (${keyLabel('finances.prevMonth')})`}
               >
-                <ChevronLeftIcon />
-              </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="Previous month"
+                  onClick={() => setMonth((m) => addMonth(m, -1))}
+                >
+                  <ChevronLeftIcon />
+                </Button>
+              </Hint>
               <Button
                 variant="outline"
                 disabled={month === data.month}
@@ -305,15 +315,16 @@ function FinancesPage() {
               >
                 This month
               </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                aria-label="Next month"
-                title={`Next month (${keyLabel('finances.nextMonth')})`}
-                onClick={() => setMonth((m) => addMonth(m, 1))}
-              >
-                <ChevronRightIcon />
-              </Button>
+              <Hint label={`Next month (${keyLabel('finances.nextMonth')})`}>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="Next month"
+                  onClick={() => setMonth((m) => addMonth(m, 1))}
+                >
+                  <ChevronRightIcon />
+                </Button>
+              </Hint>
             </ButtonGroup>
           </div>
 
@@ -398,5 +409,3 @@ function FinancesPage() {
 
 type FinancesTab = 'month' | 'recurring' | 'budgets' | 'savings'
 
-// Icon-only below lg, like the other apps' New buttons.
-const ICON_ON_PHONES = 'max-lg:w-8 max-lg:p-0!'

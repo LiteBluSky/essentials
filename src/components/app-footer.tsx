@@ -4,6 +4,7 @@ import { CloudIcon, HardDriveIcon } from 'lucide-react'
 import { APP_VERSION } from '@/lib/config'
 import { cn } from '@/lib/utils'
 import { databasesQueryOptions } from '@/server/databases.functions'
+import { Hint } from '@/components/hint'
 
 /**
  * The strip at the bottom of every app but Calendar: the database in use
@@ -30,17 +31,16 @@ export function AppFooter({ inDock = false }: { inDock?: boolean }) {
         inDock ? 'px-1 pt-2 lg:hidden' : 'mt-auto',
       )}
     >
-      <span
-        className="flex min-w-0 items-center gap-1.5"
-        title={active ? active.url : data?.localPath}
-      >
-        {data && (
-          <>
-            <Icon className="size-3.5 shrink-0" aria-hidden />
-            <span className="truncate">{active ? active.name : 'Local'}</span>
-          </>
-        )}
-      </span>
+      <Hint label={active ? active.url : data?.localPath}>
+        <span className="flex min-w-0 items-center gap-1.5">
+          {data && (
+            <>
+              <Icon className="size-3.5 shrink-0" aria-hidden />
+              <span className="truncate">{active ? active.name : 'Local'}</span>
+            </>
+          )}
+        </span>
+      </Hint>
       <span className="shrink-0 tabular-nums">v{APP_VERSION}</span>
     </footer>
   )

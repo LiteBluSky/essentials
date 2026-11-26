@@ -38,6 +38,7 @@ import {
 import { submitOnModEnter } from '@/lib/submit-shortcut'
 import { DatePicker } from './date-picker'
 import { FolderSelect } from './folder-select'
+import { Hint } from '@/components/hint'
 
 // The form's own fields; the due date (a day + a time) and its reminder are
 // kept beside it.
@@ -174,27 +175,29 @@ export function TaskForm({
             </div>
             {dueDay && (
               <>
-                <Input
-                  type="time"
-                  aria-label="Due time"
-                  title={`Due time (${DEFAULT_DUE_HOUR}:00 when empty)`}
-                  className="w-28"
-                  value={dueTime}
-                  onChange={(e) => setDueTime(e.target.value)}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  aria-label="No due date"
-                  title="No due date"
-                  onClick={() => {
-                    setDueDay(null)
-                    setDueTime('')
-                  }}
-                >
-                  <XIcon />
-                </Button>
+                <Hint label={`Due time (${DEFAULT_DUE_HOUR}:00 when empty)`}>
+                  <Input
+                    type="time"
+                    aria-label="Due time"
+                    className="w-28"
+                    value={dueTime}
+                    onChange={(e) => setDueTime(e.target.value)}
+                  />
+                </Hint>
+                <Hint label={'No due date'}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label="No due date"
+                    onClick={() => {
+                      setDueDay(null)
+                      setDueTime('')
+                    }}
+                  >
+                    <XIcon />
+                  </Button>
+                </Hint>
               </>
             )}
           </div>

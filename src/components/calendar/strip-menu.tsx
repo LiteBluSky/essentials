@@ -14,6 +14,7 @@ import type { CalendarEvent } from '@/db/schema'
 import { CALENDAR_COLORS } from '@/lib/calendar/colors'
 import type { CalendarColor } from '@/lib/calendar/colors'
 import { cn } from '@/lib/utils'
+import { Hint } from '@/components/hint'
 
 /** Where a strip's menu was asked for (viewport coordinates). */
 export type StripMenuAt = { id: number; x: number; y: number }
@@ -78,22 +79,22 @@ export function StripMenu({
                     <DropdownMenuSubContent>
                       <DropdownMenuGroup className="grid grid-cols-5 gap-0.5">
                         {CALENDAR_COLORS.map((color) => (
-                          <DropdownMenuItem
-                            key={color.key}
-                            aria-label={color.label}
-                            title={color.label}
-                            className="justify-center p-1.5"
-                            onClick={() => onColor(event, color.key)}
-                          >
-                            <span
-                              className={cn(
-                                'size-5 rounded-full',
-                                color.className,
-                                color.key === event.color &&
-                                  'ring-2 ring-ring ring-offset-2 ring-offset-popover',
-                              )}
-                            />
-                          </DropdownMenuItem>
+                          <Hint label={color.label} key={color.key}>
+                            <DropdownMenuItem
+                              aria-label={color.label}
+                              className="justify-center p-1.5"
+                              onClick={() => onColor(event, color.key)}
+                            >
+                              <span
+                                className={cn(
+                                  'size-5 rounded-full',
+                                  color.className,
+                                  color.key === event.color &&
+                                    'ring-2 ring-ring ring-offset-2 ring-offset-popover',
+                                )}
+                              />
+                            </DropdownMenuItem>
+                          </Hint>
                         ))}
                       </DropdownMenuGroup>
                     </DropdownMenuSubContent>

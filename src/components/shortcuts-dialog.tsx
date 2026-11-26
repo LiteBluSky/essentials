@@ -31,6 +31,7 @@ import {
   useBindings,
 } from '@/lib/shortcuts'
 import type { ShortcutId } from '@/lib/shortcuts'
+import { Hint } from '@/components/hint'
 
 // The shortcuts help of every app, and where the keys are changed: a row
 // with an `id` shows the key that shortcut is on now as a button (click it,
@@ -179,32 +180,36 @@ export function ShortcutsHelp({
                         {id && def && (
                           <>
                             {id in changed && (
-                              <Button
-                                variant="ghost"
-                                size="icon-xs"
-                                aria-label={`Back to the default key for “${action}”`}
-                                title="Back to the default"
-                                onClick={() => resetBinding(id)}
-                              >
-                                <RotateCcwIcon />
-                              </Button>
+                              <Hint label={'Back to the default'}>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-xs"
+                                  aria-label={`Back to the default key for “${action}”`}
+                                  onClick={() => resetBinding(id)}
+                                >
+                                  <RotateCcwIcon />
+                                </Button>
+                              </Hint>
                             )}
-                            <Button
-                              variant={capturing === id ? 'default' : 'outline'}
-                              size="xs"
-                              aria-label={`Change the key for “${action}”`}
-                              title="Click, then press the new key"
-                              onClick={() =>
-                                setCapturing(capturing === id ? null : id)
-                              }
-                            >
-                              {capturing === id
-                                ? 'Press a key…'
-                                : comboParts(
-                                    changed[id] ?? def.keys,
-                                    def.twice,
-                                  ).map((key, i) => <Kbd key={i}>{key}</Kbd>)}
-                            </Button>
+                            <Hint label={'Click, then press the new key'}>
+                              <Button
+                                variant={
+                                  capturing === id ? 'default' : 'outline'
+                                }
+                                size="xs"
+                                aria-label={`Change the key for “${action}”`}
+                                onClick={() =>
+                                  setCapturing(capturing === id ? null : id)
+                                }
+                              >
+                                {capturing === id
+                                  ? 'Press a key…'
+                                  : comboParts(
+                                      changed[id] ?? def.keys,
+                                      def.twice,
+                                    ).map((key, i) => <Kbd key={i}>{key}</Kbd>)}
+                              </Button>
+                            </Hint>
                           </>
                         )}
                         {keys.map((combo, i) => (

@@ -593,6 +593,16 @@ it. Add new tasks under the right phase instead of doing unplanned work.
 - [ ] Verify with two profiles: create a note in the other one from Chat,
       click its chip in the answer (switches and opens it)
 
+## 31. Header and tooltips (Nov 2026)
+
+- [x] New <item> buttons (and Finances' Add) are just the + icon on
+      desktop too, like on phones; name and key in the tooltip
+- [x] Every tooltip is shadcn's (`Hint`) instead of the browser's native
+      `title`
+- [ ] Verify in a real browser: header buttons, tree rows (link URLs,
+      note snippets, task descriptions), menu / popover triggers (currency,
+      day picker), the colour swatches in the strip menu
+
 ## History of the notes app (before the merge)
 
 ### Notes 0. Scaffold (from the bookmarks app)

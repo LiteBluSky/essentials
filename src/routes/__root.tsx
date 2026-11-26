@@ -13,6 +13,7 @@ import { ProfileSwitcher } from '@/components/profile-switcher'
 import { SwipeApps } from '@/components/swipe-apps'
 import { ToastEscape, ToastUndo } from '@/components/toast-escape'
 import { Toaster } from '@/components/ui/toast'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { registerServiceWorker } from '@/hooks/use-install-app'
 import { APP_NAME } from '@/lib/config'
 import { THEME_SCRIPT } from '@/lib/theme'
@@ -70,13 +71,17 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <Toaster>
-          {children}
-          <AppSwitcher />
-          <ProfileSwitcher />
-          <ToastEscape />
-          <ToastUndo />
-          <SwipeApps />
-          <JarvisActivity />
+          {/* Every Hint (shadcn tooltip) shares one delay; moving between
+              neighbouring buttons shows the next one at once. */}
+          <TooltipProvider delay={400}>
+            {children}
+            <AppSwitcher />
+            <ProfileSwitcher />
+            <ToastEscape />
+            <ToastUndo />
+            <SwipeApps />
+            <JarvisActivity />
+          </TooltipProvider>
         </Toaster>
         <TanStackDevtools
           config={{

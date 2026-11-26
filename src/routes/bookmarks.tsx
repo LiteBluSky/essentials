@@ -56,6 +56,7 @@ import { databasesQueryOptions } from '@/server/databases.functions'
 import { assistantEnabledQueryOptions } from '@/server/assistant.functions'
 import { bookmarksTreeQueryOptions } from '@/server/bookmarks.functions'
 import { ShortcutKey } from '@/components/shortcut-key'
+import { Hint } from '@/components/hint'
 
 export const Route = createFileRoute('/bookmarks')({
   loader: ({ context }) =>
@@ -196,36 +197,40 @@ function Home() {
               <span className="max-lg:hidden">Folder</span>
               <ShortcutKey id="global.newFolder" className="max-lg:hidden" />
             </Button>
-            <Button
-              aria-label="New link"
-              className={ICON_ON_PHONES}
-              onClick={() => openEditor({ kind: 'link', folderId: null })}
-            >
-              <PlusIcon data-icon="inline-start" />
-              <span className="max-lg:hidden">Link</span>
-              <ShortcutKey id="tree.new" className="max-lg:hidden" />
-            </Button>
+            <Hint label={`New link (${keyLabel('tree.new')})`}>
+              <Button
+                aria-label="New link"
+                size="icon"
+                onClick={() => openEditor({ kind: 'link', folderId: null })}
+              >
+                <PlusIcon />
+              </Button>
+            </Hint>
           </div>
           <ButtonGroup aria-label="Settings">
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Search everything"
-              title={`Search everything (${keyLabel('global.globalSearch')})`}
-              onClick={() => globalSearch.setOpen(true)}
+            <Hint
+              label={`Search everything (${keyLabel('global.globalSearch')})`}
             >
-              <SearchIcon />
-            </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Search everything"
+                onClick={() => globalSearch.setOpen(true)}
+              >
+                <SearchIcon />
+              </Button>
+            </Hint>
             <ImportExportMenu tree={tree} />
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Keyboard shortcuts"
-              title={`Keyboard shortcuts (${keyLabel('global.help')})`}
-              onClick={() => setHelpOpen(true)}
-            >
-              <KeyboardIcon />
-            </Button>
+            <Hint label={`Keyboard shortcuts (${keyLabel('global.help')})`}>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Keyboard shortcuts"
+                onClick={() => setHelpOpen(true)}
+              >
+                <KeyboardIcon />
+              </Button>
+            </Hint>
             <ThemeToggle />
             <ProfileButton />
           </ButtonGroup>

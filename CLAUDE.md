@@ -57,6 +57,12 @@ it. Add new tasks there rather than doing unplanned work.
 - Icons inside `Button` get `data-icon="inline-start|inline-end"`, no size
   classes. Semantic colour tokens only (`text-muted-foreground`, …), `gap-*`
   not `space-*`, `className` for layout only.
+- Tooltips: `Hint` (`components/hint.tsx`: shadcn `Tooltip`, the element
+  itself as the trigger, no wrapper; no label = no tooltip; one
+  `TooltipProvider` in `__root.tsx`), never a native `title` attribute.
+  An icon-only control still needs its `aria-label` (no hover on touch).
+  For a trigger rendered through `render={…}` (a menu / popover trigger),
+  wrap the outer trigger.
 - Toasts: `toast.add({ title, type })` from `@/components/ui/toast` (Base UI
   toast manager; `<Toaster>` wraps the app in `__root.tsx`).
 - `src/components/ui/**` is vendored shadcn source — excluded from ESLint and
@@ -311,8 +317,9 @@ import/export menu, shortcuts help, theme menu and the profile switcher
 header stacks (every page has the same space above it: `pt-8`, Calendar
 and Chat included): the app select spans the full width, then the buttons
 spread edge to edge (`justify-between`; Calendar adds its month row the
-same way, and Tasks' view toggles spread too), and New folder / New <item> (and Chat's New chat) are icon-only
-(`ICON_ON_PHONES`, label in `aria-label`)), the app's quick list, search box, then the tree. Folders are
+same way, and Tasks' view toggles spread too), and New folder (and Chat's New chat) are icon-only
+(`ICON_ON_PHONES`, label in `aria-label`)); New <item> (Finances' Add too) is
+a + icon at every width, its name and key in a `Hint`), the app's quick list, search box, then the tree. Folders are
 `Collapsible` rows (expanded state persisted in localStorage per app), each
 row has a hover `DropdownMenu`, and the same actions on **right click /
 long press** (~0.5 s on touch): `RowContextMenu`
@@ -1253,7 +1260,7 @@ Enter, Esc, Tab, the arrows and the digits are fixed. Rules:
   passed together must be unique.
 - Hints never spell a key: `<ShortcutKey id="…" />`
   (`components/shortcut-key.tsx`) in buttons and text,
-  `useShortcutLabel(s)` for `title`s.
+  `useShortcutLabel(s)` for `Hint` labels.
 - The help is one shared dialog (`components/shortcuts-dialog.tsx`,
   `ShortcutsHelp`); each app's `shortcuts-dialog.tsx` only lists its
   groups: rows with an `id` (changeable) and / or fixed `keys`.

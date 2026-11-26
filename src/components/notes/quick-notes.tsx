@@ -7,6 +7,7 @@ import type { Note } from '@/db/schema'
 import { QUICK_COUNT, noteLabel, noteSnippet } from '@/lib/notes/tree'
 import type { OpenEditor } from './editor'
 import { NoteMenu, NoteMenuItems } from './note-tree'
+import { Hint } from '@/components/hint'
 
 // "Recent" (keys 1-4) and "Most viewed" (keys 5-8) above the tree. Each row
 // shows the note's title, or the start of its text, and has the same hover
@@ -63,18 +64,19 @@ function QuickList({
             menu={<NoteMenuItems note={note} onEdit={onEdit} />}
             render={<li className="group/row flex items-center gap-1" />}
           >
-            <Button
-              variant="ghost"
-              className="min-w-0 flex-1 justify-start"
-              title={noteSnippet(note.body) || undefined}
-              onClick={() =>
-                onEdit({ kind: 'note', mode: 'view', noteId: note.id })
-              }
-            >
-              <Kbd>{firstKey + i}</Kbd>
-              <FileTextIcon />
-              <span className="truncate">{noteLabel(note)}</span>
-            </Button>
+            <Hint label={noteSnippet(note.body) || undefined}>
+              <Button
+                variant="ghost"
+                className="min-w-0 flex-1 justify-start"
+                onClick={() =>
+                  onEdit({ kind: 'note', mode: 'view', noteId: note.id })
+                }
+              >
+                <Kbd>{firstKey + i}</Kbd>
+                <FileTextIcon />
+                <span className="truncate">{noteLabel(note)}</span>
+              </Button>
+            </Hint>
             <NoteMenu note={note} onEdit={onEdit} />
           </RowContextMenu>
         ))}

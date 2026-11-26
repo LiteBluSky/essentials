@@ -61,6 +61,7 @@ import {
 } from '@/server/finances.functions'
 import { DeleteConfirm } from './entry-dialog'
 import { CurrencySelect } from './pickers'
+import { Hint } from '@/components/hint'
 
 /**
  * The Savings tab: savings accounts, places to keep money apart from the
@@ -196,26 +197,28 @@ function SavingRow({ saving }: { saving: FinanceSaving }) {
       <div className="flex items-center gap-2">
         <span className="flex-1 truncate font-medium">{saving.name}</span>
         {reached && <Badge>Goal reached</Badge>}
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={`Edit ${saving.name}`}
-          title="Edit"
-          onClick={() => setEditing(true)}
-        >
-          <PencilIcon />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={
-            reached ? `Bought ${saving.name}` : `Delete ${saving.name}`
-          }
-          title={reached ? 'Bought it' : 'Delete'}
-          onClick={() => setRemoving(true)}
-        >
-          {reached ? <ShoppingBagIcon /> : <Trash2Icon />}
-        </Button>
+        <Hint label={'Edit'}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`Edit ${saving.name}`}
+            onClick={() => setEditing(true)}
+          >
+            <PencilIcon />
+          </Button>
+        </Hint>
+        <Hint label={reached ? 'Bought it' : 'Delete'}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={
+              reached ? `Bought ${saving.name}` : `Delete ${saving.name}`
+            }
+            onClick={() => setRemoving(true)}
+          >
+            {reached ? <ShoppingBagIcon /> : <Trash2Icon />}
+          </Button>
+        </Hint>
       </div>
       {goal === null ? (
         <span className="text-xl font-semibold tabular-nums">
@@ -266,29 +269,31 @@ function SavingRow({ saving }: { saving: FinanceSaving }) {
           aria-invalid={amount.trim() !== '' && cents === null}
         />
         <InputGroupAddon align="inline-end">
-          <InputGroupButton
-            title="Take it out, back into your wallet"
-            disabled={
-              cents === null || move.isPending || cents > saving.savedCents
-            }
-            onClick={() => moveMoney('out')}
-          >
-            <ArrowUpFromLineIcon data-icon="inline-start" />
-            Take out
-          </InputGroupButton>
-          <InputGroupButton
-            variant="secondary"
-            title="Put it in from your wallet (Enter)"
-            disabled={cents === null || move.isPending}
-            onClick={() => moveMoney('in')}
-          >
-            {move.isPending ? (
-              <Spinner data-icon="inline-start" />
-            ) : (
-              <PiggyBankIcon data-icon="inline-start" />
-            )}
-            Put in
-          </InputGroupButton>
+          <Hint label={'Take it out, back into your wallet'}>
+            <InputGroupButton
+              disabled={
+                cents === null || move.isPending || cents > saving.savedCents
+              }
+              onClick={() => moveMoney('out')}
+            >
+              <ArrowUpFromLineIcon data-icon="inline-start" />
+              Take out
+            </InputGroupButton>
+          </Hint>
+          <Hint label={'Put it in from your wallet (Enter)'}>
+            <InputGroupButton
+              variant="secondary"
+              disabled={cents === null || move.isPending}
+              onClick={() => moveMoney('in')}
+            >
+              {move.isPending ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <PiggyBankIcon data-icon="inline-start" />
+              )}
+              Put in
+            </InputGroupButton>
+          </Hint>
         </InputGroupAddon>
       </InputGroup>
 

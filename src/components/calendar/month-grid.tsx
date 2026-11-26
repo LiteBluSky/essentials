@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { colorClass } from '@/lib/calendar/colors'
 import { WEEK_STARTS_ON, layoutWeeks, monthWeeks } from '@/lib/calendar/layout'
 import type { Slot, Strip } from '@/lib/calendar/layout'
+import { Hint } from '@/components/hint'
 
 // The Calendar app's month: shadcn's Calendar (react-day-picker) stretched
 // over the page, each day cell holding its lanes of strips. A strip is drawn
@@ -176,61 +177,62 @@ function StripBar({ slot }: { slot: Exclude<Slot, null | 'covered'> }) {
   const grabbed = event !== undefined && edit.grabbedId === event.id
   const dragging = event !== undefined && edit.preview?.id === event.id
   return (
-    <button
-      type="button"
-      title={strip.title || undefined}
-      data-strip={strip.kind}
-      data-strip-key={strip.key}
-      // A finger on a strip grabs it: not a swipe to the next app.
-      data-no-swipe={event ? '' : undefined}
-      aria-pressed={event ? selected : undefined}
-      // Drawn over the next days of the week (they keep an empty lane).
-      style={{
-        width: `calc(${span * 100}% - ${left + right}px)`,
-        marginLeft: left,
-        WebkitTouchCallout: 'none',
-      }}
-      className={cn(
-        'relative z-10 flex h-5 shrink-0 items-center gap-1 rounded-sm px-1.5 text-left text-xs leading-none outline-none select-none focus-visible:ring-2 focus-visible:ring-ring',
-        continued && 'rounded-l-none',
-        continues && 'rounded-r-none',
-        strip.kind === 'event'
-          ? colorClass(strip.color ?? '')
-          : 'bg-muted text-foreground ring-1 ring-border ring-inset',
-        strip.done && 'text-muted-foreground line-through',
-        event && 'cursor-grab transition-[box-shadow,scale,opacity]',
-        selected &&
-          'z-20 ring-2 ring-ring ring-offset-1 ring-offset-background',
-        (grabbed || dragging) &&
-          'z-30 scale-[1.03] cursor-grabbing opacity-85 shadow-lg',
-      )}
-      onPointerDown={(e) => {
-        if (event) edit.onStripPointerDown(event, e)
-        // A task is opened, not the start of a new range.
-        else e.stopPropagation()
-      }}
-      onContextMenu={event && ((e) => edit.onStripContextMenu(event, e))}
-      onClick={(e) => {
-        if (!event) onOpenStrip(strip)
-        // From the keyboard (Enter / Space): the pointer selects on its own.
-        else if (e.detail === 0) edit.select(event.id)
-      }}
-    >
-      {strip.kind === 'task' && <Icon className="size-3 shrink-0" />}
-      <span className="truncate">{strip.title}</span>
-      {event && selected && !continued && (
-        <StripHandle
-          edge="start"
-          onPointerDown={(e) => edit.onHandlePointerDown(event, 'start', e)}
-        />
-      )}
-      {event && selected && !continues && (
-        <StripHandle
-          edge="end"
-          onPointerDown={(e) => edit.onHandlePointerDown(event, 'end', e)}
-        />
-      )}
-    </button>
+    <Hint label={strip.title || undefined}>
+      <button
+        type="button"
+        data-strip={strip.kind}
+        data-strip-key={strip.key}
+        // A finger on a strip grabs it: not a swipe to the next app.
+        data-no-swipe={event ? '' : undefined}
+        aria-pressed={event ? selected : undefined}
+        // Drawn over the next days of the week (they keep an empty lane).
+        style={{
+          width: `calc(${span * 100}% - ${left + right}px)`,
+          marginLeft: left,
+          WebkitTouchCallout: 'none',
+        }}
+        className={cn(
+          'relative z-10 flex h-5 shrink-0 items-center gap-1 rounded-sm px-1.5 text-left text-xs leading-none outline-none select-none focus-visible:ring-2 focus-visible:ring-ring',
+          continued && 'rounded-l-none',
+          continues && 'rounded-r-none',
+          strip.kind === 'event'
+            ? colorClass(strip.color ?? '')
+            : 'bg-muted text-foreground ring-1 ring-border ring-inset',
+          strip.done && 'text-muted-foreground line-through',
+          event && 'cursor-grab transition-[box-shadow,scale,opacity]',
+          selected &&
+            'z-20 ring-2 ring-ring ring-offset-1 ring-offset-background',
+          (grabbed || dragging) &&
+            'z-30 scale-[1.03] cursor-grabbing opacity-85 shadow-lg',
+        )}
+        onPointerDown={(e) => {
+          if (event) edit.onStripPointerDown(event, e)
+          // A task is opened, not the start of a new range.
+          else e.stopPropagation()
+        }}
+        onContextMenu={event && ((e) => edit.onStripContextMenu(event, e))}
+        onClick={(e) => {
+          if (!event) onOpenStrip(strip)
+          // From the keyboard (Enter / Space): the pointer selects on its own.
+          else if (e.detail === 0) edit.select(event.id)
+        }}
+      >
+        {strip.kind === 'task' && <Icon className="size-3 shrink-0" />}
+        <span className="truncate">{strip.title}</span>
+        {event && selected && !continued && (
+          <StripHandle
+            edge="start"
+            onPointerDown={(e) => edit.onHandlePointerDown(event, 'start', e)}
+          />
+        )}
+        {event && selected && !continues && (
+          <StripHandle
+            edge="end"
+            onPointerDown={(e) => edit.onHandlePointerDown(event, 'end', e)}
+          />
+        )}
+      </button>
+    </Hint>
   )
 }
 

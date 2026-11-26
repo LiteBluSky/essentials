@@ -35,6 +35,7 @@ import {
 } from '@/server/passwords.functions'
 import { submitOnModEnter } from '@/lib/submit-shortcut'
 import { FolderSelect } from './folder-select'
+import { Hint } from '@/components/hint'
 
 const TEXT_FIELDS: Array<{
   name: 'name' | 'username' | 'url'
@@ -197,17 +198,18 @@ export function PasswordForm({
                     >
                       {shown ? <EyeOffIcon /> : <EyeIcon />}
                     </InputGroupButton>
-                    <InputGroupButton
-                      size="icon-xs"
-                      aria-label="Generate a strong password"
-                      title="Generate a strong password"
-                      onClick={() => {
-                        field.handleChange(generatePassword())
-                        setShown(true)
-                      }}
-                    >
-                      <RefreshCwIcon />
-                    </InputGroupButton>
+                    <Hint label={'Generate a strong password'}>
+                      <InputGroupButton
+                        size="icon-xs"
+                        aria-label="Generate a strong password"
+                        onClick={() => {
+                          field.handleChange(generatePassword())
+                          setShown(true)
+                        }}
+                      >
+                        <RefreshCwIcon />
+                      </InputGroupButton>
+                    </Hint>
                   </InputGroupAddon>
                 </InputGroup>
                 <FieldDescription>

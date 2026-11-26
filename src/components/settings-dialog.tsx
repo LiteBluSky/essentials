@@ -49,6 +49,7 @@ import {
 } from '@/server/settings.functions'
 import { ASSISTANT_NAME } from '@/lib/assistant'
 import { submitOnModEnter } from '@/lib/submit-shortcut'
+import { Hint } from '@/components/hint'
 
 const GROUPS: Array<{
   legend: string
@@ -302,17 +303,18 @@ function SettingsForm({
                         />
                         {current.source === 'saved' && !isRemoved && (
                           <InputGroupAddon align="inline-end">
-                            <InputGroupButton
-                              size="icon-xs"
-                              aria-label={`Remove the saved ${meta.label}`}
-                              title="Remove"
-                              onClick={() => {
-                                field.handleChange('')
-                                setRemoved((prev) => new Set(prev).add(key))
-                              }}
-                            >
-                              <XIcon />
-                            </InputGroupButton>
+                            <Hint label={'Remove'}>
+                              <InputGroupButton
+                                size="icon-xs"
+                                aria-label={`Remove the saved ${meta.label}`}
+                                onClick={() => {
+                                  field.handleChange('')
+                                  setRemoved((prev) => new Set(prev).add(key))
+                                }}
+                              >
+                                <XIcon />
+                              </InputGroupButton>
+                            </Hint>
                           </InputGroupAddon>
                         )}
                       </InputGroup>
@@ -334,24 +336,27 @@ function SettingsForm({
           </FieldGroup>
           {group.keys.includes('NTFY_TOPIC') && (
             <div>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={test.isPending || view.NTFY_TOPIC.source === null}
-                title={
+              <Hint
+                label={
                   view.NTFY_TOPIC.source === null
                     ? 'Save a topic first'
                     : 'Uses the saved settings'
                 }
-                onClick={() => test.mutate()}
               >
-                {test.isPending ? (
-                  <Spinner data-icon="inline-start" />
-                ) : (
-                  <BellRingIcon data-icon="inline-start" />
-                )}
-                Send test reminder
-              </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={test.isPending || view.NTFY_TOPIC.source === null}
+                  onClick={() => test.mutate()}
+                >
+                  {test.isPending ? (
+                    <Spinner data-icon="inline-start" />
+                  ) : (
+                    <BellRingIcon data-icon="inline-start" />
+                  )}
+                  Send test reminder
+                </Button>
+              </Hint>
             </div>
           )}
         </FieldSet>

@@ -76,6 +76,7 @@ import { databasesQueryOptions } from '@/server/databases.functions'
 import { assistantEnabledQueryOptions } from '@/server/assistant.functions'
 import { tasksTreeQueryOptions } from '@/server/tasks.functions'
 import { ShortcutKey } from '@/components/shortcut-key'
+import { Hint } from '@/components/hint'
 
 export const Route = createFileRoute('/tasks')({
   // `?day=YYYY-MM-DD` (from the Calendar's `o`): open filtered to that day.
@@ -289,45 +290,50 @@ function Home() {
               <span className="max-lg:hidden">Folder</span>
               <ShortcutKey id="global.newFolder" className="max-lg:hidden" />
             </Button>
-            <Button
-              aria-label="New task"
-              className={ICON_ON_PHONES}
-              onClick={() => newTask()}
-            >
-              <PlusIcon data-icon="inline-start" />
-              <span className="max-lg:hidden">Task</span>
-              <ShortcutKey id="tree.new" className="max-lg:hidden" />
-            </Button>
+            <Hint label={`New task (${keyLabel('tree.new')})`}>
+              <Button
+                aria-label="New task"
+                size="icon"
+                onClick={() => newTask()}
+              >
+                <PlusIcon />
+              </Button>
+            </Hint>
           </div>
           <ButtonGroup aria-label="Settings">
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Search everything"
-              title={`Search everything (${keyLabel('global.globalSearch')})`}
-              onClick={() => globalSearch.setOpen(true)}
+            <Hint
+              label={`Search everything (${keyLabel('global.globalSearch')})`}
             >
-              <SearchIcon />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Calendar"
-              title={`Calendar (${keyLabel('tasks.calendar')})`}
-              onClick={() => setCalendarOpen(true)}
-            >
-              <CalendarDaysIcon />
-            </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Search everything"
+                onClick={() => globalSearch.setOpen(true)}
+              >
+                <SearchIcon />
+              </Button>
+            </Hint>
+            <Hint label={`Calendar (${keyLabel('tasks.calendar')})`}>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Calendar"
+                onClick={() => setCalendarOpen(true)}
+              >
+                <CalendarDaysIcon />
+              </Button>
+            </Hint>
             <ImportExportMenu tree={tree} />
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Keyboard shortcuts"
-              title={`Keyboard shortcuts (${keyLabel('global.help')})`}
-              onClick={() => setHelpOpen(true)}
-            >
-              <KeyboardIcon />
-            </Button>
+            <Hint label={`Keyboard shortcuts (${keyLabel('global.help')})`}>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Keyboard shortcuts"
+                onClick={() => setHelpOpen(true)}
+              >
+                <KeyboardIcon />
+              </Button>
+            </Hint>
             <ThemeToggle />
             <ProfileButton />
           </ButtonGroup>
@@ -383,54 +389,63 @@ function Home() {
           )}
         </InputGroup>
         {day && (
-          <Button
-            variant="secondary"
-            title={`Clear the date filter (${keyLabel('tree.clearSearch')})`}
-            aria-label={`Showing tasks dated ${day}. Clear the date filter`}
-            onClick={() => setDay(null)}
+          <Hint
+            label={`Clear the date filter (${keyLabel('tree.clearSearch')})`}
           >
-            <CalendarIcon data-icon="inline-start" />
-            {format(parseISO(day), 'd MMM yyyy')}
-            <ShortcutKey id="tree.clearSearch" className="max-lg:hidden" />
-            <XIcon data-icon="inline-end" />
-          </Button>
+            <Button
+              variant="secondary"
+              aria-label={`Showing tasks dated ${day}. Clear the date filter`}
+              onClick={() => setDay(null)}
+            >
+              <CalendarIcon data-icon="inline-start" />
+              {format(parseISO(day), 'd MMM yyyy')}
+              <ShortcutKey id="tree.clearSearch" className="max-lg:hidden" />
+              <XIcon data-icon="inline-end" />
+            </Button>
+          </Hint>
         )}
         <div className="flex gap-2 max-lg:w-full max-lg:justify-between">
           <ButtonGroup aria-label="Which tasks">
-            <ViewButton
-              active={view.status === 'open'}
-              onClick={() => setStatus('open')}
-              title={`Open tasks (${keyLabel('tasks.showDone')})`}
-            >
-              <CircleIcon data-icon="inline-start" />
-              Open
-            </ViewButton>
-            <ViewButton
-              active={view.status === 'done'}
-              onClick={() => setStatus('done')}
-              title={`Completed tasks (${keyLabel('tasks.showDone')})`}
-            >
-              <CircleCheckBigIcon data-icon="inline-start" />
-              Done
-            </ViewButton>
+            <Hint label={`Open tasks (${keyLabel('tasks.showDone')})`}>
+              <ViewButton
+                active={view.status === 'open'}
+                onClick={() => setStatus('open')}
+              >
+                <CircleIcon data-icon="inline-start" />
+                Open
+              </ViewButton>
+            </Hint>
+            <Hint label={`Completed tasks (${keyLabel('tasks.showDone')})`}>
+              <ViewButton
+                active={view.status === 'done'}
+                onClick={() => setStatus('done')}
+              >
+                <CircleCheckBigIcon data-icon="inline-start" />
+                Done
+              </ViewButton>
+            </Hint>
           </ButtonGroup>
           <ButtonGroup aria-label="Layout">
-            <ViewButton
-              active={view.layout === 'folders'}
-              onClick={() => setLayout('folders')}
-              title={`Group in folders (${keyLabel('tasks.layout')})`}
-              aria-label="Folders"
+            <Hint label={`Group in folders (${keyLabel('tasks.layout')})`}>
+              <ViewButton
+                active={view.layout === 'folders'}
+                onClick={() => setLayout('folders')}
+                aria-label="Folders"
+              >
+                <FolderTreeIcon />
+              </ViewButton>
+            </Hint>
+            <Hint
+              label={`One list: to do first, then soonest due (${keyLabel('tasks.layout')})`}
             >
-              <FolderTreeIcon />
-            </ViewButton>
-            <ViewButton
-              active={view.layout === 'list'}
-              onClick={() => setLayout('list')}
-              title={`One list: to do first, then soonest due (${keyLabel('tasks.layout')})`}
-              aria-label="List"
-            >
-              <ListIcon />
-            </ViewButton>
+              <ViewButton
+                active={view.layout === 'list'}
+                onClick={() => setLayout('list')}
+                aria-label="List"
+              >
+                <ListIcon />
+              </ViewButton>
+            </Hint>
           </ButtonGroup>
         </div>
       </div>

@@ -21,6 +21,7 @@ import {
   dismissActivity,
   useActivities,
 } from '@/lib/jarvis-activity'
+import { Hint } from '@/components/hint'
 
 function isTyping(target: EventTarget | null) {
   return (
@@ -90,15 +91,18 @@ export function JarvisActivity() {
                 {running.length > 1 && ` (${running.length})`}
               </span>
             </ButtonGroupText>
-            <Button
-              variant="outline"
-              size="xs"
-              title={`Stop: ${ASSISTANT_NAME} calls it off and undoes what it changed (Esc)`}
-              onClick={() => cancelActivity(shown.id)}
+            <Hint
+              label={`Stop: ${ASSISTANT_NAME} calls it off and undoes what it changed (Esc)`}
             >
-              <SquareIcon data-icon="inline-start" className="fill-current" />
-              Stop
-            </Button>
+              <Button
+                variant="outline"
+                size="xs"
+                onClick={() => cancelActivity(shown.id)}
+              >
+                <SquareIcon data-icon="inline-start" className="fill-current" />
+                Stop
+              </Button>
+            </Hint>
           </>
         ) : (
           <>
@@ -110,13 +114,15 @@ export function JarvisActivity() {
               ) : (
                 <CircleSlashIcon />
               )}
-              <span className="truncate" title={shown.error}>
-                {shown.state === 'done'
-                  ? `${ASSISTANT_NAME} is done`
-                  : shown.state === 'failed'
-                    ? `${ASSISTANT_NAME} couldn't do that`
-                    : 'Stopped · nothing was done'}
-              </span>
+              <Hint label={shown.error}>
+                <span className="truncate">
+                  {shown.state === 'done'
+                    ? `${ASSISTANT_NAME} is done`
+                    : shown.state === 'failed'
+                      ? `${ASSISTANT_NAME} couldn't do that`
+                      : 'Stopped · nothing was done'}
+                </span>
+              </Hint>
             </ButtonGroupText>
             {shown.state !== 'stopped' && shown.conversationId !== null && (
               <Button

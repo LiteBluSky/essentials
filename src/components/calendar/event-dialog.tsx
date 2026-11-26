@@ -55,6 +55,7 @@ import {
 } from '@/server/calendar.functions'
 import { shortcutKey } from '@/lib/shortcuts'
 import { ShortcutKey } from '@/components/shortcut-key'
+import { Hint } from '@/components/hint'
 
 /** What the dialog is doing: a new strip over a range, or editing one. */
 export type EventEditor =
@@ -242,18 +243,18 @@ function EventForm({
                   }}
                 >
                   {CALENDAR_COLORS.map((color) => (
-                    <ToggleGroupItem
-                      key={color.key}
-                      value={color.key}
-                      data-color={color.key}
-                      size="sm"
-                      aria-label={color.label}
-                      title={color.label}
-                    >
-                      <span
-                        className={cn('size-4 rounded-full', color.className)}
-                      />
-                    </ToggleGroupItem>
+                    <Hint label={color.label} key={color.key}>
+                      <ToggleGroupItem
+                        value={color.key}
+                        data-color={color.key}
+                        size="sm"
+                        aria-label={color.label}
+                      >
+                        <span
+                          className={cn('size-4 rounded-full', color.className)}
+                        />
+                      </ToggleGroupItem>
+                    </Hint>
                   ))}
                 </ToggleGroup>
               </Field>

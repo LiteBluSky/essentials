@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/empty'
 import { Spinner } from '@/components/ui/spinner'
 import { binExpiry } from '@/lib/bin'
+import { Hint } from '@/components/hint'
 
 export type BinEntry = {
   id: number
@@ -98,16 +99,17 @@ export function BinDialog({
                   <RotateCcwIcon data-icon="inline-start" />
                   Restore
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Delete forever"
-                  title="Delete forever"
-                  disabled={busy}
-                  onClick={() => onDelete(entry.id)}
-                >
-                  <XIcon />
-                </Button>
+                <Hint label={'Delete forever'}>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Delete forever"
+                    disabled={busy}
+                    onClick={() => onDelete(entry.id)}
+                  >
+                    <XIcon />
+                  </Button>
+                </Hint>
               </li>
             ))}
           </ul>

@@ -4,6 +4,7 @@ import { useRef } from 'react'
 import { InputGroupButton } from '@/components/ui/input-group'
 import type { Dictation } from '@/hooks/use-dictation'
 import { cn } from '@/lib/utils'
+import { Hint } from '@/components/hint'
 
 /** A press at least this long (ms) is a hold: letting go stops. */
 const HOLD_MS = 350
@@ -42,41 +43,44 @@ export function DictateButton({
   }
 
   return (
-    <InputGroupButton
-      type="button"
-      size={size}
-      className={cn(
-        'touch-none select-none [-webkit-touch-callout:none]',
-        className,
-      )}
-      variant={listening ? 'secondary' : 'ghost'}
-      aria-label={listening ? 'Stop dictating' : 'Dictate (or hold to speak)'}
-      aria-pressed={listening}
-      title={listening ? 'Stop dictating' : 'Dictate (or hold to speak)'}
-      disabled={disabled}
-      onPointerDown={(e) => {
-        if (e.button !== 0) return
-        e.preventDefault() // Keep the focus (and a phone's keyboard).
-        if (listening) {
-          pressedAt.current = null
-          dictation.finish()
-          return
-        }
-        pressedAt.current = e.timeStamp
-        dictation.start(value, { hold: true })
-      }}
-      onPointerUp={letGo}
-      onPointerCancel={letGo}
-      // A long press would open the phone's context menu.
-      onContextMenu={(e) => e.preventDefault()}
-      onClick={(e) => {
-        // Pointer presses are handled above; this is Enter / Space.
-        if (e.detail !== 0) return
-        if (listening) dictation.finish()
-        else dictation.start(value)
-      }}
-    >
-      <MicIcon className={listening ? 'animate-pulse text-destructive' : ''} />
-    </InputGroupButton>
+    <Hint label={listening ? 'Stop dictating' : 'Dictate (or hold to speak)'}>
+      <InputGroupButton
+        type="button"
+        size={size}
+        className={cn(
+          'touch-none select-none [-webkit-touch-callout:none]',
+          className,
+        )}
+        variant={listening ? 'secondary' : 'ghost'}
+        aria-label={listening ? 'Stop dictating' : 'Dictate (or hold to speak)'}
+        aria-pressed={listening}
+        disabled={disabled}
+        onPointerDown={(e) => {
+          if (e.button !== 0) return
+          e.preventDefault() // Keep the focus (and a phone's keyboard).
+          if (listening) {
+            pressedAt.current = null
+            dictation.finish()
+            return
+          }
+          pressedAt.current = e.timeStamp
+          dictation.start(value, { hold: true })
+        }}
+        onPointerUp={letGo}
+        onPointerCancel={letGo}
+        // A long press would open the phone's context menu.
+        onContextMenu={(e) => e.preventDefault()}
+        onClick={(e) => {
+          // Pointer presses are handled above; this is Enter / Space.
+          if (e.detail !== 0) return
+          if (listening) dictation.finish()
+          else dictation.start(value)
+        }}
+      >
+        <MicIcon
+          className={listening ? 'animate-pulse text-destructive' : ''}
+        />
+      </InputGroupButton>
+    </Hint>
   )
 }

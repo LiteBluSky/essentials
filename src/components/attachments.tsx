@@ -8,6 +8,7 @@ import { ASSISTANT_NAME } from '@/lib/assistant'
 import { ATTACH_ACCEPT } from '@/lib/attachments'
 import type { AttachmentMeta } from '@/lib/attachments'
 import { cn } from '@/lib/utils'
+import { Hint } from '@/components/hint'
 
 // Files for Jarvis (lib/attachments.ts): the paperclip that picks them, the
 // chips of what's attached in a box, the names on a sent message, and the
@@ -27,18 +28,19 @@ export function AttachButton({
   const label = `Attach files for ${ASSISTANT_NAME} to read (or drop / paste them)`
   return (
     <>
-      <InputGroupButton
-        type="button"
-        size={size}
-        aria-label={label}
-        title={label}
-        disabled={disabled}
-        // Keeps the field's focus (a phone keeps its keyboard).
-        onPointerDown={(e) => e.preventDefault()}
-        onClick={() => input.current?.click()}
-      >
-        <PaperclipIcon />
-      </InputGroupButton>
+      <Hint label={label}>
+        <InputGroupButton
+          type="button"
+          size={size}
+          aria-label={label}
+          disabled={disabled}
+          // Keeps the field's focus (a phone keeps its keyboard).
+          onPointerDown={(e) => e.preventDefault()}
+          onClick={() => input.current?.click()}
+        >
+          <PaperclipIcon />
+        </InputGroupButton>
+      </Hint>
       <input
         ref={input}
         type="file"
@@ -111,15 +113,12 @@ export function AttachmentNames({
   return (
     <div className={cn('flex flex-wrap justify-end gap-1.5', className)}>
       {files.map((file, i) => (
-        <Badge
-          key={`${i}-${file.name}`}
-          variant="outline"
-          className="max-w-56"
-          title={file.name}
-        >
-          <FileIcon kind={file.kind} />
-          <span className="truncate">{file.name}</span>
-        </Badge>
+        <Hint label={file.name} key={`${i}-${file.name}`}>
+          <Badge variant="outline" className="max-w-56">
+            <FileIcon kind={file.kind} />
+            <span className="truncate">{file.name}</span>
+          </Badge>
+        </Hint>
       ))}
     </div>
   )

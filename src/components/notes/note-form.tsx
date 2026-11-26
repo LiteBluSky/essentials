@@ -54,6 +54,7 @@ import {
   updateNote,
 } from '@/server/notes.functions'
 import { FolderSelect } from './folder-select'
+import { Hint } from '@/components/hint'
 
 /** What to do once the note is saved: show its preview, or close. */
 export type AfterSave = 'view' | 'close'
@@ -470,18 +471,19 @@ function ToolButton({
 }) {
   const keyLabel = useShortcutLabels()
   return (
-    <Button
-      type="button"
-      variant={active ? 'default' : 'outline'}
-      aria-pressed={active}
-      size="icon-sm"
-      aria-label={label}
-      title={shortcut ? `${label} (${keyLabel(shortcut)})` : label}
-      // Keep the textarea's selection: don't take focus on press.
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={onClick}
-    >
-      <Icon />
-    </Button>
+    <Hint label={shortcut ? `${label} (${keyLabel(shortcut)})` : label}>
+      <Button
+        type="button"
+        variant={active ? 'default' : 'outline'}
+        aria-pressed={active}
+        size="icon-sm"
+        aria-label={label}
+        // Keep the textarea's selection: don't take focus on press.
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={onClick}
+      >
+        <Icon />
+      </Button>
+    </Hint>
   )
 }

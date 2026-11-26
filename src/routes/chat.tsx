@@ -89,6 +89,7 @@ import {
   useShortcutLabels,
 } from '@/lib/shortcuts'
 import { ShortcutKey } from '@/components/shortcut-key'
+import { Hint } from '@/components/hint'
 
 // The Chat app: talk to the assistant about anything stored in the other
 // apps. `?c=<id>` is the open conversation (none = a new one). Coming back
@@ -419,28 +420,32 @@ function ChatPage() {
             <ShortcutKey id="chat.new" className="max-lg:hidden" />
           </Button>
           <ButtonGroup aria-label="Settings">
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Search everything"
-              title={`Search everything (${keyLabel('global.globalSearch')})`}
-              onClick={() => setSearchOpen(true)}
+            <Hint
+              label={`Search everything (${keyLabel('global.globalSearch')})`}
             >
-              <SearchIcon />
-            </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Search everything"
+                onClick={() => setSearchOpen(true)}
+              >
+                <SearchIcon />
+              </Button>
+            </Hint>
             <ChatMenu
               settingsOpen={settingsOpen}
               onSettingsOpenChange={setSettingsOpen}
             />
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Keyboard shortcuts"
-              title={`Keyboard shortcuts (${keyLabel('global.help')})`}
-              onClick={() => setHelpOpen(true)}
-            >
-              <KeyboardIcon />
-            </Button>
+            <Hint label={`Keyboard shortcuts (${keyLabel('global.help')})`}>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Keyboard shortcuts"
+                onClick={() => setHelpOpen(true)}
+              >
+                <KeyboardIcon />
+              </Button>
+            </Hint>
             <ThemeToggle />
             <ProfileButton />
           </ButtonGroup>

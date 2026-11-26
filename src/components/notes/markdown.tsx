@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from '@/components/ui/toast'
 import { readReference, remarkReferences } from '@/lib/references'
+import { Hint } from '@/components/hint'
 
 // GFM (tables, task lists, strikethrough, autolinks) + single newlines kept
 // as line breaks, so a plain-text note reads exactly as it was typed. Raw HTML
@@ -115,17 +116,18 @@ function CodeBlock(props: ComponentProps<'pre'>) {
   return (
     <div data-code-block className="group/code">
       <pre ref={ref} {...props} />
-      <Button
-        type="button"
-        variant="outline"
-        size="icon-xs"
-        aria-label={copied ? 'Copied' : 'Copy code'}
-        title="Copy code"
-        className="absolute top-1.5 right-1.5 opacity-0 group-hover/code:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100 print:hidden"
-        onClick={() => void copy()}
-      >
-        {copied ? <CheckIcon /> : <CopyIcon />}
-      </Button>
+      <Hint label={'Copy code'}>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-xs"
+          aria-label={copied ? 'Copied' : 'Copy code'}
+          className="absolute top-1.5 right-1.5 opacity-0 group-hover/code:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100 print:hidden"
+          onClick={() => void copy()}
+        >
+          {copied ? <CheckIcon /> : <CopyIcon />}
+        </Button>
+      </Hint>
     </div>
   )
 }

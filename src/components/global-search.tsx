@@ -33,6 +33,7 @@ import type { SearchApp, SearchResult } from '@/lib/global-search'
 import { cn } from '@/lib/utils'
 import { assistantEnabledQueryOptions } from '@/server/assistant.functions'
 import { globalSearch } from '@/server/search.functions'
+import { Hint } from '@/components/hint'
 
 type Entry = SearchResult & { app: SearchApp }
 
@@ -270,21 +271,22 @@ function SearchItem({
         )}
       </span>
       {onMention && (
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label={`Mention in ${ASSISTANT_NAME}`}
-          title={`Mention in ${ASSISTANT_NAME}`}
-          className="-my-1 opacity-0 group-hover/command-item:opacity-100 group-data-selected/command-item:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
-          // Not a pick of the row.
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation()
-            onMention()
-          }}
-        >
-          <AtSignIcon />
-        </Button>
+        <Hint label={`Mention in ${ASSISTANT_NAME}`}>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Mention in ${ASSISTANT_NAME}`}
+            className="-my-1 opacity-0 group-hover/command-item:opacity-100 group-data-selected/command-item:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
+            // Not a pick of the row.
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation()
+              onMention()
+            }}
+          >
+            <AtSignIcon />
+          </Button>
+        </Hint>
       )}
     </CommandItem>
   )

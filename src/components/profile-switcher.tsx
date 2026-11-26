@@ -28,6 +28,7 @@ import {
 } from '@/server/databases.functions'
 import { takeSwitchNotice } from '@/lib/databases'
 import { isShortcut, useShortcutLabel } from '@/lib/shortcuts'
+import { Hint } from '@/components/hint'
 
 const OPEN_EVENT = 'profile-switcher:open'
 
@@ -40,15 +41,16 @@ function openProfileSwitcher() {
 export function ProfileButton() {
   const key = useShortcutLabel('global.profile')
   return (
-    <Button
-      variant="outline"
-      size="icon"
-      aria-label="Switch profile"
-      title={`Switch profile (${key})`}
-      onClick={openProfileSwitcher}
-    >
-      <UserIcon />
-    </Button>
+    <Hint label={`Switch profile (${key})`}>
+      <Button
+        variant="outline"
+        size="icon"
+        aria-label="Switch profile"
+        onClick={openProfileSwitcher}
+      >
+        <UserIcon />
+      </Button>
+    </Hint>
   )
 }
 

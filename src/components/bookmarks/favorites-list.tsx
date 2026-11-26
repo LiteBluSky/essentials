@@ -7,6 +7,7 @@ import type { Link } from '@/db/schema'
 import { hostname } from '@/lib/bookmarks/tree'
 import type { OpenEditor } from './editor'
 import { LinkMenu, LinkMenuItems } from './bookmark-tree'
+import { Hint } from '@/components/hint'
 
 // Up to 9 favourite links above the tree; key 1-9 opens the matching one.
 // Each row has the same hover menu as the link in the tree.
@@ -41,26 +42,21 @@ export function FavoritesList({
             }
             render={<li className="group/row flex items-center gap-1" />}
           >
-            <Button
-              variant="ghost"
-              className="min-w-0 flex-1 justify-start"
-              nativeButton={false}
-              render={
-                <a
-                  href={link.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  title={link.description ?? link.url}
-                />
-              }
-            >
-              <Kbd>{i + 1}</Kbd>
-              <GlobeIcon />
-              <span className="truncate">{link.title}</span>
-              <span className="truncate text-muted-foreground">
-                {hostname(link.url)}
-              </span>
-            </Button>
+            <Hint label={link.description ?? link.url}>
+              <Button
+                variant="ghost"
+                className="min-w-0 flex-1 justify-start"
+                nativeButton={false}
+                render={<a href={link.url} target="_blank" rel="noreferrer" />}
+              >
+                <Kbd>{i + 1}</Kbd>
+                <GlobeIcon />
+                <span className="truncate">{link.title}</span>
+                <span className="truncate text-muted-foreground">
+                  {hostname(link.url)}
+                </span>
+              </Button>
+            </Hint>
             <LinkMenu
               link={link}
               onEdit={onEdit}

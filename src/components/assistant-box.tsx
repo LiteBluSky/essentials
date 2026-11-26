@@ -59,6 +59,7 @@ import {
 } from '@/server/assistant.functions'
 import { isShortcut } from '@/lib/shortcuts'
 import { ShortcutKey } from '@/components/shortcut-key'
+import { Hint } from '@/components/hint'
 
 /**
  * The "Tell me…" field at the top of every app: type (or dictate: the mic
@@ -471,28 +472,30 @@ function AssistantField({ enabled }: { enabled: boolean }) {
               </span>
             )}
             {ask.isPending ? (
-              <InputGroupButton
-                variant="default"
-                size="icon-sm"
-                type="button"
-                aria-label="Stop"
-                title="Stop: cancel this request (Esc)"
-                onClick={cancel}
-              >
-                <SquareIcon className="fill-current" />
-              </InputGroupButton>
+              <Hint label={'Stop: cancel this request (Esc)'}>
+                <InputGroupButton
+                  variant="default"
+                  size="icon-sm"
+                  type="button"
+                  aria-label="Stop"
+                  onClick={cancel}
+                >
+                  <SquareIcon className="fill-current" />
+                </InputGroupButton>
+              </Hint>
             ) : (
-              <InputGroupButton
-                variant="default"
-                size="icon-sm"
-                type="submit"
-                className="ml-auto"
-                disabled={!canSend}
-                aria-label="Send"
-                title="Send (Enter)"
-              >
-                <ArrowUpIcon />
-              </InputGroupButton>
+              <Hint label={'Send (Enter)'}>
+                <InputGroupButton
+                  variant="default"
+                  size="icon-sm"
+                  type="submit"
+                  className="ml-auto"
+                  disabled={!canSend}
+                  aria-label="Send"
+                >
+                  <ArrowUpIcon />
+                </InputGroupButton>
+              </Hint>
             )}
           </InputGroupAddon>
         </InputGroup>

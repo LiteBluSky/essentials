@@ -61,6 +61,7 @@ import {
   editDatabase,
   switchDatabase,
 } from '@/server/databases.functions'
+import { Hint } from '@/components/hint'
 
 /**
  * Settings → Database: which database the data comes from — the local file
@@ -257,9 +258,9 @@ function DatabaseRow({
       <ItemMedia variant="icon">{icon}</ItemMedia>
       <ItemContent className="min-w-0">
         <ItemTitle>{name}</ItemTitle>
-        <ItemDescription className="truncate" title={detail}>
-          {detail}
-        </ItemDescription>
+        <Hint label={detail}>
+          <ItemDescription className="truncate">{detail}</ItemDescription>
+        </Hint>
       </ItemContent>
       <ItemActions>
         {active ? (
@@ -277,41 +278,44 @@ function DatabaseRow({
           </Button>
         )}
         {!active && (
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            aria-label={`Copy ${name}'s data into the database in use`}
-            title="Copy its data into the database in use (replaces it)"
-            disabled={disabled}
-            onClick={onCopy}
-          >
-            <CopyIcon />
-          </Button>
+          <Hint label={'Copy its data into the database in use (replaces it)'}>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label={`Copy ${name}'s data into the database in use`}
+              disabled={disabled}
+              onClick={onCopy}
+            >
+              <CopyIcon />
+            </Button>
+          </Hint>
         )}
         {onEdit && (
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            aria-label={`Edit ${name}`}
-            title="Edit"
-            onClick={onEdit}
-          >
-            <PencilIcon />
-          </Button>
+          <Hint label={'Edit'}>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label={`Edit ${name}`}
+              onClick={onEdit}
+            >
+              <PencilIcon />
+            </Button>
+          </Hint>
         )}
         {onRemove && !active && (
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            aria-label={`Remove ${name}`}
-            title="Remove (its data stays in Turso)"
-            onClick={onRemove}
-          >
-            <Trash2Icon />
-          </Button>
+          <Hint label={'Remove (its data stays in Turso)'}>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label={`Remove ${name}`}
+              onClick={onRemove}
+            >
+              <Trash2Icon />
+            </Button>
+          </Hint>
         )}
       </ItemActions>
     </Item>
@@ -434,17 +438,18 @@ function DatabaseForm({
                       />
                       {tokenHint && (
                         <InputGroupAddon align="inline-end">
-                          <InputGroupButton
-                            size="icon-xs"
-                            aria-label="Remove the saved token"
-                            title="Remove"
-                            onClick={() => {
-                              field.handleChange('')
-                              setClearToken(true)
-                            }}
-                          >
-                            <XIcon />
-                          </InputGroupButton>
+                          <Hint label={'Remove'}>
+                            <InputGroupButton
+                              size="icon-xs"
+                              aria-label="Remove the saved token"
+                              onClick={() => {
+                                field.handleChange('')
+                                setClearToken(true)
+                              }}
+                            >
+                              <XIcon />
+                            </InputGroupButton>
+                          </Hint>
                         </InputGroupAddon>
                       )}
                     </InputGroup>

@@ -62,6 +62,7 @@ import type { EditorState, OpenEditor } from './editor'
 import { FolderForm } from './folder-form'
 import { shortcutKey } from '@/lib/shortcuts'
 import { ShortcutKey } from '@/components/shortcut-key'
+import { Hint } from '@/components/hint'
 
 // `state` is kept around after closing (only `open` flips) so the dialog
 // content doesn't blank out during its exit animation.
@@ -222,15 +223,16 @@ function Detail({
         <span className="sr-only">{label}: </span>
         <span className="min-w-0 break-words">{value}</span>
       </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label={`Copy ${label.toLowerCase()}`}
-        title={`Copy ${label.toLowerCase()}`}
-        onClick={() => copy(value, label)}
-      >
-        <CopyIcon />
-      </Button>
+      <Hint label={`Copy ${label.toLowerCase()}`}>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={`Copy ${label.toLowerCase()}`}
+          onClick={() => copy(value, label)}
+        >
+          <CopyIcon />
+        </Button>
+      </Hint>
     </div>
   )
 }
