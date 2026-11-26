@@ -23,6 +23,8 @@ type GridContextValue = {
   slots: Map<string, Array<Slot>>
   selection: { from: string; to: string } | null
   onDayPointerDown: (day: string, e: React.PointerEvent) => void
+  /** Right click on a day (its menu). */
+  onDayContextMenu: (day: string, e: React.MouseEvent) => void
   /** A task strip was clicked (it opens in Tasks). */
   onOpenStrip: (strip: Strip) => void
   /** The strips' events by id, and moving / resizing / selecting them. */
@@ -44,6 +46,7 @@ export function MonthGrid({
   strips,
   selection,
   onDayPointerDown,
+  onDayContextMenu,
   onOpenStrip,
   events,
   edit,
@@ -58,7 +61,15 @@ export function MonthGrid({
   )
   return (
     <GridContext.Provider
-      value={{ slots, selection, onDayPointerDown, onOpenStrip, events, edit }}
+      value={{
+        slots,
+        selection,
+        onDayPointerDown,
+        onDayContextMenu,
+        onOpenStrip,
+        events,
+        edit,
+      }}
     >
       <Calendar
         month={month}
@@ -93,7 +104,7 @@ export function MonthGrid({
 }
 
 function DayCell({ day, modifiers, className, children, ...props }: DayProps) {
-  const { slots, selection, onDayPointerDown } = useGrid()
+  const { slots, selection, onDayPointerDown, onDayContextMenu } = useGrid()
   const iso = day.isoDate
   const lanes = slots.get(iso) ?? []
   const selected =
@@ -124,7 +135,10 @@ function DayCell({ day, modifiers, className, children, ...props }: DayProps) {
             ? 'bg-primary/80 text-primary-foreground outline-primary-foreground'
             : 'bg-primary text-primary-foreground outline-primary-foreground'),
       )}
+      // No iOS callout on a long press: that opens the day's menu.
+      style={{ ...props.style, WebkitTouchCallout: 'none' }}
       onPointerDown={(e) => onDayPointerDown(iso, e)}
+      onContextMenu={(e) => onDayContextMenu(iso, e)}
     >
       <div className="flex h-full min-h-20 flex-col gap-0.5 pb-1">
         <div className="flex px-1 pt-1">{children}</div>

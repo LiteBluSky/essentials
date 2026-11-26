@@ -41,12 +41,17 @@ const GROUPS: Array<ShortcutGroup> = [
       {
         keys: [['Drag']],
         action:
-          'Mouse: drag over days (or click one) to add a strip. Touch: tap the first day, then the last',
+          'Mouse: drag over days to add a strip (click one day: strip or task). Touch: tap the first day, then the last (the same day again: strip or task)',
       },
       {
         keys: [['Enter'], ['Space']],
         action:
-          'Start a range on the focused day; again (after moving) adds a strip over it',
+          'Start a range on the focused day; again (after moving) adds a strip over it, on the same day asks: strip or task',
+      },
+      {
+        keys: [['Right click']],
+        action:
+          'A day’s menu: new strip, new task, that day’s tasks (touch: hold the day)',
       },
       {
         id: 'calendar.new',

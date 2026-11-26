@@ -603,6 +603,16 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       note snippets, task descriptions), menu / popover triggers (currency,
       day picker), the colour swatches in the strip menu
 
+## 32. Tasks from the Calendar (Nov 2026)
+
+- [x] A day's menu on the Calendar: right click (desktop) or hold a day
+      (touch): new strip, new task due that day, that day's tasks
+- [x] Picking one day (a click, the same day tapped twice, Enter twice)
+      asks: strip or task; several days still make a strip
+- [ ] Verify on a PC and a phone: right click a day / a strip, hold a day
+      (no iOS callout, no Android menu), tap-tap one day, a new task shows
+      on its day
+
 ## History of the notes app (before the merge)
 
 ### Notes 0. Scaffold (from the bookmarks app)

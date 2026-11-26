@@ -1006,7 +1006,8 @@ per week, in its first day there, `span × 100%` wide over the next cells
 days it covers keep an empty lane. A strip cut by the week edge is squared
 off on that side.
 
-- **Adding**: by picking days on the grid (there is no "New" button).
+- **Adding**: by picking days on the grid (there is no "New" button); one
+  day asks strip or task (Day menu below).
   Mouse: drag over days (pointer events on the cells; the day under the
   pointer is found with `elementFromPoint`) or click one day. Touch: tap
   the first day, then the last (the same day again = one day; a badge over
@@ -1018,6 +1019,17 @@ off on that side.
   starts with the colour last used, `calendar:color` in localStorage). It
   has **no day picker**: the days come from the grid and are shown in its
   description.
+- **Day menu** (`day-menu.tsx`, Base UI `Menu` anchored at a point like
+  the strip menu, shadcn items): the day's date, New strip…, New task…
+  (Tasks' form in `CalendarTaskDialog`, due that day:
+  `EditorState.date`) and That day's tasks (`/tasks?day=`). Opened by a
+  right click on a day (`onDayContextMenu`; a strip's own menu wins; the
+  menu key opens it under the day's number), a finger held on a day
+  `DAY_HOLD_MS` (500 ms) without moving (the browser's own long-press
+  `contextmenu` is ignored for touch), and by every **one-day pick** (a
+  click, the same day tapped twice, Enter twice: `pick`), so the user
+  chooses a strip or a task; several days go straight to the strip form.
+  `a` still opens the strip form directly.
 - **Moving and resizing** (`src/hooks/calendar/use-strip-edit.ts`, pointer
   events; tasks' strips don't move). Mouse: drag a strip to move it; a
   click selects it (ring + a handle at each end: `StripHandle`,

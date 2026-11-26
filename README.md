@@ -20,8 +20,11 @@ time the server starts.
   reminders. Completed tasks are removed after a week.
 - **Calendar**: a month view of coloured strips over a day or a range of
   days (no times: just "something's on then"), plus the tasks due. Select
-  the days on the calendar to add a strip: drag over them or click a day on
-  a PC; on a phone tap the first day, then the last. Drag a strip to move
+  the days on the calendar to add a strip: drag over them on a PC; on a
+  phone tap the first day, then the last. Pick a single day (click it, or
+  tap it twice) and choose a strip or a **task** due that day. Right click
+  a day (hold it on a phone) for its menu: new strip, new task, that day's
+  tasks. Drag a strip to move
   it, drag its edges to resize it; right click or a long hold opens a menu
   with Edit and Delete. Click a task on it to see, complete or edit it
   right there; `n` / `N` step through the strips and tasks in date order.

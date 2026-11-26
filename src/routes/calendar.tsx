@@ -18,6 +18,8 @@ import {
 } from '@/components/calendar/event-dialog'
 import type { EventEditor } from '@/components/calendar/event-dialog'
 import { DAY_KEY_ALIASES, sendDayKey } from '@/components/calendar/day-keys'
+import { DayMenu } from '@/components/calendar/day-menu'
+import type { DayMenuAt } from '@/components/calendar/day-menu'
 import { MonthGrid } from '@/components/calendar/month-grid'
 import { ShortcutsDialog } from '@/components/calendar/shortcuts-dialog'
 import { StripMenu } from '@/components/calendar/strip-menu'
@@ -113,7 +115,10 @@ function CalendarPage() {
   const queryClient = useQueryClient()
   const [taskEditor, setTaskEditor] = useState<TaskEditorState | null>(null)
   const [taskOpen, setTaskOpen] = useState(false)
+  // A day's menu: new strip / new task / that day's tasks.
+  const [dayMenu, setDayMenu] = useState<DayMenuAt | null>(null)
   const dialogOpen =
+    dayMenu !== null ||
     editorOpen ||
     taskOpen ||
     helpOpen ||
@@ -172,6 +177,44 @@ function CalendarPage() {
     setSelection(null)
     setEditor({ mode: 'new', ...orderedRange(from, to) })
     setEditorOpen(true)
+  }
+
+  /** One day picked (a click, the same day tapped twice, Enter twice):
+   * its menu, to choose between a strip and a task. Several days are a
+   * strip. `at`: where (the pointer), else under the day's number. */
+  const pick = (from: string, to: string, at?: { x: number; y: number }) => {
+    if (from !== to) {
+      openNew(from, to)
+      return
+    }
+    openDayMenu(from, at)
+  }
+
+  const openDayMenu = (day: string, at?: { x: number; y: number }) => {
+    let point = at
+    if (!point) {
+      const rect = document
+        .querySelector(`td[data-day="${day}"] [data-day-number]`)
+        ?.getBoundingClientRect()
+      point = rect ? { x: rect.left, y: rect.bottom } : { x: 0, y: 0 }
+    }
+    // The day stays highlighted while its menu is open.
+    setSelection((s) => s ?? { anchor: day, focus: day, by: 'pointer' })
+    setDayMenu({ day, ...point })
+  }
+
+  /** A new task due that day, in Tasks' own form, here. */
+  const newTask = (day: string) => {
+    setSelection(null)
+    void queryClient.ensureQueryData(tasksTreeQueryOptions).then(() => {
+      setTaskEditor({
+        kind: 'task',
+        mode: 'edit',
+        folderId: null,
+        date: parseDay(day),
+      })
+      setTaskOpen(true)
+    })
   }
 
   /** A task's strip opens the task's details here (Tasks' dialog). */
@@ -407,6 +450,14 @@ function CalendarPage() {
   // swipe switches app / month instead.
   const dragging = useRef(false)
   const tapped = useRef<{ day: string; x: number; y: number } | null>(null)
+  // A finger held on a day (DAY_HOLD_MS, without moving) opens its menu.
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastPointer = useRef('')
+  const stopHold = () => {
+    if (holdTimer.current) clearTimeout(holdTimer.current)
+    holdTimer.current = null
+  }
+  useEffect(() => stopHold, [])
   useEffect(() => {
     const dayAt = (e: PointerEvent) =>
       document
@@ -414,25 +465,32 @@ function CalendarPage() {
         ?.closest('td[data-day]')
         ?.getAttribute('data-day') ?? null
     const onMove = (e: PointerEvent) => {
+      const tap = tapped.current
+      if (tap && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) >= 10) {
+        stopHold() // A swipe, not a hold.
+      }
       if (!dragging.current) return
       const day = dayAt(e)
       if (day) setSelection((s) => (s ? { ...s, focus: day } : s))
     }
     const onUp = (e: PointerEvent) => {
+      stopHold()
       const tap = tapped.current
       tapped.current = null
       if (tap && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < 10) {
         const s = selectionRef.current
-        if (s?.by === 'touch') openNew(s.anchor, tap.day)
-        else setSelection({ anchor: tap.day, focus: tap.day, by: 'touch' })
+        if (s?.by === 'touch') {
+          pick(s.anchor, tap.day, { x: e.clientX, y: e.clientY })
+        } else setSelection({ anchor: tap.day, focus: tap.day, by: 'touch' })
         return
       }
       if (!dragging.current) return
       dragging.current = false
       const s = selectionRef.current
-      if (s) openNew(s.anchor, s.focus)
+      if (s) pick(s.anchor, s.focus, { x: e.clientX, y: e.clientY })
     }
     const onCancel = () => {
+      stopHold()
       tapped.current = null
       if (!dragging.current) return
       dragging.current = false
@@ -449,6 +507,7 @@ function CalendarPage() {
   })
 
   const onDayPointerDown = (day: string, e: React.PointerEvent) => {
+    lastPointer.current = e.pointerType
     if (e.button !== 0) return
     // With a strip selected, a press elsewhere only lets go of it.
     if (stripEdit.selectedId !== null) {
@@ -457,10 +516,37 @@ function CalendarPage() {
     }
     if (e.pointerType === 'touch') {
       tapped.current = { day, x: e.clientX, y: e.clientY }
+      const { clientX: x, clientY: y } = e
+      stopHold()
+      holdTimer.current = setTimeout(() => {
+        holdTimer.current = null
+        if (tapped.current?.day !== day) return
+        // A hold, not a tap: the coming pointerup does nothing.
+        tapped.current = null
+        setSelection(null)
+        if ('vibrate' in navigator) navigator.vibrate(15) // Not on iOS.
+        openDayMenu(day, { x, y })
+      }, DAY_HOLD_MS)
       return
     }
     dragging.current = true
     setSelection({ anchor: day, focus: day, by: 'pointer' })
+  }
+
+  /** Right click on a day. A finger's long press is timed above (and the
+   * browser's own menu for it kept from opening); the keyboard's menu key
+   * opens it under the day's number. */
+  const onDayContextMenu = (day: string, e: React.MouseEvent) => {
+    if (e.defaultPrevented) return // A strip's own menu took it.
+    e.preventDefault()
+    if (lastPointer.current === 'touch') return // Timed above.
+    if (dragging.current) {
+      dragging.current = false
+      setSelection(null)
+    }
+    stripEdit.select(null)
+    const fromKeyboard = e.clientX === 0 && e.clientY === 0
+    openDayMenu(day, fromKeyboard ? undefined : { x: e.clientX, y: e.clientY })
   }
 
   // Keys (not while typing or with a dialog open; listed in
@@ -530,7 +616,7 @@ function CalendarPage() {
           if (!day) return
           e.preventDefault()
           const s = selectionRef.current
-          if (s?.by === 'key') openNew(s.anchor, day)
+          if (s?.by === 'key') pick(s.anchor, day)
           else setSelection({ anchor: day, focus: day, by: 'key' })
           break
         }
@@ -679,6 +765,7 @@ function CalendarPage() {
                 strips={strips}
                 selection={shown}
                 onDayPointerDown={onDayPointerDown}
+                onDayContextMenu={onDayContextMenu}
                 onOpenStrip={openStrip}
                 events={eventsById}
                 edit={stripEdit}
@@ -687,6 +774,16 @@ function CalendarPage() {
           </div>
         </div>
       </div>
+      <DayMenu
+        at={dayMenu}
+        onClose={() => {
+          setDayMenu(null)
+          setSelection(null)
+        }}
+        onNewStrip={(day) => openNew(day, day)}
+        onNewTask={newTask}
+        onShowTasks={(day) => void navigate({ to: '/tasks', search: { day } })}
+      />
       <StripMenu
         at={stripEdit.menu}
         event={
@@ -752,6 +849,9 @@ function CalendarPage() {
     </main>
   )
 }
+
+/** How long a finger is held on a day to open its menu (ms). */
+const DAY_HOLD_MS = 500
 
 // Wheel → month: how much scrolling makes one flip (px), and the pause
 // after one before the next.
