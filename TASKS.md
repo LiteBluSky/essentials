@@ -583,6 +583,16 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       screenshot, Stop puts the files back
 - [x] `pnpm build` + restart the server
 
+## 30. References across profiles (Nov 2026)
+
+- [x] A reference Jarvis returns to an item it made / changed / found in
+      another profile opens that item: references written without the
+      profile are pinned to it (`pinReferences`), and a click on one not
+      found where it points looks in every profile and switches there
+      (`findReference`)
+- [ ] Verify with two profiles: create a note in the other one from Chat,
+      click its chip in the answer (switches and opens it)
+
 ## History of the notes app (before the merge)
 
 ### Notes 0. Scaffold (from the bookmarks app)

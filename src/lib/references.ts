@@ -111,6 +111,54 @@ export function rebaseReferences(
   )
 }
 
+/** An item Jarvis made, changed or found during a request, and the profile
+ * it's in (unset = the one in use). */
+export type KnownItem = {
+  app: JarvisApp
+  id: number
+  name: string
+  profile?: number | null
+}
+
+function sameName(name: string) {
+  return name.replace(/[()]/g, '').replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
+/**
+ * Jarvis's text (in the in-use profile's terms) with each reference that
+ * names no profile but means an item it made, changed or found in another
+ * one pointing there (`#12@local`), so a click opens that item, not
+ * whatever has its id here. Matched by app + name (+ id when it has one);
+ * if an in-use item matches too, it's left as it is. Anything else is left
+ * to `findReference`, which looks in every profile when clicked.
+ */
+export function pinReferences(text: string, items: Array<KnownItem>) {
+  if (!items.some((i) => i.profile !== undefined)) return text
+  return text.replace(
+    REFERENCE,
+    (all, type: string, name: string, id?: string, key?: string) => {
+      if (key !== undefined) return all
+      const app = REFERENCE_TYPES.find((t) => t.type === type)!.app
+      const want = sameName(name)
+      const candidates = items
+        .filter(
+          (i) =>
+            i.app === app &&
+            sameName(i.name) === want &&
+            (!id || i.id === Number(id)),
+        )
+        // One in the in-use profile wins: then the reference was right.
+        .sort(
+          (a, b) =>
+            Number(a.profile !== undefined) - Number(b.profile !== undefined),
+        )
+      const pick = candidates.at(0)
+      if (!pick || pick.profile === undefined) return all
+      return formatReference(type as ReferenceType, name, pick.id, pick.profile)
+    },
+  )
+}
+
 /** What the autocomplete inserts for an item (`profile`: the one it lives
  * in, when not the text's own). */
 export function formatReference(

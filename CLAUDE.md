@@ -583,9 +583,12 @@ reference alone in backticks counts too); plain text
 in task descriptions, contact context, the user's chat messages and Tell me
 answer toasts). Labels, snippets and the PDF show `@Name`. **Clicking**
 (`useOpenReference`): `resolveReference` (`search.functions.ts` →
-`findReference`) finds the item by id, else by name (exact first), in the
-reference's profile if it names one (`#12@local`, see Profiles), then it
-opens like a global search pick (switching profile first if needed); a bookmark opens its site (the tab is
+`findReference`) looks in the reference's profile if it names one
+(`#12@local`, see Profiles), else the one in use, for its id when that
+item still has its name, or its exact name; failing that in every other
+profile the same way (it says where: `profile`); only then loosely where
+it looked first (the id alone, then the best name match). It opens like
+a global search pick, switching to the profile it was found in first; a bookmark opens its site (the tab is
 opened during the click, then pointed at the URL). Gone: a toast. The
 **assistant** is told the syntax (`APP_PROMPT`) and to relate items with
 references; `search`, `read_item` and every create return a ready `ref`
@@ -638,7 +641,11 @@ the original to move). References keep pointing at the item they meant
 across profiles: one to another profile's item names it after the id
 (`@note(Plan#12@local)`, `#12@3` = remote database 3); `rebaseReferences`
 turns what a tool returns from another profile into the in-use profile's
-terms, and what the model writes there into that profile's. Changes
+terms, and what the model writes there into that profile's. A
+reference the model writes without its profile to something the run
+made, changed or found elsewhere (same app + name, + id if any; none in
+use matching) is pinned there (`pinReferences`, on its answer and on
+every tool's arguments), so a click opens that item. Changes
 are recorded in the profile they happened in; Undo runs in every profile
 (`undoRunEverywhere`). What it did elsewhere carries `database` +
 `databaseId` (created, found, changed): shown as "in Work", and its Open

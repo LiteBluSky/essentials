@@ -11,9 +11,10 @@ import { resolveReference } from '@/server/search.functions'
  * Opens what a `@type(name#id)` reference points at, like picking it in the
  * global search: a bookmark opens its site in a new tab, anything else
  * switches to its app and opens there. One to another profile's item
- * (`#12@local`, written by Jarvis) is looked up there, and opening it
- * switches to that profile first. Gone (and no other item has that name):
- * a toast says so.
+ * (`#12@local`, written by Jarvis) is looked up there; one that isn't in
+ * the profile it seems to be in is looked for in the others
+ * (`findReference`). Opening an item of another profile switches to that
+ * profile first. Gone (and no other item has that name): a toast says so.
  */
 export function useOpenReference() {
   const navigate = useNavigate()
@@ -45,9 +46,11 @@ export function useOpenReference() {
           return
         }
         const target = { app: ref.app, kind: 'item' as const, id: found.id }
-        if (ref.profile !== undefined) {
+        // Found in another profile (named by the reference, or not but it
+        // was only there): switch to it and open it.
+        if (found.profile !== undefined) {
           await openInProfile({
-            profile: ref.profile,
+            profile: found.profile,
             to: `/${ref.app}`,
             target,
           })

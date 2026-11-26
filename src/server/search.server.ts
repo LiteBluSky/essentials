@@ -2,7 +2,7 @@ import { and, desc, eq, or, sql } from 'drizzle-orm'
 import type { SQL } from 'drizzle-orm'
 import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
 
-import { db, profileHandle, withDatabase } from '@/db'
+import { db, listProfiles, profileHandle, withDatabase } from '@/db'
 import {
   folders as bookmarkFolders,
   contactFolders,
@@ -291,41 +291,87 @@ export async function search(
 }
 
 const ITEM_TABLES = { bookmarks: links, notes, tasks, contacts }
+/** Each app's name column, to tell an id that still means the item. */
+const NAME_COLUMNS = {
+  bookmarks: links.title,
+  notes: notes.title,
+  tasks: tasks.title,
+  contacts: contacts.name,
+}
 
-/** The item a reference points at: by id if it still exists, else the item
- * of that app whose name matches best (exact name first). Bookmarks come
- * with their URL. */
+/** A name as a reference writes it (`formatReference`), for comparing. */
+function sameName(a: string) {
+  return a.replace(/[()]/g, '').replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
+export type FoundReference = {
+  id: number
+  url?: string
+  /** Set when it was found in another profile than the one looked in
+   * first: null = Local, else a remote database's id. Opening it switches
+   * there. */
+  profile?: number | null
+}
+
+/**
+ * The item a reference points at. Ids belong to one profile, so an id is
+ * trusted when the item still has the reference's name: first in the
+ * profile the reference names (else the one in use), then in every other
+ * profile (Jarvis may have made it there and written the reference without
+ * saying so), by id + name or by exact name. Only then, loosely where it
+ * was first looked: by id alone (renamed), else the best name match.
+ * Bookmarks come with their URL.
+ */
 export async function findReference({
   profile,
   ...input
-}: ReferenceInput): Promise<{ id: number; url?: string } | null> {
-  if (profile === undefined) return findHere(input)
-  // An item of another profile (Jarvis's references across profiles).
-  return withDatabase(await profileHandle(profile), () => findHere(input))
+}: ReferenceInput): Promise<FoundReference | null> {
+  const profiles = await listProfiles()
+  const first =
+    profile === undefined ? profiles.find((p) => p.active)!.id : profile
+  const inProfile = async (id: number | null, strict: boolean) => {
+    try {
+      const handle = await profileHandle(id)
+      return await withDatabase(handle, () => findHere(input, strict))
+    } catch {
+      return null // Removed, or can't be reached right now.
+    }
+  }
+  const own = await inProfile(first, true)
+  if (own) return profile === undefined ? own : { ...own, profile }
+  for (const other of profiles) {
+    if (other.id === first) continue
+    const found = await inProfile(other.id, true)
+    if (found) return { ...found, profile: other.id }
+  }
+  const loose = await inProfile(first, false)
+  if (loose) return profile === undefined ? loose : { ...loose, profile }
+  return null
 }
 
-async function findHere({
-  app,
-  id,
-  name,
-}: Omit<ReferenceInput, 'profile'>): Promise<{
-  id: number
-  url?: string
-} | null> {
+async function findHere(
+  { app, id, name }: Omit<ReferenceInput, 'profile'>,
+  /** Only an id whose item has the same name, or an exact name. */
+  strict: boolean,
+): Promise<FoundReference | null> {
+  const want = sameName(name)
   let found: number | null = null
   if (id !== null) {
     const table = ITEM_TABLES[app]
     const row = (
-      await db.select({ id: table.id }).from(table).where(eq(table.id, id))
+      await db
+        .select({ id: table.id, name: NAME_COLUMNS[app] })
+        .from(table)
+        .where(eq(table.id, id))
     ).at(0)
-    if (row) found = row.id
+    if (row && (!strict || !want || sameName(row.name) === want)) {
+      found = row.id
+    }
   }
-  if (found === null && name.trim()) {
+  if (found === null && want) {
     const items = (await search(name))[app].filter((r) => r.kind === 'item')
-    const exact = items.find(
-      (r) => r.label.toLowerCase() === name.trim().toLowerCase(),
-    )
-    found = (exact ?? items.at(0))?.id ?? null
+    const exact = items.find((r) => sameName(r.label) === want)
+    found = (exact ?? (strict ? undefined : items.at(0)))?.id ?? null
   }
   if (found === null) return null
   if (app !== 'bookmarks') return { id: found }

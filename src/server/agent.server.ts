@@ -4,7 +4,8 @@ import { listProfiles, profileHandle, withDatabase } from '@/db'
 import type { Profile } from '@/db'
 import type { AssistantResult } from '@/lib/assistant'
 import type { ChatStreamEvent } from '@/lib/chat'
-import { rebaseReferences } from '@/lib/references'
+import { pinReferences, rebaseReferences } from '@/lib/references'
+import type { KnownItem } from '@/lib/references'
 import { ALL_TOOLS, runTool } from './agent-tools.server'
 import { CancelledError } from './cancel.server'
 import { undoRunEverywhere } from './changes.server'
@@ -58,6 +59,59 @@ function rebase(
   if (value && typeof value === 'object' && !(value instanceof Date)) {
     return Object.fromEntries(
       Object.entries(value).map(([k, v]) => [k, rebase(v, from, to)]),
+    )
+  }
+  return value
+}
+
+const JARVIS_APPS = new Set(['bookmarks', 'notes', 'tasks', 'contacts'])
+
+/** What the run made, changed or found so far, with the profile each is in
+ * (unset = the one in use), to pin Jarvis's references to them. */
+function knownItems(result: AssistantResult): Array<KnownItem> {
+  const where = (entry: { database?: string; databaseId?: number | null }) =>
+    entry.database === undefined ? {} : { profile: entry.databaseId ?? null }
+  return [
+    ...result.created.map((c) => ({
+      app: c.app,
+      id: c.id,
+      name: c.title,
+      ...where(c),
+    })),
+    ...result.changed.flatMap((c) =>
+      c.target === 'item' && JARVIS_APPS.has(c.app)
+        ? [
+            {
+              app: c.app as KnownItem['app'],
+              id: c.id,
+              name: c.label,
+              ...where(c),
+            },
+          ]
+        : [],
+    ),
+    ...result.found.flatMap((f) =>
+      f.match?.kind === 'item' && JARVIS_APPS.has(f.match.app)
+        ? [
+            {
+              app: f.match.app as KnownItem['app'],
+              id: f.match.id,
+              name: f.match.label,
+              ...where(f),
+            },
+          ]
+        : [],
+    ),
+  ]
+}
+
+/** Every string in a tool's arguments with its references pinned. */
+function pin(value: unknown, items: Array<KnownItem>): unknown {
+  if (typeof value === 'string') return pinReferences(value, items)
+  if (Array.isArray(value)) return value.map((v) => pin(v, items))
+  if (value && typeof value === 'object' && !(value instanceof Date)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, pin(v, items)]),
     )
   }
   return value
@@ -133,7 +187,9 @@ ${profilesPrompt(profiles)}`
       profile = next
       return { database: next.name, inUse: next.active }
     }
-    const input = rebase(args, home.id, profile.id)
+    // A reference to something it made elsewhere, written without its
+    // profile, is pinned to it first.
+    const input = rebase(pin(args, knownItems(result)), home.id, profile.id)
     if (profile.active) return runTool(name, input, ctx)
     // In another profile: run it there, and mark what it did as being there.
     const handle = await profileHandle(profile.id)
@@ -229,6 +285,7 @@ ${profilesPrompt(profiles)}`
     throw new CancelledError()
   }
   result.runId = changedAnything ? runId : null
+  answer = pinReferences(answer, knownItems(result))
   result.answer = answer
   return { answer, result, usage, error }
 }
