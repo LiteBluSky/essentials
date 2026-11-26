@@ -4,6 +4,13 @@ import { db } from '@/db'
 import { chatConversations, chatMessages } from '@/db/schema'
 import type { ChatMessage } from '@/db/schema'
 import { UNSORTED_FOLDER } from '@/lib/assistant'
+import {
+  FILES_ONLY_TEXT,
+  attachmentMeta,
+  attachmentNames,
+  parseAttachments,
+} from '@/lib/attachments'
+import type { AttachmentMeta } from '@/lib/attachments'
 import { chatCutoff } from '@/lib/chat'
 import type { ChatInput, ChatStreamEvent, ChatTurnResult } from '@/lib/chat'
 import { runAgent } from './agent.server'
@@ -153,6 +160,21 @@ function titleFrom(text: string) {
   return line.length > 60 ? `${line.slice(0, 57)}…` : line
 }
 
+/** An earlier message as the model sees it: the files it came with were
+ * only sent that once, so it's told they're gone. */
+function withEarlierFiles(text: string, attachments: string | null) {
+  const files = parseAttachments(attachments)
+  if (!files.length) return text
+  return `${text || '(Just files.)'}
+[Attached then: ${attachmentNames(files)}. Not available any more: ask the user to attach them again if you need them.]`
+}
+
+/** What the history shows for a message with files. */
+export function logText(text: string, files: Array<AttachmentMeta>) {
+  if (!files.length) return text
+  return `${text ? `${text} ` : ''}[attached: ${attachmentNames(files)}]`
+}
+
 /** A history line for a turn's changes. */
 function changesLine(changed: ChatTurnResult['result']['changed']) {
   return changed
@@ -173,17 +195,22 @@ export async function saveTurn(
   conversationId: number | null,
   text: string,
   run: AgentRun,
+  /** The files sent with the message: only their names are kept. */
+  attachments: Array<AttachmentMeta> = [],
 ) {
   if (conversationId === null) {
     const [row] = await db
       .insert(chatConversations)
-      .values({ title: titleFrom(text) })
+      .values({ title: titleFrom(text || attachmentNames(attachments)) })
       .returning({ id: chatConversations.id })
     conversationId = row.id
   }
-  await db
-    .insert(chatMessages)
-    .values({ conversationId, role: 'user', content: text })
+  await db.insert(chatMessages).values({
+    conversationId,
+    role: 'user',
+    content: text,
+    attachments: attachments.length ? JSON.stringify(attachments) : null,
+  })
 
   const { result, error } = run
   const answer = run.answer || describe(result) || 'Done.'
@@ -243,10 +270,14 @@ export async function sendMessage(
   const turns: Array<Turn> = [
     ...earlier.map((m): Turn =>
       m.role === 'user'
-        ? { role: 'user', text: m.content }
+        ? { role: 'user', text: withEarlierFiles(m.content, m.attachments) }
         : { role: 'assistant', text: m.content, calls: [] },
     ),
-    { role: 'user', text: input.text },
+    {
+      role: 'user',
+      text: input.text || FILES_ONLY_TEXT,
+      attachments: input.attachments,
+    },
   ]
 
   // Throws only when there's no API key: nothing is saved then.
@@ -259,7 +290,8 @@ export async function sendMessage(
     signal,
   })
 
-  const { message } = await saveTurn(conversationId, input.text, run)
+  const files = attachmentMeta(input.attachments)
+  const { message } = await saveTurn(conversationId, input.text, run, files)
   conversationId = message.conversationId
   const { result, error } = run
   const done = describe(result)
@@ -268,7 +300,7 @@ export async function sendMessage(
 
   const model = run.usage ?? (await currentModel())
   await logRequest({
-    text: input.text,
+    text: logText(input.text, files),
     source: 'chat',
     provider: model?.provider ?? '',
     model: model?.model ?? '',

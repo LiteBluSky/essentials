@@ -403,6 +403,16 @@ mic. The globe next to it lets that one request search the web. Typing `@`
 in any text field links to another item (a bookmark, note, task or
 contact).
 
+**Files**: give Jarvis a file to work from: the paperclip in its box (on a
+phone it can take a photo), drag files anywhere onto the page, or paste a
+screenshot. Images, PDFs and text files (CSV, Markdown, calendar `.ics`,
+contact `.vcf`…), up to 5 at a time. Jarvis reads them and puts what's in
+them into the app: _"add these"_ with a receipt makes an expense, a
+business card a contact, an invitation a calendar strip or task, a list a
+note. Send a file with no message and Jarvis works out what to add. It
+never makes files, and the files aren't kept: the message remembers only
+their names.
+
 **Chat** (the last app in the navbar): ask about anything you've saved:
 _"what's due this week?"_, _"what did I write about the CRM?"_, _"which
 links do I have about invoices?"_. It looks things up before answering,

@@ -15,6 +15,8 @@ import {
 } from '@/components/chat/chat-thread'
 import { refreshKey, rememberConversation } from '@/lib/chat'
 import { streamChatMessage } from '@/lib/chat-stream'
+import { attachmentMeta } from '@/lib/attachments'
+import type { Attachment } from '@/lib/attachments'
 import type { PendingMessage } from '@/components/chat/chat-thread'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/toast'
@@ -171,11 +173,13 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
     mutationFn: ({
       text,
       webSearch,
+      files,
       requestId,
       signal,
     }: {
       text: string
       webSearch: boolean
+      files: Array<Attachment>
       requestId: string
       signal: AbortSignal
     }) =>
@@ -184,6 +188,7 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
           // A conversation deleted meanwhile (or expired) starts a new one.
           conversationId: messages.length ? conversationId : null,
           text,
+          attachments: files,
           now: new Date().toISOString(),
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           webSearch,
@@ -194,8 +199,12 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
       ),
   })
 
-  const onSend = async (text: string, webSearch: boolean) => {
-    setPending({ text, answer: '', tool: null })
+  const onSend = async (
+    text: string,
+    webSearch: boolean,
+    files: Array<Attachment>,
+  ) => {
+    setPending({ text, files: attachmentMeta(files), answer: '', tool: null })
     const started = request.start({ web: webSearch })
     let conversation: number | null = null
     let failure: string | undefined
@@ -203,6 +212,7 @@ export function AssistantSidebar({ enabled }: { enabled: boolean }) {
       const { conversationId: id, apps } = await send.mutateAsync({
         text,
         webSearch,
+        files,
         ...started,
       })
       conversation = id

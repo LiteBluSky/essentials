@@ -567,6 +567,22 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       and `n` / `N`
 - [x] `pnpm build` + restart the server
 
+## 29. Files for Jarvis (Nov 2026)
+
+- [x] Give Jarvis files as context (Chat's box, the panel, the Ask Jarvis
+      field): the paperclip, drag and drop anywhere on the page, or paste
+      (a screenshot); images (scaled down), PDFs and text files (CSV,
+      Markdown, JSON, ICS, VCF…), at most 5. Jarvis reads them and puts what's
+      in them into the apps (a receipt → an expense, a card → a contact…);
+      it never makes files. Sent with that message only; the message keeps
+      just their names (`chat_messages.attachments`)
+- [ ] Verify with the real providers (Anthropic and OpenRouter): a photo
+      of a receipt, a PDF invoice, a CSV; files only, no text
+- [ ] Verify in a real browser: dropping on Chat, the panel and the field
+      (phone: the paperclip opens the camera / gallery), pasting a
+      screenshot, Stop puts the files back
+- [x] `pnpm build` + restart the server
+
 ## History of the notes app (before the merge)
 
 ### Notes 0. Scaffold (from the bookmarks app)

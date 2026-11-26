@@ -474,6 +474,9 @@ export const chatMessages = sqliteTable(
     role: text({ enum: ['user', 'assistant'] }).notNull(),
     content: text().notNull(),
     actions: text(),
+    /** The files sent with a user's message (JSON `AttachmentMeta[]`: names
+     * only; the files themselves aren't kept). */
+    attachments: text(),
     error: integer({ mode: 'boolean' }).notNull().default(false),
     /** The turn's changes (assistant_changes), for its Undo button. */
     runId: text('run_id'),

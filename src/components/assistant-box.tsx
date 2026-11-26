@@ -13,6 +13,11 @@ import {
   useDesktopAssistant,
 } from '@/components/assistant-sidebar'
 import { overlayOpen } from '@/components/app-switcher'
+import {
+  AttachButton,
+  AttachmentChips,
+  DropHint,
+} from '@/components/attachments'
 import { DictateButton } from '@/components/dictate-button'
 import { WebSearchToggle } from '@/components/web-search-toggle'
 import { MobileDock } from '@/components/mobile-dock'
@@ -38,6 +43,12 @@ import type { SearchTarget } from '@/lib/global-search'
 import { useMentionTarget } from '@/lib/jarvis-mention'
 import { useCancelRequest } from '@/hooks/use-cancel-request'
 import { useDictation } from '@/hooks/use-dictation'
+import {
+  pastedFiles,
+  useAttachments,
+  useFileDrop,
+} from '@/hooks/use-attachments'
+import type { Attachment } from '@/lib/attachments'
 import { useOpenInProfile } from '@/hooks/use-open-in-profile'
 import { useRequestHistory } from '@/hooks/use-request-history'
 import { useUndoRun } from '@/hooks/use-undo-run'
@@ -90,6 +101,9 @@ function AssistantField({ enabled }: { enabled: boolean }) {
   // Web search for the next request only (off again once it's sent).
   const [webSearch, setWebSearch] = useState(false)
   const history = useRequestHistory()
+  // Files for the next request; kept until it went through (like the text).
+  const attachments = useAttachments()
+  const dragging = useFileDrop(enabled, (files) => void attachments.add(files))
   const dictation = useDictation({
     onText: setText,
     onError: (message) =>
@@ -126,15 +140,18 @@ function AssistantField({ enabled }: { enabled: boolean }) {
     mutationFn: ({
       sentence,
       web,
+      files,
       requestId,
     }: {
       sentence: string
       web: boolean
+      files: Array<Attachment>
       requestId: string
     }) =>
       askAssistant({
         data: {
           text: sentence,
+          attachments: files,
           now: new Date().toISOString(),
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           webSearch: web,
@@ -146,6 +163,7 @@ function AssistantField({ enabled }: { enabled: boolean }) {
       { web },
     ) => {
       setText('')
+      attachments.take()
       history.reset()
       await Promise.all(
         [...new Set([...created, ...changed].map((item) => item.app))].map(
@@ -339,13 +357,16 @@ function AssistantField({ enabled }: { enabled: boolean }) {
     })
   }
 
+  const canSend =
+    (!!text.trim() || attachments.files.length > 0) && !attachments.reading
   const send = () => {
     const sentence = text.trim()
-    if (!sentence || ask.isPending) return
+    if (!canSend || ask.isPending) return
     dictation.stop()
     ask.mutate({
       sentence,
       web: webSearch,
+      files: attachments.files,
       requestId: request.start({ web: webSearch }).requestId,
     })
     setWebSearch(false)
@@ -357,6 +378,7 @@ function AssistantField({ enabled }: { enabled: boolean }) {
   return (
     <MobileDock>
       <form
+        className="relative"
         onSubmit={(e) => {
           e.preventDefault()
           send()
@@ -373,6 +395,12 @@ function AssistantField({ enabled }: { enabled: boolean }) {
             value={text}
             disabled={ask.isPending}
             onChange={(e) => setText(e.target.value)}
+            onPaste={(e) => {
+              const files = pastedFiles(e)
+              if (!files) return
+              e.preventDefault()
+              void attachments.add(files)
+            }}
             onKeyDown={(e) => {
               if (
                 e.key === 'Enter' &&
@@ -411,11 +439,20 @@ function AssistantField({ enabled }: { enabled: boolean }) {
             }}
           />
           <ReferenceAutocomplete target={ref} />
+          <AttachmentChips
+            files={attachments.files}
+            onRemove={attachments.remove}
+            disabled={ask.isPending}
+          />
           {/* The same bottom row as Chat's box. */}
           <InputGroupAddon align="block-end" className="p-2">
             {!text && !ask.isPending && !dictation.listening && (
               <ShortcutKey id="global.assistant" className="max-lg:hidden" />
             )}
+            <AttachButton
+              onFiles={(files) => void attachments.add(files)}
+              disabled={ask.isPending}
+            />
             <DictateButton
               dictation={dictation}
               value={text}
@@ -450,7 +487,7 @@ function AssistantField({ enabled }: { enabled: boolean }) {
                 size="icon-sm"
                 type="submit"
                 className="ml-auto"
-                disabled={!text.trim()}
+                disabled={!canSend}
                 aria-label="Send"
                 title="Send (Enter)"
               >
@@ -459,6 +496,7 @@ function AssistantField({ enabled }: { enabled: boolean }) {
             )}
           </InputGroupAddon>
         </InputGroup>
+        <DropHint show={dragging} />
       </form>
     </MobileDock>
   )

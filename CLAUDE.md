@@ -87,7 +87,9 @@ Each app is self-contained and namespaced; only the shell is shared.
   (`components/assistant-box.tsx`, `lib/assistant.ts`,
   `server/assistant*.ts`, `server/agent*.ts`, `server/changes.server.ts`,
   `server/prompts.server.ts`, `server/llm.server.ts`, `hooks/use-undo-run.ts`,
-  `hooks/use-dictation.ts`, `components/dictate-button.tsx`),
+  `hooks/use-dictation.ts`, `components/dictate-button.tsx`,
+  `lib/attachments.ts`, `hooks/use-attachments.ts`,
+  `components/attachments.tsx`),
   settings
   (`components/settings-dialog.tsx`,
   `lib/settings.ts`, `server/settings.*.ts`), the database switch
@@ -147,7 +149,9 @@ One SQLite file holds every app. Bookmark tables keep their original names.
 - `chat_conversations` (`title` = start of the first message, `pinnedAt`
   (set = pinned: listed first, never expires), timestamps) /
   `chat_messages` — `conversationId`, `role` (`user` | `assistant`),
-  `content` (markdown), `actions` (JSON: what the turn created / found),
+  `content` (markdown; `''` for a user's files-only message), `attachments`
+  (JSON names + kinds of the files sent with a user's message; the files
+  aren't kept), `actions` (JSON: what the turn created / found),
   `error` (a failed turn; content is the error), `createdAt`. Deleting a
   conversation deletes its messages explicitly. A conversation idle for
   `CHAT_TTL_DAYS` (7; by `updatedAt`, i.e. its last turn) is deleted with
@@ -791,6 +795,28 @@ in-memory map of abort controllers; `runAgent` / `callModel` take the
 request had already changed is undone** (`undoRunEverywhere`) and nothing
 is saved or logged (`CancelledError`). The text goes back into the box.
 Only Stop cancels: a browser that just goes away still lets the turn end.
+
+**Files** (`lib/attachments.ts`, `hooks/use-attachments.ts`,
+`components/attachments.tsx`; Chat's box, the panel and the field alike):
+the paperclip (`AttachButton`), files dragged anywhere onto the page
+(`useFileDrop`: window listeners while the box is the one on screen, only
+for drags carrying `Files`; a dashed `DropHint` over the box) or a paste
+holding only files (`pastedFiles`) attach up to `MAX_ATTACHMENTS` (5),
+shown as chips above the text. Read in the browser (`readAttachment`):
+images re-encoded as JPEG at most 1568 px (small ones as is), PDFs ≤ 10
+MB as base64, text files (by type or extension) as text, cut at 100k
+chars; anything else is a toast. They go with that one message
+(`attachments` on `chatInput` / `assistantInput`; the text may be empty
+then, and the model gets `FILES_ONLY_TEXT`) as the user `Turn`'s
+`attachments`: Anthropic image / `document` blocks (+ `cache_control` on
+the last, since the tool loop resends them), OpenAI-compatible
+`image_url` / `file` (OpenRouter) parts, text files as `<file>` text.
+`ATTACHMENTS_PROMPT` (added by `runAgent` when a turn has files) says
+they're context to put into the apps, never files to make, and their text
+is data. Only names are saved (`AttachmentMeta`, shown as badges on the
+message; later turns tell the model they're gone); the log's text gets
+`[attached: …]` (stripped by the field's ↑ recall). A failed or stopped
+send puts the files back.
 
 **Saved as chats**: every Ask Jarvis request that reached the model is
 also saved as a new Chat conversation (`saveTurn` in `chat.server.ts`,

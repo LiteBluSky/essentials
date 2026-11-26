@@ -162,6 +162,13 @@
       "when": 1794908310481,
       "tag": "0022_magenta_beast",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1795675920663,
+      "tag": "0023_yummy_gressill",
+      "breakpoints": true
     }
   ]
 }

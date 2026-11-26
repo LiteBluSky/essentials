@@ -1,6 +1,7 @@
 import { queryOptions } from '@tanstack/react-query'
 import { createServerFn } from '@tanstack/react-start'
 import { assistantInput } from '@/lib/assistant'
+import { FILES_ONLY_TEXT, attachmentMeta } from '@/lib/attachments'
 import type { AssistantResult } from '@/lib/assistant'
 import { z } from 'zod'
 
@@ -11,7 +12,7 @@ import { tellPrompt } from './assistant.server'
 import { describe } from './assistant-actions.server'
 import { clearHistory, loadHistory, logRequest } from './assistant-log.server'
 import { undoRunEverywhere } from './changes.server'
-import { saveTurn } from './chat.server'
+import { logText, saveTurn } from './chat.server'
 import { assistantConfigured, currentModel } from './llm.server'
 
 // The assistant ("Tell me…"), shared by every app. No auth by design (see
@@ -40,10 +41,17 @@ export const askAssistant = createServerFn({ method: 'POST' })
     let run: AgentRun | null = null
     let failure: string | null = null
     const tracked = trackRequest(data.requestId)
+    const files = attachmentMeta(data.attachments)
     try {
       run = await runAgent({
         system: tellPrompt(data.now, data.timeZone),
-        turns: [{ role: 'user', text: data.text }],
+        turns: [
+          {
+            role: 'user',
+            text: data.text || FILES_ONLY_TEXT,
+            attachments: data.attachments,
+          },
+        ],
         timeZone: data.timeZone,
         webSearch: data.webSearch,
         signal: tracked.signal,
@@ -68,10 +76,12 @@ export const askAssistant = createServerFn({ method: 'POST' })
     let conversationId: number | null = null
     if (run) {
       try {
-        const { message } = await saveTurn(null, data.text, {
-          ...run,
-          error: failure ?? run.error,
-        })
+        const { message } = await saveTurn(
+          null,
+          data.text,
+          { ...run, error: failure ?? run.error },
+          files,
+        )
         conversationId = message.conversationId
       } catch (error) {
         console.error("Couldn't save the request to Chat:", error)
@@ -82,7 +92,7 @@ export const askAssistant = createServerFn({ method: 'POST' })
     const model = usage ?? (await currentModel())
     const result = run?.result
     await logRequest({
-      text: data.text,
+      text: logText(data.text, files),
       source: 'tell',
       provider: model?.provider ?? '',
       model: model?.model ?? '',

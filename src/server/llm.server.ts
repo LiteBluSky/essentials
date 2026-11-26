@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { z } from 'zod'
 
+import type { Attachment, IMAGE_TYPES } from '@/lib/attachments'
 import { readSettings } from './settings.server'
 
 // Server-only: talking to the LLM, shared by the Tell me field and the Chat
@@ -63,7 +64,12 @@ export type ToolCall = { id: string; name: string; args: unknown }
  * content (Anthropic: its blocks, thinking included) to send back
  * unchanged within a tool loop. */
 export type Turn =
-  | { role: 'user'; text: string }
+  | {
+      role: 'user'
+      text: string
+      /** Files sent with this message (only the current one has them). */
+      attachments?: Array<Attachment>
+    }
   | { role: 'assistant'; text: string; calls: Array<ToolCall>; raw?: unknown }
   | { role: 'tool'; results: Array<{ id: string; content: string }> }
 
@@ -149,9 +155,47 @@ const completion = z.object({
     .nullish(),
 })
 
+/** A text file, as the model reads it. */
+function fileText(file: Attachment) {
+  return `<file name="${file.name.replace(/"/g, "'")}">
+${file.data}
+</file>`
+}
+
 function toOpenAi(turns: Array<Turn>) {
   return turns.flatMap((turn): Array<Record<string, unknown>> => {
-    if (turn.role === 'user') return [{ role: 'user', content: turn.text }]
+    if (turn.role === 'user') {
+      if (!turn.attachments?.length) {
+        return [{ role: 'user', content: turn.text }]
+      }
+      // Files first, then what the user said about them.
+      return [
+        {
+          role: 'user',
+          content: [
+            ...turn.attachments.map((file) =>
+              file.kind === 'image'
+                ? {
+                    type: 'image_url',
+                    image_url: {
+                      url: `data:${file.mediaType};base64,${file.data}`,
+                    },
+                  }
+                : file.kind === 'pdf'
+                  ? {
+                      type: 'file',
+                      file: {
+                        filename: file.name,
+                        file_data: `data:application/pdf;base64,${file.data}`,
+                      },
+                    }
+                  : { type: 'text', text: fileText(file) },
+            ),
+            { type: 'text', text: turn.text },
+          ],
+        },
+      ]
+    }
     if (turn.role === 'tool') {
       return turn.results.map((result) => ({
         role: 'tool',
@@ -386,7 +430,46 @@ function toAnthropic(
   turns: Array<Turn>,
 ): Array<Anthropic.Beta.BetaMessageParam> {
   return turns.flatMap((turn): Array<Anthropic.Beta.BetaMessageParam> => {
-    if (turn.role === 'user') return [{ role: 'user', content: turn.text }]
+    if (turn.role === 'user') {
+      if (!turn.attachments?.length) {
+        return [{ role: 'user', content: turn.text }]
+      }
+      const files = turn.attachments.map(
+        (file): Anthropic.Beta.BetaContentBlockParam =>
+          file.kind === 'image'
+            ? {
+                type: 'image',
+                source: {
+                  type: 'base64',
+                  media_type: file.mediaType as (typeof IMAGE_TYPES)[number],
+                  data: file.data,
+                },
+              }
+            : file.kind === 'pdf'
+              ? {
+                  type: 'document',
+                  title: file.name,
+                  source: {
+                    type: 'base64',
+                    media_type: 'application/pdf',
+                    data: file.data,
+                  },
+                }
+              : { type: 'text', text: fileText(file) },
+      )
+      // The tool loop sends them again with every call: cached after the
+      // first, they're read back at a tenth of the price.
+      files[files.length - 1] = {
+        ...files[files.length - 1],
+        cache_control: { type: 'ephemeral' },
+      } as Anthropic.Beta.BetaContentBlockParam
+      return [
+        {
+          role: 'user',
+          content: [...files, { type: 'text', text: turn.text }],
+        },
+      ]
+    }
     if (turn.role === 'tool') {
       // All of a turn's results go back in one user message.
       return [

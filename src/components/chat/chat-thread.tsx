@@ -23,6 +23,19 @@ import { DictateButton } from '@/components/dictate-button'
 import { WebSearchToggle } from '@/components/web-search-toggle'
 import { ReferenceAutocomplete } from '@/components/reference-autocomplete'
 import { ReferenceText } from '@/components/reference'
+import {
+  AttachButton,
+  AttachmentChips,
+  AttachmentNames,
+  DropHint,
+} from '@/components/attachments'
+import {
+  pastedFiles,
+  useAttachments,
+  useFileDrop,
+} from '@/hooks/use-attachments'
+import { parseAttachments } from '@/lib/attachments'
+import type { Attachment, AttachmentMeta } from '@/lib/attachments'
 import { Bubble, BubbleContent } from '@/components/ui/bubble'
 import { Button } from '@/components/ui/button'
 import {
@@ -67,6 +80,8 @@ import { ShortcutKey } from '@/components/shortcut-key'
  * the answer so far as it streams in, and the tool it's using meanwhile. */
 export type PendingMessage = {
   text: string
+  /** The files sent with it. */
+  files?: Array<AttachmentMeta>
   answer: string
   tool: string | null
 }
@@ -149,11 +164,14 @@ function ThreadMessages({
               <MessageScrollerItem messageId="pending">
                 <Message align="end">
                   <MessageContent>
-                    <Bubble>
-                      <BubbleContent className="whitespace-pre-wrap">
-                        <ReferenceText>{pending.text}</ReferenceText>
-                      </BubbleContent>
-                    </Bubble>
+                    <AttachmentNames files={pending.files ?? []} />
+                    {pending.text && (
+                      <Bubble>
+                        <BubbleContent className="whitespace-pre-wrap">
+                          <ReferenceText>{pending.text}</ReferenceText>
+                        </BubbleContent>
+                      </Bubble>
+                    )}
                   </MessageContent>
                 </Message>
               </MessageScrollerItem>
@@ -191,11 +209,14 @@ function ChatBubble({ message }: { message: ChatMessageView }) {
     return (
       <Message align="end">
         <MessageContent>
-          <Bubble>
-            <BubbleContent className="whitespace-pre-wrap">
-              <ReferenceText>{message.content}</ReferenceText>
-            </BubbleContent>
-          </Bubble>
+          <AttachmentNames files={parseAttachments(message.attachments)} />
+          {message.content && (
+            <Bubble>
+              <BubbleContent className="whitespace-pre-wrap">
+                <ReferenceText>{message.content}</ReferenceText>
+              </BubbleContent>
+            </Bubble>
+          )}
         </MessageContent>
       </Message>
     )
@@ -499,10 +520,16 @@ export function ChatComposer({
   onCancel,
   enabled,
   mentions = enabled,
+  drops = mentions,
 }: {
   busy: boolean
-  /** `webSearch`: let Jarvis search the web for this message. */
-  onSend: (text: string, webSearch: boolean) => Promise<boolean>
+  /** `webSearch`: let Jarvis search the web for this message; `files`:
+   * what's attached to it (`text` may be empty then). */
+  onSend: (
+    text: string,
+    webSearch: boolean,
+    files: Array<Attachment>,
+  ) => Promise<boolean>
   /** Stop (the button while busy, or Esc in the box): calls the message
    * off; `onSend` then resolves false and the text comes back. */
   onCancel: () => void
@@ -510,11 +537,15 @@ export function ChatComposer({
   enabled: boolean
   /** It takes items mentioned from the global search (default: enabled). */
   mentions?: boolean
+  /** Files dropped anywhere on the page come here (default: mentions). */
+  drops?: boolean
 }) {
   const ref = useRef<HTMLTextAreaElement>(null)
   const [text, setText] = useState('')
   // Web search for the next message only (off again once it's sent).
   const [webSearch, setWebSearch] = useState(false)
+  const attachments = useAttachments()
+  const dragging = useFileDrop(drops, (files) => void attachments.add(files))
   const dictation = useDictation({
     onText: setText,
     onError: (message) =>
@@ -540,21 +571,27 @@ export function ChatComposer({
   // Items mentioned from the global search land here when it's on screen.
   useMentionTarget(ref, mentions)
 
+  const canSend =
+    (!!text.trim() || attachments.files.length > 0) && !attachments.reading
   const send = async () => {
     const message = text.trim()
-    if (!message || busy) return
+    if (!canSend || busy) return
     dictation.stop()
     setText('')
     const web = webSearch
     setWebSearch(false)
+    const files = attachments.take()
     // Put it back if it didn't go through.
-    if (!(await onSend(message, web))) setText(message)
+    if (!(await onSend(message, web, files))) {
+      setText(message)
+      attachments.restore(files)
+    }
   }
 
   return (
     <form
       data-chat-composer
-      className="mx-auto w-full max-w-3xl"
+      className="relative mx-auto w-full max-w-3xl"
       onSubmit={(e) => {
         e.preventDefault()
         void send()
@@ -570,6 +607,12 @@ export function ChatComposer({
           enterKeyHint="send"
           value={text}
           onChange={(e) => setText(e.target.value)}
+          onPaste={(e) => {
+            const files = pastedFiles(e)
+            if (!files) return
+            e.preventDefault()
+            void attachments.add(files)
+          }}
           onKeyDown={(e) => {
             if (
               e.key === 'Enter' &&
@@ -591,10 +634,19 @@ export function ChatComposer({
           }}
         />
         <ReferenceAutocomplete target={ref} />
+        <AttachmentChips
+          files={attachments.files}
+          onRemove={attachments.remove}
+          disabled={busy}
+        />
         <InputGroupAddon align="block-end" className="p-2">
           {!text && !dictation.listening && (
             <ShortcutKey id="global.assistant" className="max-lg:hidden" />
           )}
+          <AttachButton
+            onFiles={(files) => void attachments.add(files)}
+            disabled={busy}
+          />
           <DictateButton
             dictation={dictation}
             value={text}
@@ -624,7 +676,7 @@ export function ChatComposer({
               size="icon-sm"
               type="submit"
               className="ml-auto"
-              disabled={!text.trim()}
+              disabled={!canSend}
               aria-label="Send"
               title="Send (Enter)"
             >
@@ -633,6 +685,7 @@ export function ChatComposer({
           )}
         </InputGroupAddon>
       </InputGroup>
+      <DropHint show={dragging} />
     </form>
   )
 }

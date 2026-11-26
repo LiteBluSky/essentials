@@ -35,7 +35,10 @@ export function useRequestHistory() {
         ...assistantHistoryQueryOptions,
         staleTime: Infinity,
       })
-      const texts = uniqueTexts(entries.map((e) => e.text))
+      // Without the names of files sent with it (they aren't kept).
+      const texts = uniqueTexts(
+        entries.map((e) => e.text.replace(/\s*\[attached: [^\]]*\]$/, '')),
+      )
       if (index.current === null) draft.current = current
       const next = (index.current ?? -1) + step
       if (next < 0) {

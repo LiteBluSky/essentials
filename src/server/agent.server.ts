@@ -10,7 +10,7 @@ import { CancelledError } from './cancel.server'
 import { undoRunEverywhere } from './changes.server'
 import { addUsage, callModel, llmConfig } from './llm.server'
 import type { ModelUsage, ToolDef, Turn } from './llm.server'
-import { WEB_SEARCH_PROMPT } from './prompts.server'
+import { ATTACHMENTS_PROMPT, WEB_SEARCH_PROMPT } from './prompts.server'
 
 // Server-only: the assistant's tool loop, shared by Tell me and Chat. The
 // model looks things up, creates, edits or deletes through the tools
@@ -96,6 +96,9 @@ export async function runAgent({
   }
 
   let system = webSearch ? `${baseSystem}\n${WEB_SEARCH_PROMPT}` : baseSystem
+  if (turns.some((t) => t.role === 'user' && t.attachments?.length)) {
+    system = `${system}\n${ATTACHMENTS_PROMPT}`
+  }
   const runId = randomUUID()
   const result: AssistantResult = { created: [], found: [], changed: [] }
   const ctx = { runId, timeZone, result }

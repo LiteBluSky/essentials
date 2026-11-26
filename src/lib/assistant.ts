@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { attachmentsInput } from '@/lib/attachments'
 import type { SearchApp, SearchResult } from '@/lib/global-search'
 
 /** What the assistant is called (in the UI and its prompt); the user can
@@ -14,16 +15,21 @@ export const ASSISTANT_NAME = 'Jarvis'
 
 export const UNSORTED_FOLDER = 'Unsorted'
 
-export const assistantInput = z.object({
-  text: z.string().trim().min(1, 'Say something').max(2000, 'Keep it shorter'),
-  /** The browser's clock and timezone, to read "tomorrow at 3". */
-  now: z.iso.datetime(),
-  timeZone: z.string().min(1).max(100),
-  /** Let Jarvis search the web for this one request (off by default). */
-  webSearch: z.boolean().default(false),
-  /** The browser's id for this request, to cancel it (`cancelAssistant`). */
-  requestId: z.uuid().optional(),
-})
+export const assistantInput = z
+  .object({
+    /** May be empty when files are attached. */
+    text: z.string().trim().max(2000, 'Keep it shorter'),
+    /** Files to read for this request (see lib/attachments.ts). */
+    attachments: attachmentsInput,
+    /** The browser's clock and timezone, to read "tomorrow at 3". */
+    now: z.iso.datetime(),
+    timeZone: z.string().min(1).max(100),
+    /** Let Jarvis search the web for this one request (off by default). */
+    webSearch: z.boolean().default(false),
+    /** The browser's id for this request, to cancel it (`cancelAssistant`). */
+    requestId: z.uuid().optional(),
+  })
+  .refine((input) => input.text || input.attachments.length, 'Say something')
 export type AssistantInput = z.infer<typeof assistantInput>
 
 /** What was created. */

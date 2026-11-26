@@ -31,6 +31,8 @@ import {
 } from '@/components/chat/chat-thread'
 import { lastConversation, refreshKey, rememberConversation } from '@/lib/chat'
 import { streamChatMessage } from '@/lib/chat-stream'
+import { attachmentMeta } from '@/lib/attachments'
+import type { Attachment } from '@/lib/attachments'
 import type { PendingMessage } from '@/components/chat/chat-thread'
 import { GlobalSearch } from '@/components/global-search'
 import { ProfileButton } from '@/components/profile-switcher'
@@ -179,11 +181,13 @@ function ChatPage() {
     mutationFn: ({
       text,
       webSearch,
+      files,
       requestId,
       signal,
     }: {
       text: string
       webSearch: boolean
+      files: Array<Attachment>
       requestId: string
       signal: AbortSignal
     }) =>
@@ -191,6 +195,7 @@ function ChatPage() {
         {
           conversationId: conversationId ?? null,
           text,
+          attachments: files,
           now: new Date().toISOString(),
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           webSearch,
@@ -201,8 +206,12 @@ function ChatPage() {
       ),
   })
 
-  const onSend = async (text: string, webSearch: boolean) => {
-    setPending({ text, answer: '', tool: null })
+  const onSend = async (
+    text: string,
+    webSearch: boolean,
+    files: Array<Attachment>,
+  ) => {
+    setPending({ text, files: attachmentMeta(files), answer: '', tool: null })
     const started = request.start({ web: webSearch })
     let conversation: number | null = null
     let failure: string | undefined
@@ -210,6 +219,7 @@ function ChatPage() {
       const { conversationId: id, apps } = await send.mutateAsync({
         text,
         webSearch,
+        files,
         ...started,
       })
       conversation = id
