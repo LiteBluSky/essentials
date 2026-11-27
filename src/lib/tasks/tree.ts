@@ -3,6 +3,7 @@ import { differenceInCalendarDays, format } from 'date-fns'
 import type { Folder, Task } from '@/db/schema'
 import { EXPORT_FORMAT } from '@/lib/tasks/schemas'
 import type { ExportFolder, ExportTask, TasksFile } from '@/lib/tasks/schemas'
+import { fold, foldIncludes } from '@/lib/fold'
 
 export type FolderNode = {
   folder: Folder
@@ -74,7 +75,7 @@ export function filterStatus(tree: Tree, status: TaskStatus): Tree {
 
 function taskMatches(task: Task, query: string) {
   return [task.title, task.description].some((value) =>
-    value.toLowerCase().includes(query),
+    foldIncludes(value, query),
   )
 }
 
@@ -109,11 +110,11 @@ export function filterDay(tree: Tree, day: string): Tree {
 // Keeps tasks that match, plus the folders leading to them. A folder whose own
 // name matches keeps all of its contents.
 export function filterTree(tree: Tree, rawQuery: string): Tree {
-  const query = rawQuery.trim().toLowerCase()
+  const query = fold(rawQuery.trim())
   if (!query) return tree
 
   const filterNode = (node: FolderNode): FolderNode | null => {
-    if (node.folder.name.toLowerCase().includes(query)) return node
+    if (foldIncludes(node.folder.name, query)) return node
     const folders = node.folders
       .map(filterNode)
       .filter((n): n is FolderNode => n !== null)

@@ -5,6 +5,7 @@ import type {
   ExportFolder,
   ExportContact,
 } from '@/lib/contacts/schemas'
+import { fold, foldIncludes } from '@/lib/fold'
 
 export type FolderNode = {
   folder: Folder
@@ -59,17 +60,17 @@ function contactMatches(contact: Contact, query: string) {
     contact.address,
     contact.knownFrom,
     contact.description,
-  ].some((value) => value.toLowerCase().includes(query))
+  ].some((value) => foldIncludes(value, query))
 }
 
 // Keeps contacts that match, plus the folders leading to them. A folder whose own
 // name matches keeps all of its contents.
 export function filterTree(tree: Tree, rawQuery: string): Tree {
-  const query = rawQuery.trim().toLowerCase()
+  const query = fold(rawQuery.trim())
   if (!query) return tree
 
   const filterNode = (node: FolderNode): FolderNode | null => {
-    if (node.folder.name.toLowerCase().includes(query)) return node
+    if (foldIncludes(node.folder.name, query)) return node
     const folders = node.folders
       .map(filterNode)
       .filter((n): n is FolderNode => n !== null)

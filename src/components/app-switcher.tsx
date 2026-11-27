@@ -20,6 +20,7 @@ import { useAppSwitch } from '@/hooks/use-app-switch'
 import { APPS } from '@/lib/apps'
 import type { AppPath } from '@/lib/apps'
 import { appSwitchStep, isShortcut } from '@/lib/shortcuts'
+import { foldFilter } from '@/lib/fold-filter'
 
 export function isTyping(target: EventTarget | null) {
   return (
@@ -117,7 +118,7 @@ export function AppSwitcher() {
         className="top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0 sm:max-w-sm"
         showCloseButton={false}
       >
-        <Command value={value} onValueChange={setValue}>
+        <Command filter={foldFilter} value={value} onValueChange={setValue}>
           <CommandInput
             placeholder="Go to app…"
             value={query}

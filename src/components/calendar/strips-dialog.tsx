@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils'
 import { rangeLabel } from './event-dialog'
 import { shortcutKey } from '@/lib/shortcuts'
 import { ShortcutKey } from '@/components/shortcut-key'
+import { fold } from '@/lib/fold'
 
 /**
  * `i` in the Calendar: every strip in one list, earliest first (those
@@ -69,11 +70,10 @@ export function StripsDialog({
     [events],
   )
   const shown = useMemo(() => {
-    const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
+    const words = fold(query.trim()).split(/\s+/).filter(Boolean)
     if (!words.length) return sorted
     return sorted.filter((e) => {
-      const text =
-        `${e.title} ${rangeLabel(e.startDay, e.endDay)}`.toLowerCase()
+      const text = fold(`${e.title} ${rangeLabel(e.startDay, e.endDay)}`)
       return words.every((w) => text.includes(w))
     })
   }, [sorted, query])

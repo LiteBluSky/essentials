@@ -388,7 +388,11 @@ which returns at most `SEARCH_LIMIT` (20) folders and 20 items per app, with
 their folder paths (no note bodies). Every search word must appear in the
 name or the item's other text (URL + description, note body, task
 description); name matches rank first, then the latest edited — which is
-also what an empty search lists. **Ctrl+Enter** on an item (or its
+also what an empty search lists. **Every search box ignores case and
+accents** ("cancion" finds "Canción"): compare with `fold` /
+`foldIncludes` (`src/lib/fold.ts`), in SQL with `foldGlob` (a `glob`
+class per letter; nested `replace()`s overflow SQLite's parser), and give
+a self-filtering `Command` `filter={foldFilter}`. **Ctrl+Enter** on an item (or its
 row's @ button; with Jarvis on, not folders / passwords) mentions it in
 Jarvis instead: its `@reference` goes into the prompt on screen
 (`mentionInJarvis` in `lib/jarvis-mention.ts`: the field / Chat's box via

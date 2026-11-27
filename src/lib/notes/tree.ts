@@ -2,6 +2,7 @@ import type { Folder, Note } from '@/db/schema'
 import { EXPORT_FORMAT } from '@/lib/notes/schemas'
 import { plainReferences } from '@/lib/references'
 import type { ExportFolder, ExportNote, NotesFile } from '@/lib/notes/schemas'
+import { fold, foldIncludes } from '@/lib/fold'
 
 export type FolderNode = {
   folder: Folder
@@ -45,19 +46,17 @@ export function buildTree(folders: Array<Folder>, notes: Array<Note>): Tree {
 }
 
 function noteMatches(note: Note, query: string) {
-  return [note.title, note.body].some((value) =>
-    value.toLowerCase().includes(query),
-  )
+  return [note.title, note.body].some((value) => foldIncludes(value, query))
 }
 
 // Keeps notes that match, plus the folders leading to them. A folder whose own
 // name matches keeps all of its contents.
 export function filterTree(tree: Tree, rawQuery: string): Tree {
-  const query = rawQuery.trim().toLowerCase()
+  const query = fold(rawQuery.trim())
   if (!query) return tree
 
   const filterNode = (node: FolderNode): FolderNode | null => {
-    if (node.folder.name.toLowerCase().includes(query)) return node
+    if (foldIncludes(node.folder.name, query)) return node
     const folders = node.folders
       .map(filterNode)
       .filter((n): n is FolderNode => n !== null)

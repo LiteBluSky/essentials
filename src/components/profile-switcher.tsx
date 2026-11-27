@@ -29,6 +29,7 @@ import {
 import { takeSwitchNotice } from '@/lib/databases'
 import { isShortcut, useShortcutLabel } from '@/lib/shortcuts'
 import { Hint } from '@/components/hint'
+import { foldFilter } from '@/lib/fold-filter'
 
 const OPEN_EVENT = 'profile-switcher:open'
 
@@ -149,7 +150,7 @@ export function ProfileSwitcher() {
         className="top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0 sm:max-w-sm"
         showCloseButton={false}
       >
-        <Command value={value} onValueChange={setValue}>
+        <Command filter={foldFilter} value={value} onValueChange={setValue}>
           <CommandInput
             placeholder="Switch profile…"
             value={query}

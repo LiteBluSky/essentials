@@ -16,6 +16,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import type { FolderOption } from '@/lib/contacts/tree'
+import { fold, foldIncludes } from '@/lib/fold'
 
 const INDENT_PX = 12
 
@@ -51,8 +52,7 @@ function filterByName(
   search: string,
   keywords?: Array<string>,
 ) {
-  const name = keywords?.[0]?.toLowerCase() ?? ''
-  return name.includes(search.trim().toLowerCase()) ? 1 : 0
+  return foldIncludes(keywords?.[0] ?? '', fold(search.trim())) ? 1 : 0
 }
 
 /** Folder picker with type-to-filter (shadcn Command in a Popover). */

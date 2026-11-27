@@ -15,6 +15,7 @@ import {
   taskFolders,
   tasks,
 } from '@/db/schema'
+import { fold, foldGlob } from '@/lib/fold'
 import { SEARCH_LIMIT } from '@/lib/global-search'
 import type {
   ReferenceInput,
@@ -28,11 +29,9 @@ import { noteLabel } from '@/lib/notes/tree'
 
 type Column = AnySQLiteColumn
 
-// `like` is case-insensitive for ASCII in SQLite; % and _ in the search are
-// matched literally.
+// Ignores case and accents (`foldGlob`; `word` is already folded).
 function contains(column: Column, word: string) {
-  const pattern = `%${word.replace(/[\\%_]/g, (c) => `\\${c}`)}%`
-  return sql`${column} like ${pattern} escape '\\'`
+  return sql`${column} glob ${foldGlob(word)}`
 }
 
 /** Every word appears in at least one of `columns`. */
@@ -272,7 +271,7 @@ export async function search(
   query: string,
   { withPasswords = false }: { withPasswords?: boolean } = {},
 ): Promise<SearchResults> {
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
+  const words = fold(query).split(/\s+/).filter(Boolean)
   const [bookmarks, notesFound, tasksFound, contactsFound, passwordsFound] =
     await Promise.all([
       searchBookmarks(words),

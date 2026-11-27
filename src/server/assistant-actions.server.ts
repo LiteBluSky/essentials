@@ -11,6 +11,7 @@ import { zonedTime } from './llm.server'
 import { ensureTopFolder as ensureNoteFolder, insertNote } from './notes.server'
 import { search } from './search.server'
 import { ensureTopFolder as ensureTaskFolder, insertTask } from './tasks.server'
+import { fold, foldIncludes } from '@/lib/fold'
 
 // Server-only: carrying out what the LLM asked for (Tell me and Chat alike).
 // New tasks / notes go to the folder the model picked (checked by the
@@ -31,10 +32,10 @@ export async function findOne(
   const results = await search(query, {
     withPasswords: app === 'passwords',
   })
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
+  const words = fold(query).split(/\s+/).filter(Boolean)
   const wanted = folder ? 'folder' : 'item'
   const score = (r: { kind: string; label: string }) =>
-    (words.every((w) => r.label.toLowerCase().includes(w)) ? 0 : 2) +
+    (words.every((w) => foldIncludes(r.label, w)) ? 0 : 2) +
     (r.kind === wanted ? 0 : 1)
   const pool = (app ? [app] : ALL_APPS)
     .flatMap((a) => results[a].map((r) => ({ ...r, app: a })))
@@ -61,7 +62,7 @@ async function partialMatch(
     }
   }
   const hits = (label: string) =>
-    words.filter((w) => label.toLowerCase().includes(w)).length
+    words.filter((w) => foldIncludes(label, w)).length
   const best = [...seen.values()]
     .filter((r) => hits(r.label) > 0)
     .sort(

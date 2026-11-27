@@ -615,6 +615,14 @@ it. Add new tasks under the right phase instead of doing unplanned work.
       (no iOS callout, no Android menu), tap-tap one day, a new task shows
       on its day
 
+## 33. Accent-insensitive search (Nov 2026)
+
+- [x] Every search box ignores accents and case ("cancion" finds
+      "Canción"): `fold` / `foldGlob` in `src/lib/fold.ts` for the trees,
+      folder pickers, strip list, Jarvis's `findOne` and the global search
+      (SQL `glob` with a class per letter), `foldFilter` for the app /
+      profile switchers
+
 ## History of the notes app (before the merge)
 
 ### Notes 0. Scaffold (from the bookmarks app)
